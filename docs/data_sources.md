@@ -487,20 +487,48 @@ La fuente predial debe preservarse inicialmente como conjunto de archivos relaci
 
 Los recursos documentales que no respondan correctamente durante validación quedan registrados como observados, pero no se habilitan para descarga automática hasta confirmar una URL válida.
 
+## Actualización por ingesta RENAMU hacia Landing
+
+Existe una descarga y extracción controlada para la fuente RENAMU 2022.
+
+Estado técnico actual:
+
+- Fuente: RENAMU 2022.
+- Método implementado: ZIP completo y diccionario PDF.
+- Configuración de recursos: `config/sources.yaml`.
+- Script de ingesta: `src/ingestion/download_renamu.py`.
+- Destino local: `data/landing/renamu/`.
+- Directorio de extracción: `data/landing/renamu/extracted/`.
+- Transformación de negocio: no aplica en Landing.
+- Conversión a Parquet: pendiente para Bronze.
+- Selección de variables RENAMU: pendiente para Silver.
+- Auditoría completa y reintentos: pendiente para una etapa posterior.
+
+El script descarga los recursos RENAMU por streaming, conserva los archivos originales, genera metadata básica local y permite extraer el ZIP completo dentro de Landing.
+
+La fuente RENAMU debe preservarse inicialmente como fuente contextual. La selección de variables útiles para análisis municipal se realizará después del profiling y durante Silver.
+
+Los archivos descargados, extraídos y su metadata local no deben subirse al repositorio.
+
 ## Resultado esperado de esta etapa
 
-En el estado actual, el proyecto cuenta con dos fuentes listas para descargarse hacia Landing de forma controlada:
+En el estado actual, el proyecto cuenta con tres fuentes preparadas para descargarse hacia Landing de forma controlada:
 
 - MEF ingresos, mediante `src/ingestion/download_mef_income.py`.
 - Meta predial, mediante `src/ingestion/download_predial_goal.py`.
+- RENAMU 2022, mediante `src/ingestion/download_renamu.py`.
 
-Ambas fuentes tienen sus recursos centralizados en `config/sources.yaml`, se descargan como archivos originales hacia Landing, no se transforman en esta etapa y no deben versionarse en GitHub.
+Las tres fuentes tienen sus recursos centralizados en `config/sources.yaml`, se descargan como archivos originales hacia Landing, no se transforman en esta etapa y no deben versionarse en GitHub.
 
-La fuente MEF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita. La fuente predial queda preparada para descarga de sus tablas temáticas y diccionarios habilitados, conservando como observados los recursos que no respondan correctamente.
+La fuente MEF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita, debido al tamaño de sus archivos históricos y recientes.
+
+La fuente predial queda preparada para descarga de sus tablas temáticas y diccionarios habilitados, conservando como observados los recursos que no respondan correctamente durante validación.
+
+La fuente RENAMU queda preparada para descargar el ZIP completo, conservar el diccionario PDF como referencia documental y extraer el contenido del ZIP dentro de Landing sin transformar los datos.
 
 Las siguientes etapas técnicas serán:
 
-- Implementar ingesta y extracción RENAMU.
 - Incorporar auditoría completa, reintentos y fallback.
 - Ejecutar una descarga local completa y controlada de las fuentes necesarias.
+- Perfilar archivos descargados en Landing.
 - Convertir fuentes Landing hacia Bronze Parquet.

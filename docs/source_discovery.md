@@ -261,7 +261,7 @@ Bronze deberá preservar las tablas fuente candidatas sin integrarlas prematuram
 
 Los recursos que no respondan correctamente durante validación se conservan como observados, pero no se habilitan para descarga automática hasta confirmar una URL válida.
 
-## Ingesta inicial predial hacia Landing
+### Ingesta inicial predial hacia Landing
 
 La fuente de seguimiento de meta del impuesto predial cuenta con ingesta controlada hacia Landing.
 
@@ -359,13 +359,61 @@ El ZIP completo y el diccionario PDF son accesibles desde recursos directos. La 
 
 RENAMU se usará como fuente contextual. La ingesta deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental.
 
-### Estado de ingesta
+### Ingesta inicial RENAMU hacia Landing
 
-La descarga y extracción RENAMU todavía está pendiente.
+La fuente RENAMU 2022 cuenta con descarga y extracción controlada hacia Landing.
 
-Posteriormente se implementará una descarga, preservación y extracción controlada hacia:
+Script principal:
+
+`src/ingestion/download_renamu.py`
+
+Configuración usada:
+
+`config/sources.yaml`
+
+Destino local:
 
 `data/landing/renamu/`
+
+Directorio de extracción:
+
+`data/landing/renamu/extracted/`
+
+Capacidades implementadas:
+
+- Listar recursos RENAMU configurados.
+- Descargar el ZIP completo.
+- Descargar el diccionario PDF como documentación de referencia.
+- Mantener la muestra XLSX como recurso observado no habilitado.
+- Ejecutar `--dry-run` para validar disponibilidad sin descargar.
+- Descargar por streaming.
+- Generar metadata básica por archivo descargado.
+- Calcular checksum SHA256.
+- Extraer el ZIP completo de forma controlada.
+- Generar metadata de extracción.
+- Evitar transformación de datos en Landing.
+
+Ejemplos:
+
+```powershell id="bpjlrt"
+python -m src.ingestion.download_renamu --list-resources
+python -m src.ingestion.download_renamu --resource full_zip --dry-run
+python -m src.ingestion.download_renamu --all-enabled --dry-run
+python -m src.ingestion.download_renamu --all-enabled --extract
+```
+
+Criterios aplicados:
+
+- Landing conserva archivos originales.
+- La extracción se realiza dentro de `data/landing/renamu/extracted/`.
+- No se limpian columnas.
+- No se renombran columnas.
+- No se convierten tipos.
+- No se genera Parquet.
+- No se seleccionan variables analíticas.
+- No se interpreta semántica de negocio.
+- Los archivos descargados y extraídos no deben subirse a Git.
+- La auditoría completa con reintentos se incorporará posteriormente.
 
 ## Implicancias para la ingesta
 

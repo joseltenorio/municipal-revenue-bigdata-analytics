@@ -402,6 +402,7 @@ sources:
         observed_http_status: 200
         observed_content_type: application/zip
         observed_content_length_bytes: 1919681
+
       dictionary_pdf:
         file_name: "Diccionario.pdf"
         url: "https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DICCIONARIO/2022/Diccionario.pdf"
@@ -413,6 +414,7 @@ sources:
         observed_http_status: 200
         observed_content_type: application/pdf
         observed_content_length_bytes: 718281
+
       sample_xlsx:
         file_name: "BD_Muestra_2022_0.xlsx"
         url: "https://www.datosabiertos.gob.pe/sites/default/files/BD_Muestra_2022_0.xlsx"
@@ -424,9 +426,11 @@ sources:
         observed_http_status: 418
         observed_content_type: text/html; charset=utf-8
         observed_content_length_bytes: null
+        notes: "Recurso observado, pero no habilitado por respuesta HTTP 418 en validacion automatizada."
     notes:
       - "La pagina del dataset muestra diccionario PDF, muestra XLSX y ZIP completo."
       - "El ZIP completo y el diccionario PDF respondieron correctamente desde Python."
       - "La muestra XLSX respondio con HTTP 418; no se considera recurso prioritario para ingesta."
       - "La URL del catalogo puede presentar timeout desde Python, pero los recursos directos del INEI deben probarse por separado."
-      - "La ingesta definitiva debe priorizar el ZIP completo y usar el diccionario PDF como referencia documental."
+      - "La ingesta debe priorizar el ZIP completo y conservar el diccionario PDF como referencia documental."
+      - "La extraccion del ZIP se realiza localmente en Landing y no debe versionarse en Git."
