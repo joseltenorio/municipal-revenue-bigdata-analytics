@@ -164,29 +164,94 @@ El resultado debe mostrar rutas ubicadas dentro del repositorio local.
 
 ## Discovery inicial de fuentes
 
-Los scripts de discovery validan conectividad y metadatos técnicos de fuentes candidatas. No implementan ingesta final ni generan datasets versionados.
+Los scripts de discovery e ingesta inicial validan conectividad y metadatos técnicos de fuentes candidatas. En el estado actual del proyecto, estos scripts también están preparados para descarga controlada hacia Landing, pero para validación inicial se recomienda usar `--dry-run`.
 
-Ejecutar:
+Ejecutar validaciones sin descarga pesada:
 
 ```powershell
-python -m src.ingestion.download_mef_income
-python -m src.ingestion.download_predial_goal
-python -m src.ingestion.download_renamu
+python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+python -m src.ingestion.download_renamu --all-enabled --dry-run
 ```
 
 Resultado esperado:
 
-- Estado HTTP de URLs candidatas.
+- Estado HTTP de recursos seleccionados.
 - Tipo de contenido.
 - Tamaño declarado, si existe.
-- URL final después de redirecciones.
-- Error técnico, si ocurre.
+- Validación de reintentos HTTP y fallback de `HEAD` a `GET` cuando corresponda.
+- Registro de eventos de inicio y fin en la auditoría local.
+- Ausencia de archivos descargados cuando se usa `--dry-run`.
 
 Los hallazgos específicos de acceso a fuentes se documentan en:
 
 ```text
 docs/source_discovery.md
 ```
+
+## Validación de ingesta con auditoría y reintentos
+
+Antes de ejecutar descargas completas hacia Landing, se recomienda validar los scripts de ingesta en modo `--dry-run`.
+
+Estos comandos validan disponibilidad, estado HTTP, tipo de contenido, tamaño declarado, reintentos y fallback de validación sin descargar archivos pesados.
+
+### Validar MEF ingresos
+
+```powershell
+python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+```
+
+### Validar meta predial
+
+```powershell
+python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+```
+
+### Validar RENAMU 2022
+
+```powershell
+python -m src.ingestion.download_renamu --all-enabled --dry-run
+```
+
+### Revisar auditoría local
+
+```powershell
+Get-Content data/quality/ingestion_audit.jsonl -Tail 20
+```
+
+En modo `--dry-run`, la auditoría registra principalmente eventos de inicio y fin de ejecución. Los resultados de recursos descargados se registran cuando se ejecuta una descarga real.
+
+### Validar que no se versionen datos ni auditorías locales
+
+```powershell
+git status --short
+```
+
+No deben aparecer archivos como:
+
+```text
+data/landing/
+data/quality/ingestion_audit.jsonl
+*.csv
+*.zip
+*.xlsx
+*.pdf
+*.parquet
+```
+
+Si aparecen archivos de datos o auditoría local en `git status`, se debe revisar `.gitignore` antes de hacer commit.
+
+### Criterio operativo
+
+La descarga completa de fuentes debe ejecutarse solo después de validar:
+
+- Configuración de fuentes en `config/sources.yaml`.
+- Política de reintentos en `config/retry_policy.yaml`.
+- Auditoría local en `config/audit.yaml`.
+- Funcionamiento de los scripts con `--dry-run`.
+- Exclusión de archivos reales mediante `.gitignore`.
+
+La ingesta hacia Landing no transforma datos, no genera Bronze y no interpreta columnas de negocio.
 
 ## Profiling inicial
 
@@ -467,12 +532,18 @@ No usar `docker system prune -a` sin revisar, porque puede borrar imágenes de o
 
 ### Antes de ingesta
 
-Validar scripts de discovery:
+Validar scripts de ingesta en modo `--dry-run`:
 
 ```powershell
-python -m src.ingestion.download_mef_income
-python -m src.ingestion.download_predial_goal
-python -m src.ingestion.download_renamu
+python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+python -m src.ingestion.download_renamu --all-enabled --dry-run
+```
+
+Revisar auditoría local:
+
+```powershell
+Get-Content data/quality/ingestion_audit.jsonl -Tail 20
 ```
 
 ### Antes de Bronze
@@ -645,8 +716,8 @@ Para considerar validado el entorno local, se debe comprobar:
 
 El entorno local queda preparado para las siguientes fases del proyecto:
 
-- Ingesta hacia Landing.
-- Auditoría de ingesta.
+- Descarga local completa y controlada hacia Landing.
+- Revisión de auditoría de ingesta generada localmente.
 - Conversión a Bronze Parquet.
 - Ejecución de reglas de calidad.
 - Transformaciones Silver.
