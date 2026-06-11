@@ -119,5 +119,16 @@ La documentación técnica se organizará por propósito:
 
 ## Estado del proyecto
 
-Proyecto en fase inicial.
-La estructura base del repositorio ya está definida y el alcance analítico queda documentado en este commit.
+Proyecto en fase inicial de ingeniería de datos.
+
+La estructura base del repositorio, el alcance analítico, la arquitectura Medallion, el inventario inicial de fuentes, los scripts de discovery, el profiling inicial y la configuración local de Spark/Hive ya se encuentran definidos.
+
+El entorno local fue validado con:
+
+- Docker Compose.
+- Apache Spark Master y Spark Worker.
+- Apache Hive Metastore.
+- HiveServer2.
+- Conexión Beeline hacia HiveServer2.
+
+Las siguientes fases se enfocarán en implementar utilidades comunes, ingesta controlada hacia Landing, conversión a Bronze Parquet, reglas de calidad, transformaciones Silver, tablas externas Hive, marts Gold y consumo analítico desde Power BI.
