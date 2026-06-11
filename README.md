@@ -103,7 +103,7 @@ El proyecto no incluye:
 La documentación técnica se organizará por propósito:
 
 - `docs/project_scope.md`: alcance, objetivos y requerimientos.
-- `docs/architecture.md`: arquitectura Medallion y flujo técnico.
+- `docs/architecture.md`: arquitectura Medallion, flujo técnico, rol de Spark, Hive, Parquet y Power BI.
 - `docs/data_sources.md`: inventario de fuentes.
 - `docs/source_discovery.md`: hallazgos de acceso a fuentes.
 - `docs/data_profiling.md`: profiling de datos.
