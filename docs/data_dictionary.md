@@ -196,6 +196,26 @@ Los siguientes campos no necesariamente existen en las fuentes. Podrían crearse
 | records_detected           | Registros detectados, si aplica   | integer       | Validación inicial                |
 | final_status               | Estado final                      | string        | SUCCESS, FAILED o PARTIAL_SUCCESS |
 
+## Uso de diccionarios oficiales de las fuentes
+
+Algunas fuentes públicas, especialmente las publicadas en el portal de datos abiertos del MEF, incluyen una sección de diccionario de datos por recurso o archivos específicos de diccionario en formato CSV.
+
+Estos diccionarios oficiales serán usados como insumo para validar y enriquecer este documento cuando se confirme el recurso final de cada fuente.
+
+Criterio de uso:
+
+- El diccionario oficial de la fuente se considerará referencia primaria para nombres originales, tipos publicados y descripciones oficiales.
+- El profiling local validará cómo llegan realmente los datos al descargarlos o consultarlos.
+- El diccionario técnico del proyecto documentará los nombres normalizados usados en Bronze, Silver y Gold.
+- Si existe diferencia entre tipo oficial y tipo observado, se documentará en profiling y se resolverá en Silver.
+- No se reemplazará el profiling por el diccionario oficial, porque el profiling permite detectar nulos, duplicados, valores inesperados, cambios de estructura y problemas de integración.
+
+Estado actual:
+
+- MEF ingresos: pendiente de seleccionar recurso final y extraer diccionario oficial asociado.
+- Meta predial: pendiente de seleccionar recurso final y extraer diccionario oficial asociado.
+- RENAMU 2022: pendiente de confirmar si el archivo descargable incluye diccionario, ficha técnica o metadatos separados.
+
 ## Decisiones pendientes
 
 Las siguientes decisiones se tomarán después de discovery y profiling:
@@ -212,8 +232,34 @@ Las siguientes decisiones se tomarán después de discovery y profiling:
 - Modelo Gold final.
 - Relaciones del modelo Power BI.
 
+## Actualización por capacidad de profiling
+
+Durante el commit `feat(profiling): add raw data profiling and document results` se agregó una capacidad inicial para perfilar archivos locales en Landing mediante:
+
+`src/quality/profile_sources.py`
+
+El diccionario de datos se mantiene como borrador porque aún no se han descargado ni perfilado archivos reales de las fuentes finales.
+
+Los campos definidos en este documento deberán validarse contra los resultados de:
+
+- `reports/profiling_summary.json`
+- `docs/data_profiling.md`
+- Diccionarios oficiales de las fuentes
+- Resultados de discovery
+- Reglas de calidad
+- Transformaciones Bronze y Silver
+
+No se debe asumir que los nombres técnicos preliminares coinciden exactamente con los nombres de columnas observados en las fuentes reales.
+
+### Criterio profesional
+
+- El diccionario describe nombres técnicos esperados y significado analítico.
+- El profiling documenta evidencia observada en archivos locales.
+- Los diccionarios oficiales ayudan a interpretar campos publicados por las instituciones.
+- Las reglas finales de calidad se definirán después de observar datos reales.
+- Bronze debe conservar trazabilidad hacia nombres originales.
+- Silver definirá nombres normalizados, tipos corregidos y llaves candidatas.
+
 ## Estado del diccionario
 
 Estado actual: **borrador inicial**.
-
-Este documento será actualizado cuando existan resultados reales de discovery, profiling, calidad, Silver y Gold.
