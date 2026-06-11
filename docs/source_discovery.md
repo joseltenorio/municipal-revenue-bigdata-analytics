@@ -8,9 +8,17 @@ El objetivo de esta etapa es confirmar cómo se accede realmente a cada fuente a
 
 Esta documentación no reemplaza el profiling. El discovery se enfoca en acceso, disponibilidad, formato, estabilidad, tamaño aproximado, tipo de contenido y riesgos de descarga. El profiling se enfocará luego en columnas, tipos, nulos, duplicados, llaves candidatas y distribución de valores.
 
+## Estado actual del documento
+
+Actualmente, el discovery ya permitió identificar recursos directos para las fuentes principales.
+
+Además, la fuente MEF de presupuesto y ejecución de ingresos ya cuenta con una descarga controlada hacia Landing usando recursos definidos en `config/sources.yaml`.
+
+La ingesta predial y RENAMU todavía se mantienen pendientes.
+
 ## Alcance del discovery
 
-El discovery inicial busca responder:
+El discovery inicial buscó responder:
 
 - Qué fuente pública se usará.
 - Qué institución la publica.
@@ -21,36 +29,40 @@ El discovery inicial busca responder:
 - Si se requiere CSV, ZIP, XLSX, PDF, API o descarga manual controlada.
 - Qué aspectos deben confirmarse antes de construir Landing y Bronze.
 
-## Scripts de discovery
+## Scripts usados durante discovery
 
-Se agregan los siguientes scripts:
+Durante la etapa de discovery se agregaron los siguientes scripts de prueba:
 
-| Script                                   | Fuente                                  | Propósito                                                            |
+| Script                                   | Fuente                                  | Propósito inicial                                                    |
 | ---------------------------------------- | --------------------------------------- | -------------------------------------------------------------------- |
 | `src/ingestion/download_mef_income.py`   | Presupuesto y ejecución de ingresos MEF | Validar acceso inicial a recursos candidatos del portal MEF          |
 | `src/ingestion/download_predial_goal.py` | Meta del impuesto predial               | Validar acceso inicial a recursos candidatos asociados a MEF/SISMERE |
 | `src/ingestion/download_renamu.py`       | RENAMU 2022                             | Validar acceso inicial a recursos candidatos del INEI                |
 
-Estos scripts todavía no implementan la descarga final. Su función es ejecutar pruebas livianas de conectividad y metadatos técnicos.
+Estos scripts permitieron probar conectividad, estado HTTP, tipo de contenido y tamaño declarado de recursos candidatos.
 
-## Criterio técnico de los scripts
+Posteriormente, `src/ingestion/download_mef_income.py` evolucionó de script de prueba hacia ingesta controlada para la fuente MEF. Los scripts de predial y RENAMU aún se mantienen como base para sus ingestas posteriores.
 
-Los scripts de discovery:
+## Criterio técnico del discovery
 
-- Ejecutan solicitudes `HEAD` cuando es posible.
-- Usan `GET` como fallback si el servidor no permite `HEAD`.
-- Registran estado HTTP.
-- Registran tipo de contenido.
-- Registran tamaño declarado por el servidor, si existe.
-- Registran URL final después de redirecciones.
-- Registran errores de conexión o timeout.
-- No descargan archivos completos.
-- No escriben datos reales en el repositorio.
-- No generan archivos Parquet, CSV, ZIP ni XLSX.
+Las pruebas de discovery se guiaron por los siguientes criterios:
 
-## Comandos de prueba
+- Ejecutar solicitudes `HEAD` cuando fuera posible.
+- Usar `GET` como fallback si el servidor no permitía `HEAD`.
+- Registrar estado HTTP.
+- Registrar tipo de contenido.
+- Registrar tamaño declarado por el servidor, si existía.
+- Registrar URL final después de redirecciones.
+- Registrar errores de conexión o timeout.
+- No transformar datos.
+- No generar Bronze.
+- No generar Silver.
+- No generar Gold.
+- No versionar archivos descargados.
 
-Ejemplos de ejecución local:
+## Comandos de prueba usados durante discovery
+
+Ejemplos de ejecución local durante la etapa de discovery:
 
 ```powershell
 python -m src.ingestion.download_mef_income
@@ -58,7 +70,7 @@ python -m src.ingestion.download_predial_goal
 python -m src.ingestion.download_renamu
 ```
 
-También se puede evaluar una URL específica:
+Ejemplos de evaluación de URLs específicas durante discovery:
 
 ```powershell
 python -m src.ingestion.download_mef_income --url "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv"
@@ -66,20 +78,7 @@ python -m src.ingestion.download_predial_goal --url "https://fs.datosabiertos.me
 python -m src.ingestion.download_renamu --url "https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DATA/2022.zip"
 ```
 
-## Criterio de no versionamiento
-
-Durante discovery no se deben subir al repositorio:
-
-- CSV descargados.
-- ZIP descargados.
-- XLSX descargados.
-- Parquet generados.
-- Logs pesados.
-- Archivos temporales.
-- Credenciales.
-- `.env` real.
-
-Cualquier muestra local debe permanecer fuera de Git.
+Estos comandos pertenecen a la etapa de discovery. En el estado actual, el script MEF ya no se usa solamente como probador de URLs, sino como ingestor controlado hacia Landing.
 
 ## Fuente MEF: Presupuesto y ejecución de ingresos
 
@@ -97,35 +96,101 @@ Esta fuente será usada para analizar presupuesto, ejecución de ingresos, avanc
 
 ### Hallazgo de discovery
 
-La página del dataset contiene recursos CSV por año, recursos recientes con granularidad diaria o mensual y un diccionario de datos.
+La página del dataset contiene recursos CSV para el periodo 2012-2026 y un diccionario de datos.
 
-Recursos representativos validados:
+El patrón observado es:
 
-| Recurso                    |            Tipo | Estado HTTP | Tipo de contenido | Tamaño declarado | URL                                                                           |
-| -------------------------- | --------------: | ----------: | ----------------- | ---------------: | ----------------------------------------------------------------------------- |
-| `2012-Ingreso.csv`         |       CSV anual |         200 | `text/csv`        |  367063258 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv`         |
-| `2026-Ingreso-Diario.csv`  |      CSV diario |         200 | `text/csv`        |  190675218 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/2026-Ingreso-Diario.csv`  |
-| `Ingresos_Diccionario.csv` | Diccionario CSV |         200 | `text/csv`        |       3574 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/Ingresos_Diccionario.csv` |
+| Grupo de recursos                   |   Periodo | Granularidad |
+| ----------------------------------- | --------: | ------------ |
+| Archivos `YYYY-Ingreso.csv`         | 2012-2024 | Anual        |
+| Archivos `YYYY-Ingreso-Mensual.csv` | 2025-2026 | Mensual      |
+| Archivos `YYYY-Ingreso-Diario.csv`  | 2025-2026 | Diaria       |
+| `Ingresos_Diccionario.csv`          | No aplica | Diccionario  |
 
-### Método de acceso preliminar
+### Método de acceso observado
 
 Método observado: `csv`.
 
-El acceso directo a archivos CSV es viable. La ingesta definitiva deberá definir el rango temporal y granularidad objetivo antes de descargar archivos completos.
+El acceso directo a archivos CSV es viable. Actualmente, la descarga se implementa mediante streaming usando las URLs configuradas en `config/sources.yaml`.
 
-### Riesgos
+### Recursos representativos validados
+
+| Recurso                    | Tipo            | Estado observado | Uso                                                           |
+| -------------------------- | --------------- | ---------------: | ------------------------------------------------------------- |
+| `2012-Ingreso.csv`         | CSV anual       |              200 | Validar acceso a un archivo anual histórico                   |
+| `2026-Ingreso-Diario.csv`  | CSV diario      |              200 | Validar existencia de recurso vigente con granularidad diaria |
+| `Ingresos_Diccionario.csv` | Diccionario CSV |              200 | Validar acceso al diccionario de datos                        |
+
+Estos recursos no son los únicos disponibles. El inventario completo de recursos MEF se mantiene en `config/sources.yaml`.
+
+### Riesgos identificados
 
 - Los archivos principales pueden ser grandes.
-- Puede existir más de un recurso por año para periodos recientes.
-- La fuente debe diferenciar ingresos de gasto.
-- El portal puede cambiar nombres o disponibilidad de archivos.
+- La fuente combina granularidad anual, mensual y diaria.
+- No se debe mezclar granularidad sin una decisión analítica explícita.
+- Puede existir variación de estructura entre años o granularidades.
 - Es necesario confirmar columnas reales con profiling.
 - Es necesario confirmar si existe ubigeo, código de entidad o ambos.
-- No se debe cargar todo con pandas si el archivo supera tamaños razonables; Spark será preferible en etapas de procesamiento.
+- No se debe cargar todo con pandas si el archivo supera tamaños razonables.
+- Spark será preferible para Bronze y capas posteriores.
 
-### Decisión provisional
+### Decisión derivada del discovery
 
-Usar los recursos CSV como fuente principal de MEF ingresos. Para la primera ingesta se priorizarán archivos anuales o un rango temporal controlado. Los recursos diarios o mensuales recientes quedan registrados como candidatos, pero no como prioridad inicial.
+Usar los recursos CSV como fuente principal de MEF ingresos.
+
+La descarga se implementa de forma controlada. El usuario puede descargar un recurso, un año, una granularidad o todos los recursos, pero la descarga masiva no debe ocurrir por accidente.
+
+## Actualización por ingesta inicial MEF
+
+Actualmente, el script MEF permite ingesta hacia Landing.
+
+Script principal:
+
+`src/ingestion/download_mef_income.py`
+
+Configuración usada:
+
+`config/sources.yaml`
+
+Destino local:
+
+`data/landing/mef_income/`
+
+Capacidades implementadas:
+
+- Listar recursos MEF configurados.
+- Descargar un recurso específico.
+- Descargar por año.
+- Descargar por granularidad.
+- Descargar todos los recursos configurados de forma explícita.
+- Incluir recursos documentales, como diccionario de datos.
+- Ejecutar `--dry-run` para validar disponibilidad sin descargar.
+- Descargar por streaming.
+- Generar metadata básica por archivo.
+- Calcular checksum SHA256.
+- Evitar transformación de datos en Landing.
+
+Ejemplos:
+
+```powershell
+python -m src.ingestion.download_mef_income --list-resources
+python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+python -m src.ingestion.download_mef_income --resource dictionary
+python -m src.ingestion.download_mef_income --year 2024 --dry-run
+python -m src.ingestion.download_mef_income --granularity annual --dry-run
+python -m src.ingestion.download_mef_income --all-resources --include-documentation
+```
+
+Criterios aplicados:
+
+- Landing conserva archivos originales.
+- No se limpian columnas.
+- No se renombran columnas.
+- No se convierten tipos.
+- No se genera Parquet.
+- No se interpreta semántica de negocio.
+- Los archivos descargados no deben subirse a Git.
+- La auditoría completa con reintentos se incorporará posteriormente.
 
 ## Fuente MEF / SISMERE: Meta del impuesto predial
 
@@ -147,20 +212,20 @@ La página contiene múltiples CSV temáticos y diccionarios. No se trata de una
 
 Recursos representativos validados:
 
-| Recurso                             |            Tipo | Estado HTTP | Tipo de contenido | Tamaño declarado | URL                                                                                    |
-| ----------------------------------- | --------------: | ----------: | ----------------- | ---------------: | -------------------------------------------------------------------------------------- |
-| `rentas_estadistica.csv`            |    CSV temático |         200 | `text/csv`        |       9281 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica.csv`            |
-| `rentas_preguntas.csv`              |    CSV temático |         200 | `text/csv`        |     201938 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_preguntas.csv`              |
-| `rentas_formulario.csv`             |    CSV temático |         200 | `text/csv`        |      11933 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_formulario.csv`             |
-| `rentas_respuestas_diccionario.csv` | Diccionario CSV |         200 | `text/csv`        |        628 bytes | `https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_respuestas_diccionario.csv` |
+| Recurso                             | Tipo            | Estado observado | Uso                                      |
+| ----------------------------------- | --------------- | ---------------: | ---------------------------------------- |
+| `rentas_estadistica.csv`            | CSV temático    |              200 | Tabla candidata para análisis            |
+| `rentas_preguntas.csv`              | CSV temático    |              200 | Tabla candidata o referencia estructural |
+| `rentas_formulario.csv`             | CSV temático    |              200 | Tabla candidata o referencia estructural |
+| `rentas_respuestas_diccionario.csv` | Diccionario CSV |              200 | Referencia documental                    |
 
-### Método de acceso preliminar
+### Método de acceso observado
 
 Método observado: `csv`.
 
 El acceso directo a archivos CSV es viable.
 
-### Riesgos
+### Riesgos identificados
 
 - La fuente está distribuida en varias tablas.
 - No se debe asumir una única tabla final.
@@ -170,9 +235,17 @@ El acceso directo a archivos CSV es viable.
 - Puede requerir normalización fuerte de municipalidades.
 - Las reglas de Silver dependerán del profiling real.
 
-### Decisión provisional
+### Decisión derivada del discovery
 
 Bronze deberá preservar las tablas fuente candidatas sin integrarlas prematuramente. Silver deberá seleccionar las estructuras útiles para KPIs de avance, cumplimiento y brecha predial.
+
+### Estado de ingesta
+
+La ingesta predial todavía está pendiente.
+
+Posteriormente se implementará una descarga controlada hacia:
+
+`data/landing/predial_goal/`
 
 ## Fuente RENAMU 2022
 
@@ -192,23 +265,23 @@ RENAMU será usada como fuente contextual para enriquecer el análisis municipal
 
 La página del dataset contiene diccionario PDF, muestra XLSX y data completa en ZIP.
 
-Durante las pruebas automatizadas, la URL de catálogo puede presentar timeout. Sin embargo, los recursos directos del INEI respondieron correctamente para el ZIP completo y el diccionario PDF.
+Durante pruebas automatizadas, algunas páginas del catálogo pueden presentar timeout o comportamiento especial frente a solicitudes automáticas. Sin embargo, los recursos directos del INEI respondieron correctamente para el ZIP completo y el diccionario PDF.
 
 Recursos representativos validados:
 
-| Recurso                  |            Tipo | Estado HTTP | Tipo de contenido          | Tamaño declarado | URL                                                                                    |
-| ------------------------ | --------------: | ----------: | -------------------------- | ---------------: | -------------------------------------------------------------------------------------- |
-| `2022.zip`               |    ZIP completo |         200 | `application/zip`          |    1919681 bytes | `https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DATA/2022.zip`                    |
-| `Diccionario.pdf`        | Diccionario PDF |         200 | `application/pdf`          |     718281 bytes | `https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DICCIONARIO/2022/Diccionario.pdf` |
-| `BD_Muestra_2022_0.xlsx` |    Muestra XLSX |         418 | `text/html; charset=utf-8` |    No disponible | `https://www.datosabiertos.gob.pe/sites/default/files/BD_Muestra_2022_0.xlsx`          |
+| Recurso                  | Tipo            | Estado observado | Uso                               |
+| ------------------------ | --------------- | ---------------: | --------------------------------- |
+| `2022.zip`               | ZIP completo    |              200 | Fuente principal para ingesta     |
+| `Diccionario.pdf`        | Diccionario PDF |              200 | Referencia documental             |
+| `BD_Muestra_2022_0.xlsx` | Muestra XLSX    |              418 | Recurso observado, no prioritario |
 
-### Método de acceso preliminar
+### Método de acceso observado
 
 Método observado prioritario: `zip`.
 
-El ZIP completo y el diccionario PDF son accesibles desde Python. La muestra XLSX no se considera prioritaria porque respondió con HTTP 418.
+El ZIP completo y el diccionario PDF son accesibles desde recursos directos. La muestra XLSX no se considera prioritaria porque respondió con HTTP 418.
 
-### Riesgos
+### Riesgos identificados
 
 - La estructura interna del ZIP debe confirmarse después de la descarga local.
 - Puede estar distribuida en varios archivos o tablas.
@@ -219,34 +292,61 @@ El ZIP completo y el diccionario PDF son accesibles desde Python. La muestra XLS
 - Se debe conservar `ubigeo` como texto para no perder ceros a la izquierda.
 - La página del catálogo puede ser menos estable que los recursos directos.
 
-### Decisión provisional
+### Decisión derivada del discovery
 
-RENAMU se usará como fuente contextual. La ingesta definitiva deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental. La muestra XLSX queda registrada como recurso observado, pero no será usada como fuente principal.
+RENAMU se usará como fuente contextual. La ingesta definitiva deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental.
+
+### Estado de ingesta
+
+La descarga y extracción RENAMU todavía está pendiente.
+
+Posteriormente se implementará una descarga, preservación y extracción controlada hacia:
+
+`data/landing/renamu/`
 
 ## Implicancias para la ingesta
 
-| Fuente       | Resultado observado                                                            | Implicancia para la ingesta                                                                            |
-| ------------ | ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------ |
-| MEF ingresos | CSV directos por año, recursos recientes diarios o mensuales y diccionario CSV | Definir rango temporal y granularidad objetivo antes de descargar. Considerar tamaño alto de archivos. |
-| Meta predial | Múltiples CSV temáticos y diccionarios                                         | Tratar como conjunto de tablas relacionadas. No forzar una única tabla plana desde Bronze.             |
-| RENAMU 2022  | ZIP completo y diccionario PDF disponibles; muestra XLSX con HTTP 418          | Priorizar ZIP completo y diccionario PDF. No depender de la muestra XLSX.                              |
+| Fuente       | Resultado observado                        | Implicancia para la ingesta                                |
+| ------------ | ------------------------------------------ | ---------------------------------------------------------- |
+| MEF ingresos | CSV directos 2012-2026 y diccionario CSV   | Ingesta controlada implementada; no transformar en Landing |
+| Meta predial | Múltiples CSV temáticos y diccionarios     | Tratar como conjunto de tablas relacionadas                |
+| RENAMU 2022  | ZIP completo y diccionario PDF disponibles | Descargar y extraer en una etapa específica                |
 
-## Estado actualizado después de prueba local
+## Estado actualizado por fuente
 
-| Fuente       | Estado actualizado                                       | Próxima acción                                                               |
-| ------------ | -------------------------------------------------------- | ---------------------------------------------------------------------------- |
-| MEF ingresos | Recursos CSV directos identificados y validados          | Definir años y granularidad a descargar en ingesta definitiva.               |
-| Meta predial | Recursos CSV temáticos identificados y validados         | Definir qué tablas se conservarán en Bronze y cuáles serán usadas en Silver. |
-| RENAMU 2022  | ZIP completo y diccionario PDF identificados y validados | Implementar descarga controlada del ZIP completo en la fase de ingesta.      |
+| Fuente       | Estado actualizado                           | Próxima acción                                                    |
+| ------------ | -------------------------------------------- | ----------------------------------------------------------------- |
+| MEF ingresos | Ingesta controlada hacia Landing disponible  | Descargar recursos necesarios localmente y luego construir Bronze |
+| Meta predial | Recursos CSV temáticos identificados         | Implementar descarga controlada hacia Landing                     |
+| RENAMU 2022  | ZIP completo y diccionario PDF identificados | Implementar descarga, preservación y extracción controlada        |
 
-## Conclusión general del discovery local
+## Criterio de no versionamiento
 
-Las pruebas actualizadas confirman que:
+No se deben subir al repositorio:
 
-- MEF ingresos dispone de recursos CSV directos por año, además de recursos recientes diarios o mensuales.
-- La fuente de meta predial dispone de múltiples CSV temáticos y diccionarios.
-- RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde Python.
-- La muestra XLSX de RENAMU respondió con HTTP 418, por lo que no será prioritaria.
-- Los archivos principales de MEF ingresos pueden ser grandes y requieren una estrategia de ingesta cuidadosa.
-- No se descargaron ni versionaron datos reales durante esta etapa.
-- El siguiente paso será implementar la ingesta hacia Landing usando estos recursos candidatos, con auditoría y reintentos en commits posteriores.
+- CSV descargados.
+- ZIP descargados.
+- XLSX descargados.
+- PDF descargados si se consideran datos o documentación pesada.
+- Parquet generados.
+- Logs pesados.
+- Archivos temporales.
+- Credenciales.
+- `.env` real.
+- Metadata local generada junto a archivos descargados, si queda dentro de carpetas ignoradas.
+
+Los archivos descargados deben permanecer en `data/landing/` de forma local y fuera de Git.
+
+## Conclusión general del discovery
+
+Las pruebas realizadas confirman que:
+
+- MEF ingresos dispone de recursos CSV directos para el periodo 2012-2026.
+- MEF ingresos combina archivos anuales, mensuales y diarios.
+- Meta predial dispone de múltiples CSV temáticos y diccionarios.
+- RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde recursos directos.
+- Algunas páginas o muestras pueden presentar comportamiento especial frente a solicitudes automatizadas.
+- Los archivos principales de MEF pueden ser grandes y requieren una estrategia de descarga cuidadosa.
+- La ingesta MEF ya está disponible hacia Landing de forma controlada.
+- Las ingestas predial y RENAMU quedan pendientes.
+- No se debe versionar ningún archivo real descargado.

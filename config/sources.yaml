@@ -24,40 +24,204 @@ sources:
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv"
         format: csv
         role: annual_source_file
+        year: 2012
+        granularity: annual
         priority: medium
-        use_for_ingestion: true
+        use_for_ingestion: false
         use_for_documentation: false
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 367063258
+
+      annual_2013:
+        file_name: "2013-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2013-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2013
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2014:
+        file_name: "2014-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2014-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2014
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2015:
+        file_name: "2015-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2015-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2015
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2016:
+        file_name: "2016-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2016-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2016
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2017:
+        file_name: "2017-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2017-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2017
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2018:
+        file_name: "2018-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2018-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2018
+        granularity: annual
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2019:
+        file_name: "2019-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2019-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2019
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2020:
+        file_name: "2020-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2020-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2020
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2021:
+        file_name: "2021-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2021-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2021
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2022:
+        file_name: "2022-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2022-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2022
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2023:
+        file_name: "2023-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2023-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2023
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      annual_2024:
+        file_name: "2024-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2024-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        year: 2024
+        granularity: annual
+        priority: high
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      monthly_2025:
+        file_name: "2025-Ingreso-Mensual.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2025-Ingreso-Mensual.csv"
+        format: csv
+        role: monthly_source_file
+        year: 2025
+        granularity: monthly
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      daily_2025:
+        file_name: "2025-Ingreso-Diario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2025-Ingreso-Diario.csv"
+        format: csv
+        role: daily_source_file
+        year: 2025
+        granularity: daily
+        priority: low
+        use_for_ingestion: false
+        use_for_documentation: false
+
+      monthly_2026:
+        file_name: "2026-Ingreso-Mensual.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2026-Ingreso-Mensual.csv"
+        format: csv
+        role: monthly_source_file
+        year: 2026
+        granularity: monthly
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: false
+
       daily_2026:
         file_name: "2026-Ingreso-Diario.csv"
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2026-Ingreso-Diario.csv"
         format: csv
         role: daily_source_file
+        year: 2026
+        granularity: daily
         priority: low
         use_for_ingestion: false
         use_for_documentation: false
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 190675218
+
       dictionary:
         file_name: "Ingresos_Diccionario.csv"
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/Ingresos_Diccionario.csv"
         format: csv
         role: dictionary
-        priority: medium
+        priority: high
         use_for_ingestion: false
         use_for_documentation: true
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 3574
+
     notes:
-      - "La fuente publica recursos CSV por anio."
-      - "Para anios recientes se observan recursos diarios o mensuales."
-      - "Los archivos principales pueden ser grandes; la ingesta definitiva debe considerar Spark y evitar cargas completas innecesarias con pandas."
-      - "La ingesta definitiva debe definir rango temporal y granularidad objetivo."
-      - "El archivo diario 2026 se registra como recurso observado, pero no se prioriza para la primera ingesta por su granularidad y tamanio."
+      - "La fuente publica recursos CSV de ingresos para el periodo 2012-2026."
+      - "Los recursos 2012-2024 corresponden a archivos anuales."
+      - "Los recursos 2025 y 2026 incluyen archivos mensuales y diarios."
+      - "Landing conserva los archivos originales sin transformar columnas ni tipos de datos."
+      - "La descarga completa de todos los recursos MEF puede ejecutarse localmente, pero los archivos descargados no deben versionarse en Git."
+      - "La definicion de granularidad analitica se realizara despues del profiling y antes de Silver."
 
   predial_goal:
     name: predial_goal

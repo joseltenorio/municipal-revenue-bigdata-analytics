@@ -4,23 +4,39 @@
 
 Este documento describe las fuentes públicas consideradas para el proyecto **Municipal Revenue Big Data Analytics**.
 
-El objetivo es identificar el origen, uso analítico, método de acceso observado, formato esperado, riesgos y criterios iniciales de uso antes de implementar los procesos de ingesta hacia Landing.
+El objetivo es identificar el origen, uso analítico, método de acceso observado, formato esperado, recursos disponibles, riesgos y criterios de uso para los procesos de ingesta hacia Landing.
 
-La información documentada en esta etapa sigue siendo preliminar respecto a estructura interna de columnas, tipos y llaves. Esos detalles se confirmarán durante profiling, Bronze y Silver.
+La información sobre columnas, tipos de datos, llaves y granularidad analítica aún debe confirmarse mediante profiling, construcción de Bronze, validaciones de calidad y transformaciones Silver.
+
+## Estado actual del documento
+
+Actualmente, el proyecto cuenta con:
+
+- Inventario de fuentes principales.
+- Recursos directos identificados para MEF, meta predial y RENAMU.
+- Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
+- Recursos prediales identificados, pendientes de ingesta controlada.
+- Recursos RENAMU identificados, pendientes de descarga y extracción controlada.
+- Conversión a Bronze Parquet pendiente.
+- Profiling real pendiente sobre los archivos descargados localmente.
+
+Este documento no representa todavía el modelo final de datos. Su función es documentar las fuentes y criterios de uso antes de definir contratos definitivos de Bronze, Silver y Gold.
 
 ## Resumen de fuentes
 
-| Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                                         |
-| ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | --------------------------------------------------------------------- |
-| Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Recursos CSV representativos identificados y validados                |
-| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Múltiples CSV temáticos y diccionarios identificados                  |
-| RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | ZIP completo y diccionario PDF validados; muestra XLSX no prioritaria |
+| Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                                     |
+| ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------- |
+| Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible                       |
+| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Recursos CSV temáticos identificados; ingesta pendiente           |
+| RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Recursos directos identificados; descarga y extracción pendientes |
 
 ## Fuente 1: Presupuesto y ejecución de ingresos - MEF / SIAF
 
 ### Descripción
 
-Fuente pública relacionada con información presupuestal y ejecución de ingresos. Permitirá analizar el comportamiento de los ingresos municipales, su ejecución y posibles diferencias territoriales.
+Fuente pública relacionada con información presupuestal y ejecución de ingresos. Permitirá analizar el comportamiento de los ingresos municipales, su ejecución, variaciones por periodo y posibles diferencias territoriales entre municipalidades.
+
+Esta fuente es central para el proyecto porque alimentará los futuros análisis de presupuesto, recaudación, ejecución, ranking municipal y brechas territoriales.
 
 ### Institución responsable
 
@@ -38,10 +54,11 @@ Esta fuente será usada para responder preguntas como:
 - ¿Qué municipalidades presentan mayor o menor avance de ejecución?
 - ¿Cómo varía la ejecución por departamento, provincia o distrito?
 - ¿Qué diferencias existen entre presupuesto inicial, presupuesto modificado y ejecución?
+- ¿Qué comportamiento se observa entre periodos anuales, mensuales o diarios, si la granularidad disponible lo permite?
 
 ### Campos esperados
 
-Los campos exactos se confirmarán durante profiling. De forma preliminar se esperan variables como:
+Los campos exactos se confirmarán durante profiling y construcción de Bronze. De forma preliminar se esperan variables como:
 
 - Año o periodo.
 - Nivel de gobierno.
@@ -60,28 +77,98 @@ Los campos exactos se confirmarán durante profiling. De forma preliminar se esp
 
 Método observado: CSV directo.
 
-Recursos representativos validados:
+Durante la etapa de revisión de fuentes se identificaron archivos CSV directos publicados por el portal de datos abiertos del MEF. La configuración de estos recursos se centraliza en:
 
-| Recurso                    | Tipo            | Uso esperado                                                    |
-| -------------------------- | --------------- | --------------------------------------------------------------- |
-| `2012-Ingreso.csv`         | CSV anual       | Recurso anual representativo                                    |
-| `2026-Ingreso-Diario.csv`  | CSV diario      | Recurso reciente observado, no prioritario para primera ingesta |
-| `Ingresos_Diccionario.csv` | Diccionario CSV | Referencia documental                                           |
+`config/sources.yaml`
+
+La descarga controlada de esta fuente se implementa mediante:
+
+`src/ingestion/download_mef_income.py`
+
+El script consume los recursos configurados en `sources.yaml`, descarga por streaming y guarda los archivos originales en:
+
+`data/landing/mef_income/`
+
+### Recursos identificados
+
+La fuente contiene recursos CSV para el periodo 2012-2026 y un diccionario de datos.
+
+| Grupo de recursos                       |   Periodo | Granularidad | Uso esperado                                                       |
+| --------------------------------------- | --------: | ------------ | ------------------------------------------------------------------ |
+| `2012-Ingreso.csv` a `2024-Ingreso.csv` | 2012-2024 | Anual        | Base histórica principal para análisis presupuestal y de ejecución |
+| `2025-Ingreso-Mensual.csv`              |      2025 | Mensual      | Recurso reciente con granularidad mensual                          |
+| `2025-Ingreso-Diario.csv`               |      2025 | Diaria       | Recurso reciente con granularidad diaria                           |
+| `2026-Ingreso-Mensual.csv`              |      2026 | Mensual      | Recurso vigente con granularidad mensual                           |
+| `2026-Ingreso-Diario.csv`               |      2026 | Diaria       | Recurso vigente con granularidad diaria                            |
+| `Ingresos_Diccionario.csv`              | No aplica | Diccionario  | Referencia documental para interpretar columnas de la fuente       |
+
+### Criterio de ingesta implementado
+
+La descarga MEF se implementa como ingesta controlada.
+
+El script permite:
+
+- Listar recursos configurados.
+- Descargar un recurso específico.
+- Descargar recursos por año.
+- Descargar recursos por granularidad.
+- Descargar todos los recursos configurados si se solicita explícitamente.
+- Descargar el diccionario como recurso documental.
+- Ejecutar validaciones sin descarga mediante `--dry-run`.
+- Registrar metadata básica por archivo descargado.
+
+La descarga no se ejecuta de forma masiva por defecto. Esta decisión evita descargas accidentales de archivos grandes y permite controlar qué periodo se usa para pruebas, profiling y construcción de Bronze.
+
+### Ejemplos operativos
+
+Listar recursos configurados:
+
+```powershell
+python -m src.ingestion.download_mef_income --list-resources
+```
+
+Validar el diccionario sin descargarlo:
+
+```powershell
+python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+```
+
+Descargar el diccionario:
+
+```powershell
+python -m src.ingestion.download_mef_income --resource dictionary
+```
+
+Validar un año específico:
+
+```powershell
+python -m src.ingestion.download_mef_income --year 2024 --dry-run
+```
+
+Descargar todos los recursos MEF configurados, incluyendo documentación:
+
+```powershell
+python -m src.ingestion.download_mef_income --all-resources --include-documentation
+```
 
 ### Riesgos identificados
 
-- Archivos principales grandes.
-- Variación de granularidad entre archivos anuales, mensuales y diarios.
-- Posible cambio de estructura entre años.
-- Necesidad de definir rango temporal antes de descargar.
-- Posible diferencia entre código de entidad, ubigeo y nombre municipal.
-- Necesidad de profiling para confirmar columnas reales.
+- Los archivos principales pueden ser grandes.
+- La fuente combina recursos históricos anuales con recursos recientes mensuales y diarios.
+- No se debe mezclar automáticamente granularidad anual, mensual y diaria sin una regla analítica definida.
+- Puede haber cambios de estructura entre años o entre granularidades.
+- Es necesario confirmar columnas reales mediante profiling.
+- Es necesario confirmar si existe ubigeo, código de entidad o ambos.
+- No se debe procesar con pandas si el archivo supera tamaños razonables; Spark será preferible para Bronze, Silver y Gold.
+- Los archivos descargados no deben versionarse en Git.
 
 ### Criterio inicial de uso
 
-Esta fuente será la base principal para el análisis de presupuesto y ejecución de ingresos municipales. No se transformará en Landing. Se convertirá a Parquet en Bronze y se limpiará en Silver.
+Esta fuente será la base principal para el análisis de presupuesto y ejecución de ingresos municipales.
 
-Para la primera ingesta se priorizarán archivos anuales o un rango temporal controlado. Los recursos diarios o mensuales recientes quedan registrados, pero no se priorizan inicialmente por tamaño y granularidad.
+Landing conservará los archivos originales. Posteriormente, Bronze convertirá la fuente a Parquet. Silver limpiará, tipará y estandarizará columnas. Gold definirá los indicadores finales después del profiling e integración.
+
+La granularidad analítica final se decidirá después de observar los datos reales. En principio, la serie anual 2012-2024 es candidata para análisis histórico, mientras que los recursos 2025-2026 mensuales o diarios pueden servir para análisis reciente si se decide incorporar esa granularidad.
 
 ## Fuente 2: Seguimiento de meta del impuesto predial - MEF / SISMERE
 
@@ -105,10 +192,11 @@ Esta fuente será usada para responder preguntas como:
 - ¿Cuáles presentan mayor brecha de cumplimiento?
 - ¿Cómo se distribuye el avance predial por territorio?
 - ¿Existe relación entre ejecución de ingresos y cumplimiento predial?
+- ¿Qué variables o tablas de la fuente explican mejor el avance de la meta predial?
 
 ### Campos esperados
 
-Los campos exactos se confirmarán durante profiling. De forma preliminar se esperan variables como:
+Los campos exactos se confirmarán durante profiling y construcción de Bronze. De forma preliminar se esperan variables como:
 
 - Año.
 - Departamento.
@@ -126,14 +214,27 @@ Los campos exactos se confirmarán durante profiling. De forma preliminar se esp
 
 Método observado: CSV directo.
 
-Recursos representativos validados:
+Durante la revisión de fuentes se identificó que la fuente no corresponde a una única tabla plana, sino a un conjunto de CSV temáticos y diccionarios.
 
-| Recurso                             | Tipo            | Uso esperado                             |
-| ----------------------------------- | --------------- | ---------------------------------------- |
-| `rentas_estadistica.csv`            | CSV temático    | Tabla candidata para análisis            |
-| `rentas_preguntas.csv`              | CSV temático    | Tabla candidata o referencia estructural |
-| `rentas_formulario.csv`             | CSV temático    | Tabla candidata o referencia estructural |
-| `rentas_respuestas_diccionario.csv` | Diccionario CSV | Referencia documental                    |
+### Recursos representativos identificados
+
+| Recurso                                 | Tipo            | Uso esperado                                  |
+| --------------------------------------- | --------------- | --------------------------------------------- |
+| `rentas_estadistica.csv`                | CSV temático    | Tabla candidata para análisis predial         |
+| `rentas_preguntas.csv`                  | CSV temático    | Tabla candidata o referencia estructural      |
+| `rentas_formulario.csv`                 | CSV temático    | Tabla candidata o referencia estructural      |
+| `rentas_respuestas.csv`                 | CSV temático    | Tabla candidata para análisis o integración   |
+| `rentas_ano_aplicacion.csv`             | CSV temático    | Referencia temporal o estructural             |
+| `rentas_entidad_estado.csv`             | CSV temático    | Posible tabla de estado por entidad           |
+| Diccionarios `rentas_*_diccionario.csv` | Diccionario CSV | Referencia documental para interpretar tablas |
+
+### Estado de ingesta
+
+La ingesta de esta fuente todavía está pendiente.
+
+Posteriormente se implementará una descarga controlada hacia:
+
+`data/landing/predial_goal/`
 
 ### Riesgos identificados
 
@@ -143,7 +244,7 @@ Recursos representativos validados:
 - Puede requerir interpretación mediante diccionarios.
 - Puede faltar una llave geográfica limpia.
 - Puede requerir normalización fuerte de municipalidades.
-- Las reglas de Silver dependerán de profiling real.
+- Las reglas de Bronze y Silver dependerán del profiling real.
 
 ### Criterio inicial de uso
 
@@ -193,24 +294,32 @@ Los campos exactos se confirmarán durante profiling. De forma preliminar se esp
 
 Método observado prioritario: ZIP completo.
 
-Recursos representativos validados:
+### Recursos representativos identificados
 
-| Recurso                  | Tipo         | Uso esperado                                   |
-| ------------------------ | ------------ | ---------------------------------------------- |
-| `2022.zip`               | ZIP completo | Fuente principal para ingesta                  |
-| `Diccionario.pdf`        | PDF          | Referencia documental                          |
-| `BD_Muestra_2022_0.xlsx` | XLSX         | Recurso observado, no prioritario por HTTP 418 |
+| Recurso                  | Tipo         | Uso esperado                                             |
+| ------------------------ | ------------ | -------------------------------------------------------- |
+| `2022.zip`               | ZIP completo | Fuente principal para ingesta RENAMU                     |
+| `Diccionario.pdf`        | PDF          | Referencia documental                                    |
+| `BD_Muestra_2022_0.xlsx` | XLSX         | Recurso observado, no prioritario por respuesta HTTP 418 |
+
+### Estado de ingesta
+
+La descarga y extracción de RENAMU todavía está pendiente.
+
+Posteriormente se implementará una descarga y extracción controlada hacia:
+
+`data/landing/renamu/`
 
 ### Riesgos identificados
 
 - La estructura interna del ZIP debe confirmarse después de la descarga local.
 - Puede estar distribuida en varios archivos o tablas temáticas.
-- Diccionario de datos separado del archivo principal.
-- Columnas con nombres extensos o poco estandarizados.
-- Datos categóricos con códigos que requieren interpretación.
-- Necesidad de seleccionar solo variables relevantes para no sobrecargar el modelo Gold.
-- La muestra XLSX no es prioritaria porque respondió con HTTP 418.
+- El diccionario de datos está separado del archivo principal.
+- Puede contener columnas extensas o poco estandarizadas.
+- Los datos categóricos pueden requerir interpretación.
+- Se deben seleccionar variables relevantes para no sobrecargar Gold.
 - La página del catálogo puede ser menos estable que los recursos directos.
+- Se debe conservar `ubigeo` como texto para no perder ceros a la izquierda.
 
 ### Criterio inicial de uso
 
@@ -231,6 +340,7 @@ Las fuentes se trabajarán bajo los siguientes criterios:
 - Si una fuente requiere descarga manual controlada, esa decisión deberá quedar documentada y auditada.
 - Los diccionarios se registran como recursos de referencia, no como hechos analíticos principales.
 - Las muestras se registran solo como recursos observados o de validación ligera, no como fuente principal si existe data completa.
+- Los archivos descargados hacia Landing no deben subirse al repositorio.
 
 ## Riesgos generales
 
@@ -240,80 +350,69 @@ Los principales riesgos de las fuentes son:
 - Descargas inestables.
 - Archivos grandes.
 - Columnas cambiantes.
+- Diferencias de granularidad.
 - Falta de llaves consistentes.
 - Diferencias entre ubigeo, código de entidad y nombre municipal.
 - Formatos numéricos heterogéneos.
 - Variables contextuales RENAMU distribuidas en múltiples archivos.
 - Acceso automatizado bloqueado, lento o condicionado por el portal.
 
-## Decisiones pendientes después del discovery
+## Decisiones pendientes
 
-Después del discovery inicial, ya se identificaron recursos descargables directos para las tres fuentes principales. Sin embargo, todavía quedan decisiones de implementación antes de construir Landing, Bronze, Silver y Gold.
+Después de la identificación de recursos y la implementación de ingesta MEF, todavía quedan decisiones de implementación y modelado antes de construir Bronze, Silver y Gold.
 
 Decisiones pendientes:
 
-- Definir el rango temporal de MEF ingresos que será descargado.
-- Decidir si la ingesta de MEF ingresos usará solo archivos anuales o también recursos diarios o mensuales recientes.
+- Definir qué rango temporal MEF se usará para profiling completo.
+- Definir si el análisis final trabajará solo granularidad anual o también granularidad mensual/diaria reciente.
+- Implementar ingesta de meta predial.
 - Definir qué tablas de meta predial se conservarán completas en Bronze.
 - Definir qué tablas de meta predial serán necesarias para Silver y Gold.
-- Confirmar la estructura interna del ZIP completo de RENAMU 2022 después de su descarga local.
+- Implementar descarga y extracción de RENAMU.
+- Confirmar la estructura interna del ZIP completo de RENAMU 2022.
 - Seleccionar variables RENAMU relevantes para contexto municipal.
 - Confirmar columnas reales, tipos de datos y llaves candidatas mediante profiling.
-- Definir granularidad final de análisis después de observar los datos.
 - Evaluar cobertura de cruce entre MEF, meta predial y RENAMU.
 - Definir modelo Gold final y modelo Power BI después de Silver.
 
-## Actualización por discovery de recursos directos
+## Actualización por identificación de recursos directos
 
-Durante el commit `feat(discovery): add source probing scripts and findings` se identificaron recursos descargables directos para las fuentes principales del proyecto.
+Se identificaron recursos descargables directos para las fuentes principales del proyecto.
 
-### MEF - Presupuesto y ejecución de ingreso
+Hallazgos principales:
 
-Se identificó la página del dataset:
+- MEF ingresos dispone de CSV directos para el periodo 2012-2026 y un diccionario CSV.
+- Meta predial dispone de múltiples CSV temáticos y diccionarios.
+- RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde recursos directos.
+- Algunas páginas o muestras pueden presentar comportamientos especiales frente a solicitudes automáticas.
+- Los archivos principales de MEF pueden ser grandes y requieren estrategia de descarga controlada.
 
-`https://datosabiertos.mef.gob.pe/dataset/presupuesto-y-ejecucion-de-ingreso`
+## Actualización por ingesta MEF hacia Landing
 
-La fuente contiene archivos CSV por año, recursos recientes con granularidad diaria o mensual y un diccionario CSV.
+Actualmente existe una descarga controlada para la fuente MEF de presupuesto y ejecución de ingresos.
 
-Recursos representativos validados:
+Estado técnico actual:
 
-- `2012-Ingreso.csv`
-- `2026-Ingreso-Diario.csv`
-- `Ingresos_Diccionario.csv`
+- Fuente: MEF ingresos.
+- Método implementado: CSV directo.
+- Configuración de recursos: `config/sources.yaml`.
+- Script de ingesta: `src/ingestion/download_mef_income.py`.
+- Destino local: `data/landing/mef_income/`.
+- Transformación de negocio: no aplica en Landing.
+- Conversión a Parquet: pendiente para Bronze.
+- Auditoría completa y reintentos: pendiente para una etapa posterior.
 
-La fuente se mantiene como principal para análisis presupuestal y ejecución de ingresos, pero la ingesta definitiva deberá definir rango temporal y granularidad objetivo debido al tamaño de los archivos.
+El script descarga archivos por streaming y genera metadata básica local por archivo descargado. Esta metadata permite validar origen, tamaño y checksum sin modificar el contenido original.
 
-### MEF / SISMERE - Seguimiento de la Meta del Impuesto Predial
-
-Se identificó la página del dataset:
-
-`https://datosabiertos.mef.gob.pe/dataset/seguimiento-de-la-meta-del-impuesto-predial`
-
-La fuente contiene múltiples CSV temáticos y diccionarios. No debe tratarse como una única tabla plana.
-
-Recursos representativos validados:
-
-- `rentas_estadistica.csv`
-- `rentas_preguntas.csv`
-- `rentas_formulario.csv`
-- `rentas_respuestas_diccionario.csv`
-
-Bronze deberá preservar las tablas fuente necesarias y Silver definirá las estructuras finales para análisis de avance, cumplimiento y brechas.
-
-### INEI - RENAMU 2022
-
-Se identificó la página del dataset:
-
-`https://www.datosabiertos.gob.pe/dataset/registro-nacional-de-municipalidades-renamu-2022-instituto-nacional-de-estadistica-e`
-
-Recursos representativos validados:
-
-- `2022.zip`
-- `Diccionario.pdf`
-- `BD_Muestra_2022_0.xlsx`
-
-El ZIP completo y el diccionario PDF respondieron correctamente desde Python. La muestra XLSX respondió con HTTP 418, por lo que no se considera prioritaria para la ingesta. La ingesta definitiva deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental.
+La ingesta MEF no descarga predial ni RENAMU. Esas fuentes se implementarán posteriormente mediante sus propios procesos de ingesta.
 
 ## Resultado esperado de esta etapa
 
-Al finalizar la etapa de inventario y discovery, el proyecto cuenta con fuentes priorizadas, recursos directos validados, riesgos de acceso identificados y decisiones pendientes claras antes de construir Landing, Bronze, Silver y Gold.
+En el estado actual, el proyecto cuenta con una fuente MEF lista para descargarse hacia Landing de forma controlada, con recursos centralizados en configuración, sin transformar datos y sin versionar archivos reales.
+
+Las siguientes etapas técnicas serán:
+
+- Implementar ingesta predial.
+- Implementar ingesta y extracción RENAMU.
+- Incorporar auditoría completa, reintentos y fallback.
+- Convertir fuentes Landing hacia Bronze Parquet.
