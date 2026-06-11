@@ -2,6 +2,11 @@ spark:
   app_name: MunicipalRevenueLakehouse
   master: local[*]
 
+  docker:
+    master_url: spark://spark-master:7077
+    master_ui: http://localhost:8080
+    worker_ui: http://localhost:8081
+
   sql:
     session_time_zone: America/Lima
     shuffle_partitions: 8

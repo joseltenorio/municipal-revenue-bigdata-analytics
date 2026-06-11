@@ -1,8 +1,17 @@
 hive:
   host: localhost
   port: 10000
+  metastore_host: localhost
+  metastore_port: 9083
+  web_ui_port: 10002
   protocol: thrift
   server: HiveServer2
+
+  docker:
+    hive_server_container: municipal_revenue_hive_server
+    hive_metastore_container: municipal_revenue_hive_metastore
+    warehouse_path: /opt/hive/data/warehouse
+    project_mount_path: /app
 
   databases:
     bronze: bronze
@@ -28,3 +37,4 @@ hive:
     - Hive funcionará como catálogo SQL del lakehouse.
     - Las tablas externas apuntarán a archivos Parquet generados por Spark.
     - Power BI consumirá preferentemente tablas Gold desde HiveServer2 mediante ODBC.
+    - En entorno Docker, HiveServer2 se expone en localhost:10000.
