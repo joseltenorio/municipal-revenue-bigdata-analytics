@@ -1,193 +1,123 @@
 # Municipal Revenue Big Data Analytics
 
-Plataforma local de ingeniería y analítica de datos para analizar presupuesto, ejecución de ingresos e impuesto predial de municipalidades peruanas, utilizando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
+Plataforma analítica local para analizar presupuesto, ejecución de ingresos e impuesto predial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
 
-## Descripción general
+## Propósito
 
-Municipal Revenue Big Data Analytics es un proyecto de Data Engineering y Business Intelligence orientado al procesamiento, integración y análisis de datos públicos relacionados con la gestión de ingresos municipales en el Perú.
+Este proyecto implementa un flujo analítico de datos orientado a municipalidades peruanas, integrando fuentes públicas relacionadas con presupuesto, ejecución de ingresos, seguimiento de la meta del impuesto predial y contexto municipal.
 
-El proyecto busca construir una plataforma analítica local tipo lakehouse que permita ingerir datos desde fuentes públicas, conservar archivos originales, transformar datos mediante Apache Spark, exponer datasets mediante Apache Hive y generar información lista para análisis ejecutivo en Power BI.
+El objetivo no es construir únicamente un dashboard, sino desarrollar una solución de ingeniería y analítica de datos que permita ingestar, organizar, transformar, validar, consultar y visualizar información municipal de forma trazable.
 
-La solución se enfoca en el análisis del presupuesto y la ejecución de ingresos municipales, el seguimiento de la meta del impuesto predial y el contexto institucional de las municipalidades a partir de fuentes públicas del MEF, SISMERE e INEI.
+## Problema analítico
 
-## Contexto de negocio
+La información municipal se encuentra distribuida en distintas fuentes públicas, con formatos y estructuras que requieren exploración, limpieza e integración antes de ser utilizadas para análisis.
 
-Las municipalidades peruanas gestionan ingresos provenientes de distintas fuentes presupuestales, recaudación local e instrumentos de gestión fiscal. Analizar estos datos permite identificar brechas de ejecución, diferencias territoriales, desempeño recaudatorio y cumplimiento de metas asociadas al impuesto predial.
+El proyecto busca responder preguntas como:
 
-El proyecto está orientado a responder preguntas analíticas como:
+- ¿Qué municipalidades presentan mejor desempeño en ejecución de ingresos?
+- ¿Qué brechas existen entre presupuesto, ejecución y cumplimiento de metas?
+- ¿Cómo varía el desempeño municipal por departamento, provincia o distrito?
+- ¿Qué municipalidades muestran mayores brechas en la meta del impuesto predial?
+- ¿Qué contexto territorial puede ayudar a interpretar los resultados?
 
-- ¿Qué municipalidades presentan mayor o menor ejecución de ingresos?
-- ¿Cómo se distribuye la recaudación municipal por departamento, provincia o distrito?
-- ¿Qué municipalidades cumplen o incumplen la meta del impuesto predial?
-- ¿Existen diferencias de desempeño entre municipalidades provinciales y distritales?
-- ¿Qué patrones territoriales se observan en la ejecución de ingresos?
-- ¿Qué indicadores pueden apoyar la toma de decisiones presupuestales y de gestión municipal?
+## Fuentes consideradas
 
-## Objetivo general
+Las fuentes principales del proyecto son:
 
-Diseñar e implementar una plataforma analítica local basada en Apache Spark, Apache Hive y Power BI que permita procesar, validar, integrar y analizar datos públicos de ingresos municipales bajo una arquitectura Medallion.
+- Presupuesto y ejecución de ingresos del MEF / SIAF.
+- Seguimiento de la meta del impuesto predial desde SISMERE / MEF.
+- Registro Nacional de Municipalidades RENAMU 2022 del INEI.
 
-## Objetivos específicos
+Estas fuentes serán exploradas, perfiladas y documentadas antes de definir el modelo analítico final.
 
-- Identificar y documentar fuentes públicas relevantes del MEF, SISMERE e INEI.
-- Implementar pipelines de ingesta para archivos CSV, ZIP o APIs públicas según disponibilidad.
-- Preservar los archivos originales en una zona Landing.
-- Convertir las fuentes originales hacia la capa Bronze en formato Parquet.
-- Aplicar profiling y controles de calidad documentados.
-- Transformar y estandarizar los datos mediante Apache Spark.
-- Exponer las capas analíticas mediante tablas externas en Apache Hive.
-- Construir una capa Gold orientada a Power BI.
-- Desarrollar un reporte Power BI con seis páginas de análisis para la toma de decisiones.
-- Registrar auditoría de ingesta, reintentos, errores y tiempos de ejecución.
+## Arquitectura general
 
-## Arquitectura propuesta
+El proyecto sigue una arquitectura Medallion local:
 
-El proyecto sigue una arquitectura Medallion implementada de forma local:
-
-```text
 Fuentes públicas
-  -> Landing
-  -> Bronze Parquet
-  -> Profiling y Quality Gates
-  -> Silver Parquet
-  -> Gold Parquet / Marts analíticos
-  -> Hive Gold External Tables
-  -> Power BI vía Hive ODBC en modo Import
-```
+-> Landing
+-> Bronze Parquet
+-> Profiling y Quality Gates
+-> Silver Parquet
+-> Gold Parquet / Marts analíticos
+-> Hive External Tables
+-> Power BI conectado preferentemente a Hive
 
-## Arquitectura Medallion
+La capa Landing conserva archivos originales.
+La capa Bronze convierte las fuentes a Parquet y mantiene la granularidad original.
+La capa Silver limpia, tipa, estandariza e integra las fuentes.
+La capa Gold contiene datasets listos para análisis y consumo desde Power BI.
 
-### Landing
-
-La zona Landing conserva los archivos originales descargados desde las fuentes públicas.
-
-Esta capa puede contener archivos CSV, ZIP, JSON, XLSX u otros formatos obtenidos directamente desde las fuentes. No se aplican transformaciones de negocio, ya que su propósito es preservar trazabilidad y evidencia del dato original.
-
-### Bronze
-
-La capa Bronze almacena los datos en formato Parquet desde la primera etapa estructurada del pipeline.
-
-Esta capa mantiene la granularidad original de cada fuente, incorpora metadata técnica de ingesta y permite optimizar lectura, almacenamiento y procesamiento con Apache Spark.
-
-### Silver
-
-La capa Silver contiene datos limpios, estandarizados y validados.
-
-En esta etapa se corrigen tipos de datos, se normalizan nombres de columnas, se estandarizan ubigeos, fechas, montos y porcentajes, y se identifican problemas de calidad como nulos críticos, duplicados, registros inconsistentes o claves no integrables.
-
-### Gold
-
-La capa Gold contiene datasets analíticos listos para consumo desde Power BI.
-
-El modelo definitivo será definido después del profiling y la integración de fuentes. Podrá adoptar un modelo estrella, copo de nieve parcial o marts analíticos planos, según la estructura real y la granularidad encontrada en los datos.
-
-## Fuentes de datos
-
-El proyecto considera las siguientes fuentes públicas:
-
-1. Presupuesto y ejecución de ingreso - MEF / SIAF.
-2. Seguimiento de la meta del impuesto predial - SISMERE / MEF.
-3. Registro Nacional de Municipalidades RENAMU 2022 - INEI.
-4. Reporte Power BI de referencia visual para orientar el análisis final.
-
-## Stack tecnológico
+## Tecnologías principales
 
 - Python
 - Apache Spark
 - Apache Hive
+- Hive Metastore
+- HiveServer2
 - Parquet
-- Power BI
-- Docker
-- Docker Compose
-- Git
-- GitHub
+- Power BI Desktop
+- Docker y Docker Compose
+- Git y GitHub
 
-## Control de calidad de datos
+## Rol de Apache Spark
 
-El proyecto contempla una etapa formal de profiling y calidad de datos.
+Apache Spark será usado para procesar los datos por capas, convertir fuentes a Parquet, aplicar transformaciones, ejecutar validaciones y construir datasets analíticos.
 
-Los controles esperados incluyen:
+## Rol de Apache Hive
 
-- Completitud de columnas críticas.
-- Detección de nulos.
-- Detección de duplicados.
-- Validación de tipos de datos.
-- Validación de rangos numéricos.
-- Validación de montos negativos.
-- Validación de porcentajes fuera de rango.
-- Validación de ubigeos.
-- Identificación de registros no integrables entre fuentes.
-- Generación de reportes de calidad documentados.
+Apache Hive funcionará como catálogo SQL del lakehouse. Las tablas externas de Hive apuntarán a archivos Parquet generados por Spark, permitiendo consultar las capas Bronze, Silver y Gold sin mover los datos.
 
-## Auditoría de ingesta y procesamiento
+## Rol de Power BI
 
-La plataforma registrará información operativa de cada ejecución, incluyendo:
+Power BI consumirá preferentemente las tablas Gold expuestas mediante HiveServer2/ODBC en modo Import. Si la conexión local entre Hive y Power BI no es estable, se usará un fallback controlado mediante exportación de Gold a CSV o Parquet, sin eliminar Hive del flujo técnico.
 
-- Identificador único de ejecución.
-- Fuente procesada.
-- Método de acceso utilizado.
-- Fecha y hora de inicio.
-- Fecha y hora de fin.
-- Duración del proceso.
-- Número de intentos.
-- Número de reintentos.
-- Estado final de la ejecución.
-- Código HTTP, si aplica.
-- Mensaje de error, si aplica.
-- Nombre del archivo descargado.
-- Tamaño del archivo.
-- Checksum del archivo.
-- Cantidad de registros detectados, cuando sea posible.
+## Alcance
 
-Esta auditoría permitirá demostrar trazabilidad, resiliencia y control operativo del pipeline.
+El proyecto incluye:
 
-## Capa de reporting
+- Arquitectura Medallion local.
+- Ingesta de fuentes públicas hacia Landing.
+- Conversión a Parquet desde Bronze.
+- Profiling de datos.
+- Reglas de calidad.
+- Auditoría de ingesta y procesamiento.
+- Transformaciones Silver.
+- Marts analíticos Gold.
+- Tablas externas en Hive.
+- Reporte Power BI con seis páginas.
+- Evidencias y documentación técnica.
 
-El reporte Power BI estará orientado a la toma de decisiones sobre ingresos municipales.
+## Fuera de alcance
 
-Las páginas analíticas planificadas son:
+El proyecto no incluye:
 
-1. Resumen Ejecutivo Municipal.
-2. Presupuesto vs Ejecución de Ingresos.
-3. Ranking de Municipalidades.
-4. Cumplimiento de la Meta del Impuesto Predial.
-5. Contexto Municipal RENAMU.
-6. Análisis Territorial.
+- Implementación en GCP, BigQuery, Dataflow o servicios cloud.
+- Procesamiento en tiempo real.
+- Orquestación empresarial avanzada.
+- Machine Learning obligatorio.
+- Versionamiento de datos reales en GitHub.
 
-## Estructura del repositorio
+## Documentación
 
-```text
-config/      Configuración de fuentes, rutas, Spark, Hive, calidad y auditoría.
-data/        Zonas locales del lakehouse: Landing, Bronze, Silver, Gold y Quality.
-docs/        Documentación técnica, funcional y analítica del proyecto.
-src/         Código fuente de ingesta, transformación, calidad y modelado.
-sql/         Scripts Hive y consultas analíticas.
-powerbi/     Documentación y evidencias del reporte Power BI.
-reports/     Reportes generados de profiling, calidad y auditoría.
-evidence/    Evidencias de ejecución, tablas, Parquet y dashboard.
-tests/       Pruebas automatizadas del proyecto.
-```
+La documentación técnica se organizará por propósito:
+
+- `docs/project_scope.md`: alcance, objetivos y requerimientos.
+- `docs/architecture.md`: arquitectura Medallion y flujo técnico.
+- `docs/data_sources.md`: inventario de fuentes.
+- `docs/source_discovery.md`: hallazgos de acceso a fuentes.
+- `docs/data_profiling.md`: profiling de datos.
+- `docs/data_quality.md`: reglas y resultados de calidad.
+- `docs/ingestion_audit.md`: auditoría de ingesta.
+- `docs/silver_transformations.md`: reglas de limpieza e integración.
+- `docs/hive_model.md`: bases y tablas externas Hive.
+- `docs/gold_model.md`: modelo analítico final.
+- `docs/powerbi_model.md`: modelo semántico y páginas del reporte.
+- `docs/powerbi_hive_connection.md`: conexión Hive - Power BI.
+- `docs/final_insights.md`: conclusiones analíticas.
+- `docs/execution_guide.md`: guía de ejecución local.
 
 ## Estado del proyecto
 
-El repositorio se encuentra en etapa inicial.
-
-La primera fase define la estructura base, dependencias, convenciones y documentación inicial antes de implementar los pipelines de ingesta, profiling, transformación, Hive y Power BI.
-
-## Consideraciones de versionamiento
-
-Los datos reales no deben subirse al repositorio.
-
-Se versionan únicamente archivos de configuración, documentación, código fuente, scripts SQL, pruebas y carpetas base mediante archivos `.gitkeep`.
-
-No deben subirse:
-
-- Archivos CSV reales.
-- Archivos ZIP reales.
-- Archivos XLSX reales.
-- Archivos Parquet generados.
-- Logs pesados.
-- Credenciales.
-- Archivos `.env` reales.
-- Entornos virtuales.
-- Outputs temporales.
+Proyecto en fase inicial.
+La estructura base del repositorio ya está definida y el alcance analítico queda documentado en este commit.
