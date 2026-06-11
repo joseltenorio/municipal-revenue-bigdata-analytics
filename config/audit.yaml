@@ -1,0 +1,44 @@
+audit:
+  enabled: true
+  storage:
+    format: jsonl
+    relative_path: data/quality/ingestion_audit.jsonl
+    version_output: false
+
+  required_fields:
+    - run_id
+    - source_name
+    - source_url
+    - access_method
+    - started_at
+    - finished_at
+    - duration_seconds
+    - attempt_number
+    - max_attempts
+    - retry_count
+    - http_status_code
+    - error_type
+    - error_message
+    - downloaded_file_name
+    - downloaded_file_size_bytes
+    - checksum_sha256
+    - records_detected
+    - final_status
+
+  final_status_values:
+    - SUCCESS
+    - FAILED
+    - PARTIAL_SUCCESS
+
+  access_methods:
+    - api
+    - csv
+    - zip
+    - xlsx
+    - manual_download
+    - pending_discovery
+
+  notes:
+    - La auditoría registra trazabilidad técnica de ingesta y procesamiento.
+    - Los archivos de auditoría generados localmente no deben versionarse si contienen salidas pesadas.
+    - Cada intento de descarga debe poder reconstruirse desde los campos de auditoría.

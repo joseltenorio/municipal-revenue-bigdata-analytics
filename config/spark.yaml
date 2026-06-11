@@ -1,0 +1,32 @@
+spark:
+  app_name: MunicipalRevenueLakehouse
+  master: local[*]
+
+  sql:
+    session_time_zone: America/Lima
+    shuffle_partitions: 8
+    adaptive_enabled: true
+    case_sensitive: false
+
+  parquet:
+    compression: snappy
+    merge_schema: false
+    output_mode: overwrite
+
+  read_options:
+    csv:
+      header: true
+      infer_schema: false
+      encoding: UTF-8
+      sep: ","
+      multi_line: false
+      escape: '"'
+
+  write_options:
+    parquet:
+      mode: overwrite
+      compression: snappy
+
+  local:
+    log_level: WARN
+    checkpoint_enabled: false

@@ -1,0 +1,72 @@
+project:
+  name: municipal-revenue-bigdata-analytics
+  display_name: Municipal Revenue Big Data Analytics
+
+sources:
+  mef_income:
+    name: mef_income
+    display_name: Presupuesto y ejecución de ingresos
+    institution: MEF
+    source_system: MEF_SIAF
+    description: Fuente pública para analizar presupuesto y ejecución de ingresos municipales.
+    access_method: pending_discovery
+    expected_formats:
+      - csv
+      - api
+      - zip
+      - manual_download
+    landing_subdir: mef_income
+    bronze_subdir: mef_income
+    silver_subdir: mef_income
+    gold_subject_area: municipal_revenue
+    url: pending_discovery
+    enabled: true
+    notes: El método real de acceso será confirmado durante la fase de discovery.
+
+  predial_goal:
+    name: predial_goal
+    display_name: Seguimiento de meta del impuesto predial
+    institution: MEF
+    source_system: SISMERE_MEF
+    description: Fuente pública para analizar avance, cumplimiento y brechas de la meta predial.
+    access_method: pending_discovery
+    expected_formats:
+      - csv
+      - api
+      - zip
+      - manual_download
+    landing_subdir: predial_goal
+    bronze_subdir: predial_goal
+    silver_subdir: predial_goal
+    gold_subject_area: predial_compliance
+    url: pending_discovery
+    enabled: true
+    notes: La estabilidad del acceso será validada durante discovery.
+
+  renamu:
+    name: renamu
+    display_name: Registro Nacional de Municipalidades 2022
+    institution: INEI
+    source_system: RENAMU_2022
+    description: Fuente contextual para enriquecer el análisis territorial y municipal.
+    access_method: pending_discovery
+    expected_formats:
+      - zip
+      - xlsx
+      - csv
+      - manual_download
+    landing_subdir: renamu
+    bronze_subdir: renamu
+    silver_subdir: renamu
+    gold_subject_area: territorial_context
+    url: pending_discovery
+    enabled: true
+    notes: Se evaluará si RENAMU contiene una o varias tablas útiles para el análisis.
+
+reference_assets:
+  powerbi_reference_report:
+    name: powerbi_reference_report
+    display_name: Reporte Power BI de referencia
+    usage: visual_reference_only
+    description: Recurso usado únicamente como inspiración visual, no como fuente técnica de datos.
+    enabled: false

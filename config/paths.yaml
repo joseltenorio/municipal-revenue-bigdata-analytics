@@ -1,0 +1,59 @@
+project:
+  name: municipal-revenue-bigdata-analytics
+  display_name: Municipal Revenue Big Data Analytics
+
+path_strategy:
+  description: Las rutas internas del proyecto se resuelven desde src/common/paths.py usando pathlib.
+  internal_paths_source: src/common/paths.py
+  use_env_for_internal_paths: false
+  notes:
+    - No usar rutas absolutas locales dentro de archivos de configuración.
+    - No definir LANDING_PATH, BRONZE_PATH, SILVER_PATH ni GOLD_PATH en .env.
+    - Este archivo funciona como inventario lógico de capas, no como fuente de rutas absolutas.
+
+layers:
+  landing:
+    relative_path: data/landing
+    purpose: Preservar archivos originales descargados o recolectados desde fuentes públicas.
+    version_real_data: false
+
+  bronze:
+    relative_path: data/bronze
+    purpose: Almacenar fuentes convertidas a Parquet con metadata técnica y granularidad original.
+    version_real_data: false
+
+  silver:
+    relative_path: data/silver
+    purpose: Almacenar datos limpios, tipados, estandarizados e integrables.
+    version_real_data: false
+
+  gold:
+    relative_path: data/gold
+    purpose: Almacenar marts analíticos listos para Hive y Power BI.
+    version_real_data: false
+
+  quality:
+    relative_path: data/quality
+    purpose: Almacenar resultados locales de auditoría, profiling y calidad.
+    version_real_data: false
+
+support_directories:
+  logs:
+    relative_path: logs
+    purpose: Guardar logs locales de ejecución.
+    version_real_data: false
+
+  reports:
+    relative_path: reports
+    purpose: Guardar reportes generados localmente.
+    version_real_data: false
+
+  evidence:
+    relative_path: evidence
+    purpose: Guardar evidencias controladas del proyecto.
+    version_real_data: true
+
+  docs:
+    relative_path: docs
+    purpose: Documentación técnica profesional del proyecto.
+    version_real_data: true

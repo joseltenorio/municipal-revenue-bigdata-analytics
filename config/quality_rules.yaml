@@ -1,0 +1,85 @@
+quality:
+  default_result_levels:
+    - PASS
+    - WARNING
+    - FAIL
+
+  common_rules:
+    required_columns:
+      description: Validar existencia de columnas críticas por fuente.
+      severity: FAIL
+
+    null_rate:
+      description: Medir porcentaje de nulos en columnas críticas.
+      severity: WARNING
+      warning_threshold: 0.05
+      fail_threshold: 0.20
+
+    duplicate_keys:
+      description: Detectar duplicados según llaves candidatas.
+      severity: WARNING
+
+    invalid_year:
+      description: Validar años fuera del rango esperado.
+      severity: WARNING
+      min_year: 2010
+      max_year: 2030
+
+    invalid_percentage:
+      description: Validar porcentajes fuera de rango.
+      severity: WARNING
+      min_value: 0
+      max_value: 100
+
+    invalid_ubigeo:
+      description: Validar ubigeos vacíos o con formato incorrecto.
+      severity: WARNING
+      expected_length: 6
+
+  sources:
+    mef_income:
+      critical_columns_pending_discovery:
+        - anio
+        - municipalidad
+        - pia
+        - pim
+        - ejecucion_ingresos
+      numeric_columns_pending_discovery:
+        - pia
+        - pim
+        - ejecucion_ingresos
+        - porcentaje_ejecucion
+      candidate_keys_pending_discovery:
+        - anio
+        - codigo_entidad
+        - clasificador_ingreso
+
+    predial_goal:
+      critical_columns_pending_discovery:
+        - anio
+        - municipalidad
+        - meta_predial
+        - avance_predial
+        - porcentaje_avance_predial
+      numeric_columns_pending_discovery:
+        - meta_predial
+        - avance_predial
+        - porcentaje_avance_predial
+      candidate_keys_pending_discovery:
+        - anio
+        - ubigeo
+
+    renamu:
+      critical_columns_pending_discovery:
+        - ubigeo
+        - departamento
+        - provincia
+        - distrito
+        - municipalidad
+      candidate_keys_pending_discovery:
+        - ubigeo
+
+  notes:
+    - Las reglas iniciales son parametrizadas y serán ajustadas después del profiling.
+    - No se debe asumir que los nombres de columnas reales coinciden con este borrador.
+    - Los resultados de calidad se documentarán en docs/data_quality.md.

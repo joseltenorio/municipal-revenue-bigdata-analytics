@@ -1,0 +1,30 @@
+hive:
+  host: localhost
+  port: 10000
+  protocol: thrift
+  server: HiveServer2
+
+  databases:
+    bronze: bronze
+    silver: silver
+    gold: gold
+
+  external_tables:
+    file_format: parquet
+    table_type: external
+    location_strategy: project_data_layers
+
+  connection:
+    preferred_client: ODBC
+    powerbi_mode: Import
+    direct_query_required: false
+
+  validation_queries:
+    - SELECT current_database()
+    - SHOW DATABASES
+    - SHOW TABLES
+
+  notes:
+    - Hive funcionará como catálogo SQL del lakehouse.
+    - Las tablas externas apuntarán a archivos Parquet generados por Spark.
+    - Power BI consumirá preferentemente tablas Gold desde HiveServer2 mediante ODBC.
