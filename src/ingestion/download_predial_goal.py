@@ -23,6 +23,8 @@ import requests
 
 from src.common.config import load_sources_config
 from src.common.paths import get_source_landing_path
+from src.common.audit import audit_info, audit_result, create_run_id
+from src.common.retry import build_retry_config, probe_with_fallback, request_with_retries
 
 
 SOURCE_NAME = "predial_goal"
@@ -155,20 +157,10 @@ def validate_resource(resource_key: str, resource: dict[str, Any]) -> None:
 
 
 def probe_resource(url: str, timeout_seconds: int) -> requests.Response:
-    """Valida disponibilidad del recurso usando HEAD con fallback a GET."""
+    """Valida disponibilidad del recurso usando HEAD con fallback y reintentos."""
 
-    response = requests.head(url, timeout=timeout_seconds, allow_redirects=True)
-
-    if response.status_code in {403, 405}:
-        response = requests.get(
-            url,
-            timeout=timeout_seconds,
-            allow_redirects=True,
-            stream=True,
-        )
-
-    response.raise_for_status()
-    return response
+    retry_config = build_retry_config(timeout_seconds=timeout_seconds)
+    return probe_with_fallback(url=url, retry_config=retry_config)
 
 
 def calculate_sha256(file_path: Path) -> str:
@@ -247,7 +239,14 @@ def download_resource(
 
     downloaded_bytes = 0
 
-    with requests.get(url, timeout=timeout_seconds, stream=True) as download_response:
+    retry_config = build_retry_config(timeout_seconds=timeout_seconds)
+
+    with request_with_retries(
+        method="GET",
+        url=url,
+        retry_config=retry_config,
+        stream=True,
+    ) as download_response:
         download_response.raise_for_status()
 
         with output_path.open("wb") as file:
@@ -290,6 +289,28 @@ def download_resource(
     print(f"Metadata guardada: {metadata_path}")
     print(f"Tamaño descargado: {format_bytes(file_size)}")
     print(f"Checksum SHA256: {checksum}")
+
+    audit_result(
+        run_id=run_id,
+        source_name=SOURCE_NAME,
+        resource_key=resource_key,
+        file_name=file_name,
+        status="SUCCESS",
+        message="Recurso descargado correctamente.",
+        started_at=started_at,
+        finished_at=finished_at,
+        duration_seconds=duration_seconds,
+        metadata={
+            "source_url": url,
+            "http_status_code": response.status_code,
+            "content_type": content_type,
+            "content_length_bytes": content_length_bytes,
+            "downloaded_file_size_bytes": file_size,
+            "checksum_sha256": checksum,
+            "output_path": str(output_path),
+            "metadata_path": str(metadata_path),
+        },
+    )
 
     return metadata
 
@@ -358,6 +379,7 @@ def main() -> None:
     """Punto de entrada del script."""
 
     args = parse_args()
+    run_id = create_run_id(SOURCE_NAME)
 
     try:
         source_config = load_predial_goal_config()
@@ -382,6 +404,17 @@ def main() -> None:
         print(f"Directorio Landing: {output_dir}")
         print(f"Recursos seleccionados: {', '.join(selected_resources)}")
 
+        audit_info(
+            run_id=run_id,
+            source_name=SOURCE_NAME,
+            event_type="INGESTION_START",
+            message="Inicio de proceso de ingesta.",
+            metadata={
+                "selected_resources": list(selected_resources),
+                "dry_run": args.dry_run,
+            },
+        )
+
         for resource_key, resource in selected_resources.items():
             download_resource(
                 resource_key=resource_key,
@@ -392,10 +425,32 @@ def main() -> None:
                 dry_run=args.dry_run,
             )
 
+        audit_info(
+            run_id=run_id,
+            source_name=SOURCE_NAME,
+            event_type="INGESTION_FINISH",
+            message="Proceso de ingesta finalizado.",
+            metadata={
+                "selected_resources": list(selected_resources),
+                "dry_run": args.dry_run,
+            },
+        )
+
         print("=" * 80)
         print("Proceso predial finalizado")
 
     except (requests.RequestException, IngestionError, OSError, ValueError) as exc:
+        audit_info(
+            run_id=run_id,
+            source_name=SOURCE_NAME,
+            event_type="INGESTION_FINISH",
+            message=f"Proceso de ingesta fallido: {type(exc).__name__}: {exc}",
+            metadata={
+                "dry_run": getattr(args, "dry_run", None),
+                "error": str(exc),
+            },
+        )
+
         print("=" * 80)
         print("Proceso predial fallido")
         print(f"Error: {type(exc).__name__}: {exc}")

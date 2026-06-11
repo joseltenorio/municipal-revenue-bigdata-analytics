@@ -16,9 +16,11 @@ El discovery permitió identificar recursos directos para las tres fuentes princ
 - MEF / SISMERE de seguimiento de meta del impuesto predial.
 - INEI RENAMU 2022.
 
-En el estado actual, MEF ingresos y meta predial ya cuentan con descarga controlada hacia Landing usando recursos centralizados en `config/sources.yaml`.
+En el estado actual, las tres fuentes cuentan con procesos de ingesta controlada hacia Landing usando recursos centralizados en `config/sources.yaml`.
 
-RENAMU 2022 cuenta con recursos directos identificados, pero su descarga y extracción controlada todavía está pendiente.
+Los scripts de ingesta incorporan validación de disponibilidad, descarga por streaming, generación de metadata local, cálculo de checksum, auditoría básica, reintentos HTTP y fallback de validación cuando corresponde.
+
+La ingesta conserva los archivos originales en Landing, no transforma datos de negocio, no genera Bronze y no debe versionar archivos reales descargados.
 
 ## Alcance del discovery
 
@@ -37,15 +39,19 @@ El discovery inicial buscó responder:
 
 Durante la etapa inicial se agregaron scripts de validación y descarga para las fuentes principales:
 
-| Script                                   | Fuente                                  | Estado actual                                                            |
-| ---------------------------------------- | --------------------------------------- | ------------------------------------------------------------------------ |
-| `src/ingestion/download_mef_income.py`   | Presupuesto y ejecución de ingresos MEF | Ingesta controlada hacia Landing disponible                              |
-| `src/ingestion/download_predial_goal.py` | Meta del impuesto predial               | Ingesta controlada hacia Landing disponible                              |
-| `src/ingestion/download_renamu.py`       | RENAMU 2022                             | Discovery inicial disponible; descarga y extracción controlada pendiente |
+| Script                                   | Fuente                                  | Estado actual                                             |
+| ---------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
+| `src/ingestion/download_mef_income.py`   | Presupuesto y ejecución de ingresos MEF | Ingesta controlada hacia Landing disponible               |
+| `src/ingestion/download_predial_goal.py` | Meta del impuesto predial               | Ingesta controlada hacia Landing disponible               |
+| `src/ingestion/download_renamu.py`       | RENAMU 2022                             | Descarga y extracción controlada hacia Landing disponible |
 
 Estos scripts permiten validar conectividad, estado HTTP, tipo de contenido y tamaño declarado de recursos candidatos.
 
-En el caso de MEF ingresos y meta predial, los scripts ya evolucionaron hacia descarga controlada de archivos originales hacia Landing. RENAMU todavía requiere una implementación específica para descargar, conservar y extraer el ZIP completo.
+Además, incorporan una capa común de auditoría local, reintentos HTTP y fallback de validación. La auditoría se registra en formato JSON Lines dentro de:
+
+`data/quality/ingestion_audit.jsonl`
+
+Esta auditoría permite conservar evidencia local de inicio, fin y resultado de recursos procesados, sin versionar archivos descargados ni archivos de auditoría generados.
 
 ## Criterio técnico del discovery
 
@@ -460,6 +466,8 @@ Las pruebas realizadas confirman que:
 - RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde recursos directos.
 - Algunas páginas o muestras pueden presentar comportamiento especial frente a solicitudes automatizadas.
 - Los archivos principales de MEF pueden ser grandes y requieren una estrategia de descarga cuidadosa.
-- Las ingestas MEF y predial ya están disponibles hacia Landing de forma controlada.
-- La ingesta RENAMU todavía está pendiente.
-- No se debe versionar ningún archivo real descargado.
+- Las ingestas MEF, predial y RENAMU ya están disponibles hacia Landing de forma controlada.
+- Los procesos de ingesta incorporan auditoría básica, reintentos HTTP y fallback de validación.
+- No se debe versionar ningún archivo real descargado ni archivos locales de auditoría generados.
+
+La siguiente etapa operativa será ejecutar una descarga local completa y controlada de las fuentes necesarias, revisar la auditoría generada y luego perfilar los archivos descargados antes de construir Bronze Parquet.

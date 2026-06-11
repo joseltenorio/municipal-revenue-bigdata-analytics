@@ -16,7 +16,8 @@ Actualmente, el proyecto cuenta con:
 - Recursos directos identificados para MEF, meta predial y RENAMU.
 - Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
 - Descarga controlada implementada para la fuente de seguimiento de meta del impuesto predial.
-- Recursos RENAMU identificados, pendientes de descarga y extracción controlada.
+- Descarga y extracción controlada implementada para RENAMU 2022.
+- Validación de disponibilidad, descarga por streaming, metadata local, checksum, auditoría básica, reintentos HTTP y fallback de validación en los procesos de ingesta.
 - Conversión a Bronze Parquet pendiente.
 - Profiling real pendiente sobre los archivos descargados localmente.
 
@@ -24,11 +25,11 @@ Este documento no representa todavía el modelo final de datos. Su función es d
 
 ## Resumen de fuentes
 
-| Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                                     |
-| ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------- |
-| Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible                       |
-| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Ingesta controlada hacia Landing disponible                       |
-| RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Recursos directos identificados; descarga y extracción pendientes |
+| Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                             |
+| ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | --------------------------------------------------------- |
+| Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible               |
+| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Ingesta controlada hacia Landing disponible               |
+| RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Descarga y extracción controlada hacia Landing disponible |
 
 ## Fuente 1: Presupuesto y ejecución de ingresos - MEF / SIAF
 
@@ -362,11 +363,15 @@ Método observado prioritario: ZIP completo.
 
 ### Estado de ingesta
 
-La descarga y extracción de RENAMU todavía está pendiente.
-
-Posteriormente se implementará una descarga y extracción controlada hacia:
+La fuente RENAMU 2022 cuenta con descarga y extracción controlada hacia:
 
 `data/landing/renamu/`
+
+El ZIP completo se conserva como archivo original y su contenido se extrae dentro de:
+
+`data/landing/renamu/extracted/`
+
+La ingesta no transforma datos de negocio, no selecciona variables analíticas y no genera Bronze.
 
 ### Riesgos identificados
 
@@ -520,6 +525,8 @@ En el estado actual, el proyecto cuenta con tres fuentes preparadas para descarg
 
 Las tres fuentes tienen sus recursos centralizados en `config/sources.yaml`, se descargan como archivos originales hacia Landing, no se transforman en esta etapa y no deben versionarse en GitHub.
 
+Los procesos de ingesta incorporan validación de disponibilidad, descarga por streaming, metadata local por archivo, checksum, auditoría básica, reintentos HTTP y fallback de validación cuando corresponde.
+
 La fuente MEF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita, debido al tamaño de sus archivos históricos y recientes.
 
 La fuente predial queda preparada para descarga de sus tablas temáticas y diccionarios habilitados, conservando como observados los recursos que no respondan correctamente durante validación.
@@ -528,7 +535,7 @@ La fuente RENAMU queda preparada para descargar el ZIP completo, conservar el di
 
 Las siguientes etapas técnicas serán:
 
-- Incorporar auditoría completa, reintentos y fallback.
 - Ejecutar una descarga local completa y controlada de las fuentes necesarias.
+- Revisar la auditoría local generada por los procesos de ingesta.
 - Perfilar archivos descargados en Landing.
 - Convertir fuentes Landing hacia Bronze Parquet.
