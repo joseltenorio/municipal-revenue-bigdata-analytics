@@ -247,9 +247,7 @@ sources:
         priority: medium
         use_for_ingestion: true
         use_for_documentation: false
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 201938
+
       estadistica:
         file_name: "rentas_estadistica.csv"
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica.csv"
@@ -258,9 +256,7 @@ sources:
         priority: high
         use_for_ingestion: true
         use_for_documentation: false
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 9281
+
       formulario:
         file_name: "rentas_formulario.csv"
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_formulario.csv"
@@ -269,9 +265,99 @@ sources:
         priority: medium
         use_for_ingestion: true
         use_for_documentation: false
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 11933
+
+      esat_estadistica_atm:
+        file_name: "rentas_esat_estadistica_atm.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_esat_estadistica_atm.csv"
+        format: csv
+        role: source_table
+        priority: medium
+        use_for_ingestion: true
+        use_for_documentation: false
+
+      respuestas:
+        file_name: "rentas_respuestas.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_respuestas.csv"
+        format: csv
+        role: source_table
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: false
+
+      ano_aplicacion:
+        file_name: "rentas_ano_aplicacion.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_ano_aplicacion.csv"
+        format: csv
+        role: source_table
+        priority: medium
+        use_for_ingestion: true
+        use_for_documentation: false
+
+      entidad_estado:
+        file_name: "rentas_entidad_estado.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_entidad_estado.csv"
+        format: csv
+        role: source_table
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: false
+
+      ano_aplicacion_dictionary:
+        file_name: "rentas_ano_aplicacion_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_ano_aplicacion_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+
+      preguntas_dictionary:
+        file_name: "rentas_preguntas_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_preguntas_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+
+      estadistica_dictionary:
+        file_name: "rentas_estadistica_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+
+      entidad_estado_dictionary:
+        file_name: "rentas_entidad_estado_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_entidad_estado_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: low
+        use_for_ingestion: false
+        use_for_documentation: false
+        observed_http_status: 404
+        notes: "Recurso observado como candidato, pero no disponible en la URL directa validada durante dry-run."
+
+      formulario_dictionary:
+        file_name: "rentas_formulario_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_formulario_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+
+      esat_estadistica_atm_dictionary:
+        file_name: "rentas_esat_estadistica_atm_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_esat_estadistica_atm_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+
       respuestas_dictionary:
         file_name: "rentas_respuestas_diccionario.csv"
         url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_respuestas_diccionario.csv"
@@ -280,14 +366,12 @@ sources:
         priority: medium
         use_for_ingestion: false
         use_for_documentation: true
-        observed_http_status: 200
-        observed_content_type: text/csv
-        observed_content_length_bytes: 628
     notes:
       - "La fuente no es un unico archivo plano; contiene multiples CSV tematicos y diccionarios."
       - "Bronze debera preservar las tablas fuente candidatas sin integrarlas prematuramente."
       - "Silver debera seleccionar las tablas analiticamente necesarias para KPIs de cumplimiento predial."
       - "Los diccionarios se registran como recursos de documentacion, no como tablas principales de analisis."
+      - "La descarga completa de predial es viable por tamanio reducido, pero debe mantenerse fuera de Git."
 
   renamu:
     name: renamu

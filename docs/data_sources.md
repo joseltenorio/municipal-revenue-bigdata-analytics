@@ -6,7 +6,7 @@ Este documento describe las fuentes públicas consideradas para el proyecto **Mu
 
 El objetivo es identificar el origen, uso analítico, método de acceso observado, formato esperado, recursos disponibles, riesgos y criterios de uso para los procesos de ingesta hacia Landing.
 
-La información sobre columnas, tipos de datos, llaves y granularidad analítica aún debe confirmarse mediante profiling, construcción de Bronze, validaciones de calidad y transformaciones Silver.
+La información sobre columnas, tipos de datos, llaves, granularidad analítica y reglas de negocio aún debe confirmarse mediante profiling, construcción de Bronze, validaciones de calidad y transformaciones Silver.
 
 ## Estado actual del documento
 
@@ -15,7 +15,7 @@ Actualmente, el proyecto cuenta con:
 - Inventario de fuentes principales.
 - Recursos directos identificados para MEF, meta predial y RENAMU.
 - Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
-- Recursos prediales identificados, pendientes de ingesta controlada.
+- Descarga controlada implementada para la fuente de seguimiento de meta del impuesto predial.
 - Recursos RENAMU identificados, pendientes de descarga y extracción controlada.
 - Conversión a Bronze Parquet pendiente.
 - Profiling real pendiente sobre los archivos descargados localmente.
@@ -27,7 +27,7 @@ Este documento no representa todavía el modelo final de datos. Su función es d
 | Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                                     |
 | ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | ----------------------------------------------------------------- |
 | Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible                       |
-| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Recursos CSV temáticos identificados; ingesta pendiente           |
+| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Ingesta controlada hacia Landing disponible                       |
 | RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Recursos directos identificados; descarga y extracción pendientes |
 
 ## Fuente 1: Presupuesto y ejecución de ingresos - MEF / SIAF
@@ -176,6 +176,8 @@ La granularidad analítica final se decidirá después de observar los datos rea
 
 Fuente pública orientada al seguimiento de la meta vinculada al impuesto predial. Permitirá analizar avance, cumplimiento, brechas y desempeño de municipalidades respecto a la meta predial.
 
+Esta fuente complementará el análisis de ingresos municipales al permitir comparar ejecución presupuestal con desempeño de gestión y cumplimiento de la meta predial.
+
 ### Institución responsable
 
 Ministerio de Economía y Finanzas del Perú.
@@ -216,25 +218,79 @@ Método observado: CSV directo.
 
 Durante la revisión de fuentes se identificó que la fuente no corresponde a una única tabla plana, sino a un conjunto de CSV temáticos y diccionarios.
 
-### Recursos representativos identificados
+La configuración de estos recursos se centraliza en:
 
-| Recurso                                 | Tipo            | Uso esperado                                  |
-| --------------------------------------- | --------------- | --------------------------------------------- |
-| `rentas_estadistica.csv`                | CSV temático    | Tabla candidata para análisis predial         |
-| `rentas_preguntas.csv`                  | CSV temático    | Tabla candidata o referencia estructural      |
-| `rentas_formulario.csv`                 | CSV temático    | Tabla candidata o referencia estructural      |
-| `rentas_respuestas.csv`                 | CSV temático    | Tabla candidata para análisis o integración   |
-| `rentas_ano_aplicacion.csv`             | CSV temático    | Referencia temporal o estructural             |
-| `rentas_entidad_estado.csv`             | CSV temático    | Posible tabla de estado por entidad           |
-| Diccionarios `rentas_*_diccionario.csv` | Diccionario CSV | Referencia documental para interpretar tablas |
+`config/sources.yaml`
 
-### Estado de ingesta
+La descarga controlada de esta fuente se implementa mediante:
 
-La ingesta de esta fuente todavía está pendiente.
+`src/ingestion/download_predial_goal.py`
 
-Posteriormente se implementará una descarga controlada hacia:
+El script consume los recursos configurados en `sources.yaml`, descarga por streaming y guarda los archivos originales en:
 
 `data/landing/predial_goal/`
+
+### Recursos identificados
+
+| Recurso                                       | Tipo            | Uso esperado                                      |
+| --------------------------------------------- | --------------- | ------------------------------------------------- |
+| `rentas_preguntas.csv`                        | CSV temático    | Tabla candidata o referencia estructural          |
+| `rentas_estadistica.csv`                      | CSV temático    | Tabla candidata para análisis predial             |
+| `rentas_formulario.csv`                       | CSV temático    | Tabla candidata o referencia estructural          |
+| `rentas_esat_estadistica_atm.csv`             | CSV temático    | Tabla candidata para análisis o contexto          |
+| `rentas_respuestas.csv`                       | CSV temático    | Tabla candidata para análisis o integración       |
+| `rentas_ano_aplicacion.csv`                   | CSV temático    | Referencia temporal o estructural                 |
+| `rentas_entidad_estado.csv`                   | CSV temático    | Posible tabla de estado por entidad               |
+| `rentas_ano_aplicacion_diccionario.csv`       | Diccionario CSV | Referencia documental                             |
+| `rentas_preguntas_diccionario.csv`            | Diccionario CSV | Referencia documental                             |
+| `rentas_estadistica_diccionario.csv`          | Diccionario CSV | Referencia documental                             |
+| `rentas_entidad_estado_diccionario.csv`       | Diccionario CSV | Recurso observado no habilitado por respuesta 404 |
+| `rentas_formulario_diccionario.csv`           | Diccionario CSV | Referencia documental                             |
+| `rentas_esat_estadistica_atm_diccionario.csv` | Diccionario CSV | Referencia documental                             |
+| `rentas_respuestas_diccionario.csv`           | Diccionario CSV | Referencia documental                             |
+
+### Criterio de ingesta implementado
+
+La descarga predial se implementa como ingesta controlada.
+
+El script permite:
+
+- Listar recursos configurados.
+- Descargar un recurso específico.
+- Descargar recursos principales de ingesta.
+- Incluir recursos documentales habilitados.
+- Ejecutar validaciones sin descarga mediante `--dry-run`.
+- Registrar metadata básica por archivo descargado.
+
+La fuente predial debe preservarse inicialmente como conjunto de archivos relacionados. La integración de tablas y la selección de estructuras útiles se definirá después del profiling y durante Silver.
+
+Los recursos que no respondan correctamente durante validación quedan registrados como observados, pero no se habilitan para descarga automática hasta confirmar una URL válida.
+
+### Ejemplos operativos
+
+Listar recursos configurados:
+
+```powershell
+python -m src.ingestion.download_predial_goal --list-resources
+```
+
+Validar un recurso principal:
+
+```powershell
+python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+```
+
+Validar recursos habilitados sin descargar:
+
+```powershell
+python -m src.ingestion.download_predial_goal --all-enabled --dry-run
+```
+
+Descargar recursos habilitados:
+
+```powershell
+python -m src.ingestion.download_predial_goal --all-enabled
+```
 
 ### Riesgos identificados
 
@@ -242,9 +298,11 @@ Posteriormente se implementará una descarga controlada hacia:
 - La fuente contiene varias tablas temáticas.
 - Puede requerir integración entre tablas.
 - Puede requerir interpretación mediante diccionarios.
+- Algunos recursos documentales pueden no estar disponibles en la URL directa inicialmente identificada.
 - Puede faltar una llave geográfica limpia.
 - Puede requerir normalización fuerte de municipalidades.
 - Las reglas de Bronze y Silver dependerán del profiling real.
+- Los archivos descargados no deben versionarse en Git.
 
 ### Criterio inicial de uso
 
@@ -325,7 +383,7 @@ Posteriormente se implementará una descarga y extracción controlada hacia:
 
 RENAMU será usada como fuente contextual. No debe dominar el modelo analítico, sino enriquecer la interpretación territorial y municipal.
 
-La ingesta definitiva deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental.
+La ingesta deberá priorizar el ZIP completo y conservar el diccionario PDF como referencia documental.
 
 ## Criterios generales de ingesta
 
@@ -355,17 +413,18 @@ Los principales riesgos de las fuentes son:
 - Diferencias entre ubigeo, código de entidad y nombre municipal.
 - Formatos numéricos heterogéneos.
 - Variables contextuales RENAMU distribuidas en múltiples archivos.
+- Recursos documentales con URLs no disponibles o modificadas.
 - Acceso automatizado bloqueado, lento o condicionado por el portal.
 
 ## Decisiones pendientes
 
-Después de la identificación de recursos y la implementación de ingesta MEF, todavía quedan decisiones de implementación y modelado antes de construir Bronze, Silver y Gold.
+Después de la identificación de recursos y la implementación de ingesta controlada para MEF y predial, todavía quedan decisiones de implementación y modelado antes de construir Bronze, Silver y Gold.
 
 Decisiones pendientes:
 
 - Definir qué rango temporal MEF se usará para profiling completo.
 - Definir si el análisis final trabajará solo granularidad anual o también granularidad mensual/diaria reciente.
-- Implementar ingesta de meta predial.
+- Confirmar la disponibilidad final de los diccionarios prediales que no respondan correctamente durante validación.
 - Definir qué tablas de meta predial se conservarán completas en Bronze.
 - Definir qué tablas de meta predial serán necesarias para Silver y Gold.
 - Implementar descarga y extracción de RENAMU.
@@ -389,7 +448,7 @@ Hallazgos principales:
 
 ## Actualización por ingesta MEF hacia Landing
 
-Actualmente existe una descarga controlada para la fuente MEF de presupuesto y ejecución de ingresos.
+Existe una descarga controlada para la fuente MEF de presupuesto y ejecución de ingresos.
 
 Estado técnico actual:
 
@@ -404,15 +463,44 @@ Estado técnico actual:
 
 El script descarga archivos por streaming y genera metadata básica local por archivo descargado. Esta metadata permite validar origen, tamaño y checksum sin modificar el contenido original.
 
-La ingesta MEF no descarga predial ni RENAMU. Esas fuentes se implementarán posteriormente mediante sus propios procesos de ingesta.
+La ingesta MEF no descarga predial ni RENAMU. Esas fuentes se gestionan mediante sus propios procesos de ingesta.
+
+## Actualización por ingesta predial hacia Landing
+
+Existe una descarga controlada para la fuente de seguimiento de meta del impuesto predial.
+
+Estado técnico actual:
+
+- Fuente: meta predial.
+- Método implementado: CSV directo.
+- Configuración de recursos: `config/sources.yaml`.
+- Script de ingesta: `src/ingestion/download_predial_goal.py`.
+- Destino local: `data/landing/predial_goal/`.
+- Transformación de negocio: no aplica en Landing.
+- Conversión a Parquet: pendiente para Bronze.
+- Integración de tablas: pendiente para Silver.
+- Auditoría completa y reintentos: pendiente para una etapa posterior.
+
+El archivo `config/sources.yaml` registra los recursos prediales observados en el portal, incluyendo tablas temáticas y diccionarios.
+
+La fuente predial debe preservarse inicialmente como conjunto de archivos relacionados. La integración y selección de tablas analíticas se realizará después del profiling y durante Silver.
+
+Los recursos documentales que no respondan correctamente durante validación quedan registrados como observados, pero no se habilitan para descarga automática hasta confirmar una URL válida.
 
 ## Resultado esperado de esta etapa
 
-En el estado actual, el proyecto cuenta con una fuente MEF lista para descargarse hacia Landing de forma controlada, con recursos centralizados en configuración, sin transformar datos y sin versionar archivos reales.
+En el estado actual, el proyecto cuenta con dos fuentes listas para descargarse hacia Landing de forma controlada:
+
+- MEF ingresos, mediante `src/ingestion/download_mef_income.py`.
+- Meta predial, mediante `src/ingestion/download_predial_goal.py`.
+
+Ambas fuentes tienen sus recursos centralizados en `config/sources.yaml`, se descargan como archivos originales hacia Landing, no se transforman en esta etapa y no deben versionarse en GitHub.
+
+La fuente MEF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita. La fuente predial queda preparada para descarga de sus tablas temáticas y diccionarios habilitados, conservando como observados los recursos que no respondan correctamente.
 
 Las siguientes etapas técnicas serán:
 
-- Implementar ingesta predial.
 - Implementar ingesta y extracción RENAMU.
 - Incorporar auditoría completa, reintentos y fallback.
+- Ejecutar una descarga local completa y controlada de las fuentes necesarias.
 - Convertir fuentes Landing hacia Bronze Parquet.
