@@ -1,0 +1,14 @@
+-r requirements.txt
+
+# Testing
+pytest
+
+# Code quality
+ruff
+
+# SQL formatting and linting
+sqlfluff
+
+# Local notebooks and exploration
+ipykernel
+jupyter

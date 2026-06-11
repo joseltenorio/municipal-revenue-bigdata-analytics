@@ -1,0 +1,12 @@
+services:
+  python-app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: municipal_revenue_python
+    working_dir: /app
+    volumes:
+      - .:/app
+    env_file:
+      - .env.example
+    command: python --version

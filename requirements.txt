@@ -1,0 +1,19 @@
+# Data processing
+pandas
+pyarrow
+pyspark
+
+# Data ingestion
+requests
+tenacity
+beautifulsoup4
+
+# Configuration
+pyyaml
+python-dotenv
+
+# Logging
+loguru
+
+# File formats
+openpyxl
