@@ -20,10 +20,11 @@ from typing import Any
 
 import requests
 
-from src.common.config import load_sources_config
-from src.common.paths import get_source_landing_path
 from src.common.audit import audit_info, audit_result, create_run_id
-from src.common.retry import build_retry_config, probe_with_fallback, request_with_retries
+from src.common.config import load_sources_config
+from src.common.download import DownloadResult, safe_download_file
+from src.common.paths import get_source_landing_path
+from src.common.retry import RetryError, build_retry_config, probe_with_fallback
 
 
 SOURCE_NAME = "mef_income"
@@ -55,6 +56,13 @@ class ResourceMetadata:
     downloaded_file_size_bytes: int
     checksum_sha256: str
     final_status: str
+    partial_file_used: bool
+    partial_file_path: str
+    resumed_from_bytes: int
+    range_request_used: bool
+    server_supports_resume: bool
+    download_duration_seconds: float
+    average_speed_mbps: float
 
 
 def utc_now_iso() -> str:
@@ -179,7 +187,6 @@ def validate_resource(resource_key: str, resource: dict[str, Any]) -> None:
     """Valida campos mínimos de un recurso candidato."""
 
     required_fields = ["file_name", "url", "format"]
-
     missing_fields = [field for field in required_fields if not resource.get(field)]
 
     if missing_fields:
@@ -262,38 +269,28 @@ def download_resource(
 
     if dry_run:
         print("Dry run activo. No se descargó el archivo.")
+        response.close()
         return None
 
     output_dir.mkdir(parents=True, exist_ok=True)
 
     if output_path.exists() and not overwrite:
+        response.close()
         raise IngestionError(
             f"El archivo ya existe en Landing: {output_path}. "
             "Usa --overwrite si deseas reemplazarlo."
         )
 
-    downloaded_bytes = 0
-
     retry_config = build_retry_config(timeout_seconds=timeout_seconds)
 
-    with request_with_retries(
-        method="GET",
+    download_result: DownloadResult = safe_download_file(
         url=url,
+        destination_path=output_path,
         retry_config=retry_config,
-        stream=True,
-    ) as download_response:
-        download_response.raise_for_status()
-
-        with output_path.open("wb") as file:
-            for chunk in download_response.iter_content(chunk_size=DEFAULT_CHUNK_SIZE):
-                if not chunk:
-                    continue
-
-                file.write(chunk)
-                downloaded_bytes += len(chunk)
-
-                if downloaded_bytes % (50 * DEFAULT_CHUNK_SIZE) < DEFAULT_CHUNK_SIZE:
-                    print(f"Descargado aproximadamente: {downloaded_bytes:,} bytes")
+        chunk_size=DEFAULT_CHUNK_SIZE,
+        overwrite=overwrite,
+        show_progress=True,
+    )
 
     finished_at = utc_now_iso()
     finished_dt = datetime.now(timezone.utc)
@@ -320,6 +317,13 @@ def download_resource(
         downloaded_file_size_bytes=file_size,
         checksum_sha256=checksum,
         final_status="SUCCESS",
+        partial_file_used=download_result.partial_file_used,
+        partial_file_path=str(download_result.partial_path),
+        resumed_from_bytes=download_result.resumed_from_bytes,
+        range_request_used=download_result.range_request_used,
+        server_supports_resume=download_result.server_supports_resume,
+        download_duration_seconds=download_result.duration_seconds,
+        average_speed_mbps=download_result.average_speed_mbps,
     )
 
     metadata_path.write_text(
@@ -327,10 +331,14 @@ def download_resource(
         encoding="utf-8",
     )
 
+    response.close()
+
     print(f"Archivo guardado: {output_path}")
     print(f"Metadata guardada: {metadata_path}")
     print(f"Tamaño descargado: {file_size:,} bytes")
     print(f"Checksum SHA256: {checksum}")
+    print(f"Duración descarga: {download_result.duration_seconds} s")
+    print(f"Velocidad promedio: {download_result.average_speed_mbps} MB/s")
 
     audit_result(
         run_id=run_id,
@@ -344,6 +352,7 @@ def download_resource(
         duration_seconds=duration_seconds,
         metadata={
             "source_url": url,
+            "access_method": resource.get("format"),
             "http_status_code": response.status_code,
             "content_type": content_type,
             "content_length_bytes": content_length_bytes,
@@ -351,6 +360,14 @@ def download_resource(
             "checksum_sha256": checksum,
             "output_path": str(output_path),
             "metadata_path": str(metadata_path),
+            "partial_file_used": download_result.partial_file_used,
+            "partial_file_path": str(download_result.partial_path),
+            "resumed_from_bytes": download_result.resumed_from_bytes,
+            "range_request_used": download_result.range_request_used,
+            "server_supports_resume": download_result.server_supports_resume,
+            "download_duration_seconds": download_result.duration_seconds,
+            "average_speed_mbps": download_result.average_speed_mbps,
+            "max_attempts": retry_config.max_attempts,
         },
     )
 
@@ -495,7 +512,7 @@ def main() -> None:
         print("=" * 80)
         print("Proceso MEF income finalizado")
 
-    except (requests.RequestException, IngestionError, OSError, ValueError) as exc:
+    except (requests.RequestException, RetryError, IngestionError, OSError, ValueError) as exc:
         audit_info(
             run_id=run_id,
             source_name=SOURCE_NAME,

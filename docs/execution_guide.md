@@ -253,6 +253,66 @@ La descarga completa de fuentes debe ejecutarse solo después de validar:
 
 La ingesta hacia Landing no transforma datos, no genera Bronze y no interpreta columnas de negocio.
 
+## Runner maestro de ingesta
+
+Además de ejecutar cada fuente por separado, el proyecto cuenta con un runner maestro para validar o descargar las tres fuentes principales con un solo comando:
+
+```powershell
+python -m src.ingestion.run_all_ingestion --dry-run
+```
+
+Este comando valida MEF ingresos, meta predial y RENAMU 2022 sin descargar archivos reales.
+
+Para ejecutar la descarga completa hacia Landing:
+
+```powershell
+python -m src.ingestion.run_all_ingestion
+```
+
+Este runner ejecuta internamente:
+
+```powershell
+python -m src.ingestion.download_mef_income --all-resources --include-documentation
+python -m src.ingestion.download_predial_goal --all-enabled
+python -m src.ingestion.download_renamu --all-enabled --extract
+```
+
+También se puede usar sobrescritura controlada:
+
+```powershell
+python -m src.ingestion.run_all_ingestion --overwrite
+```
+
+La opción `--overwrite` permite reemplazar archivos existentes y limpiar temporales `.part` previos.
+
+## Descarga segura con archivos temporales .part
+
+Las descargas reales hacia Landing usan una utilidad común:
+
+```text
+src/common/download.py
+```
+
+Esta utilidad escribe primero en un archivo temporal `.part` y solo renombra al archivo final cuando la descarga termina correctamente.
+
+Ejemplo durante una descarga:
+
+```text
+data/landing/mef_income/2024-Ingreso.csv.part
+```
+
+Ejemplo al finalizar correctamente:
+
+```text
+data/landing/mef_income/2024-Ingreso.csv
+```
+
+Este criterio evita que una descarga interrumpida deje un CSV, ZIP o PDF incompleto con nombre final.
+
+Si existe un `.part`, el proceso intenta reanudar la descarga usando el header HTTP `Range`. Si el servidor no soporta reanudación, la descarga se reinicia desde cero.
+
+Los archivos `.part` son temporales y no deben versionarse en Git.
+
 ## Profiling inicial
 
 El profiling inicial analiza archivos locales disponibles en Landing.
@@ -532,7 +592,13 @@ No usar `docker system prune -a` sin revisar, porque puede borrar imágenes de o
 
 ### Antes de ingesta
 
-Validar scripts de ingesta en modo `--dry-run`:
+Validar ingesta completa en modo `--dry-run`:
+
+```powershell
+python -m src.ingestion.run_all_ingestion --dry-run
+```
+
+También se pueden validar fuentes individuales:
 
 ```powershell
 python -m src.ingestion.download_mef_income --resource dictionary --dry-run
@@ -683,6 +749,7 @@ No subir al repositorio:
 - Archivos ZIP reales.
 - Archivos XLSX reales.
 - Archivos Parquet.
+- Archivos temporales `.part`.
 - Logs pesados.
 - Reportes generados con datos reales.
 - Exports pesados de Power BI.
