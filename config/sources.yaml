@@ -5,68 +5,180 @@ project:
 sources:
   mef_income:
     name: mef_income
-    display_name: Presupuesto y ejecución de ingresos
+    display_name: Presupuesto y ejecucion de ingresos
     institution: MEF
     source_system: MEF_SIAF
-    description: Fuente pública para analizar presupuesto y ejecución de ingresos municipales.
-    access_method: pending_discovery
+    description: Fuente publica para analizar presupuesto y ejecucion de ingresos municipales.
+    dataset_url: "https://datosabiertos.mef.gob.pe/dataset/presupuesto-y-ejecucion-de-ingreso"
+    access_method: csv
     expected_formats:
       - csv
-      - api
-      - zip
-      - manual_download
     landing_subdir: mef_income
     bronze_subdir: mef_income
     silver_subdir: mef_income
     gold_subject_area: municipal_revenue
-    url: pending_discovery
     enabled: true
-    notes: El método real de acceso será confirmado durante la fase de discovery.
+    candidate_resources:
+      annual_2012:
+        file_name: "2012-Ingreso.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv"
+        format: csv
+        role: annual_source_file
+        priority: medium
+        use_for_ingestion: true
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 367063258
+      daily_2026:
+        file_name: "2026-Ingreso-Diario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2026-Ingreso-Diario.csv"
+        format: csv
+        role: daily_source_file
+        priority: low
+        use_for_ingestion: false
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 190675218
+      dictionary:
+        file_name: "Ingresos_Diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/Ingresos_Diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 3574
+    notes:
+      - "La fuente publica recursos CSV por anio."
+      - "Para anios recientes se observan recursos diarios o mensuales."
+      - "Los archivos principales pueden ser grandes; la ingesta definitiva debe considerar Spark y evitar cargas completas innecesarias con pandas."
+      - "La ingesta definitiva debe definir rango temporal y granularidad objetivo."
+      - "El archivo diario 2026 se registra como recurso observado, pero no se prioriza para la primera ingesta por su granularidad y tamanio."
 
   predial_goal:
     name: predial_goal
     display_name: Seguimiento de meta del impuesto predial
     institution: MEF
     source_system: SISMERE_MEF
-    description: Fuente pública para analizar avance, cumplimiento y brechas de la meta predial.
-    access_method: pending_discovery
+    description: Fuente publica para analizar avance, cumplimiento y brechas de la meta predial.
+    dataset_url: "https://datosabiertos.mef.gob.pe/dataset/seguimiento-de-la-meta-del-impuesto-predial"
+    access_method: csv
     expected_formats:
       - csv
-      - api
-      - zip
-      - manual_download
     landing_subdir: predial_goal
     bronze_subdir: predial_goal
     silver_subdir: predial_goal
     gold_subject_area: predial_compliance
-    url: pending_discovery
     enabled: true
-    notes: La estabilidad del acceso será validada durante discovery.
+    candidate_resources:
+      preguntas:
+        file_name: "rentas_preguntas.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_preguntas.csv"
+        format: csv
+        role: source_table
+        priority: medium
+        use_for_ingestion: true
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 201938
+      estadistica:
+        file_name: "rentas_estadistica.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica.csv"
+        format: csv
+        role: source_table
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 9281
+      formulario:
+        file_name: "rentas_formulario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_formulario.csv"
+        format: csv
+        role: source_table
+        priority: medium
+        use_for_ingestion: true
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 11933
+      respuestas_dictionary:
+        file_name: "rentas_respuestas_diccionario.csv"
+        url: "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_respuestas_diccionario.csv"
+        format: csv
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+        observed_http_status: 200
+        observed_content_type: text/csv
+        observed_content_length_bytes: 628
+    notes:
+      - "La fuente no es un unico archivo plano; contiene multiples CSV tematicos y diccionarios."
+      - "Bronze debera preservar las tablas fuente candidatas sin integrarlas prematuramente."
+      - "Silver debera seleccionar las tablas analiticamente necesarias para KPIs de cumplimiento predial."
+      - "Los diccionarios se registran como recursos de documentacion, no como tablas principales de analisis."
 
   renamu:
     name: renamu
     display_name: Registro Nacional de Municipalidades 2022
     institution: INEI
     source_system: RENAMU_2022
-    description: Fuente contextual para enriquecer el análisis territorial y municipal.
-    access_method: pending_discovery
+    description: Fuente contextual para enriquecer el analisis territorial y municipal.
+    dataset_url: "https://www.datosabiertos.gob.pe/dataset/registro-nacional-de-municipalidades-renamu-2022-instituto-nacional-de-estadistica-e"
+    access_method: zip
     expected_formats:
       - zip
+      - pdf
       - xlsx
-      - csv
-      - manual_download
     landing_subdir: renamu
     bronze_subdir: renamu
     silver_subdir: renamu
     gold_subject_area: territorial_context
-    url: pending_discovery
     enabled: true
-    notes: Se evaluará si RENAMU contiene una o varias tablas útiles para el análisis.
-
-reference_assets:
-  powerbi_reference_report:
-    name: powerbi_reference_report
-    display_name: Reporte Power BI de referencia
-    usage: visual_reference_only
-    description: Recurso usado únicamente como inspiración visual, no como fuente técnica de datos.
-    enabled: false
+    candidate_resources:
+      full_zip:
+        file_name: "2022.zip"
+        url: "https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DATA/2022.zip"
+        format: zip
+        role: full_dataset
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: false
+        observed_http_status: 200
+        observed_content_type: application/zip
+        observed_content_length_bytes: 1919681
+      dictionary_pdf:
+        file_name: "Diccionario.pdf"
+        url: "https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DICCIONARIO/2022/Diccionario.pdf"
+        format: pdf
+        role: dictionary
+        priority: medium
+        use_for_ingestion: false
+        use_for_documentation: true
+        observed_http_status: 200
+        observed_content_type: application/pdf
+        observed_content_length_bytes: 718281
+      sample_xlsx:
+        file_name: "BD_Muestra_2022_0.xlsx"
+        url: "https://www.datosabiertos.gob.pe/sites/default/files/BD_Muestra_2022_0.xlsx"
+        format: xlsx
+        role: sample
+        priority: low
+        use_for_ingestion: false
+        use_for_documentation: false
+        observed_http_status: 418
+        observed_content_type: text/html; charset=utf-8
+        observed_content_length_bytes: null
+    notes:
+      - "La pagina del dataset muestra diccionario PDF, muestra XLSX y ZIP completo."
+      - "El ZIP completo y el diccionario PDF respondieron correctamente desde Python."
+      - "La muestra XLSX respondio con HTTP 418; no se considera recurso prioritario para ingesta."
+      - "La URL del catalogo puede presentar timeout desde Python, pero los recursos directos del INEI deben probarse por separado."
+      - "La ingesta definitiva debe priorizar el ZIP completo y usar el diccionario PDF como referencia documental."

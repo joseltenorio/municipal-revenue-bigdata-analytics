@@ -98,3 +98,11 @@ powerbi/exports/**
 *.pbit
 *.pbitmp
 *.pbix.tmp
+
+# Jupyter
+.ipynb_checkpoints/
+notebooks/**/*.ipynb
+!notebooks/01_source_discovery.ipynb
+!notebooks/02_data_profiling.ipynb
+!notebooks/03_integration_analysis.ipynb
+!notebooks/04_powerbi_validation.ipynb
