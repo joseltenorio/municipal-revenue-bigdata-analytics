@@ -209,6 +209,8 @@ La siguiente fase debe usar estos hallazgos para:
 - Revisar parseos puntuales de Predial.
 - Validar consistencia territorial entre fuentes.
 
+La integración Silver ya trata estos warnings de forma conservadora: MEF se agrega en `mef_municipal_amounts`, Predial conserva granularidad de entidad/formulario/tiempo estadístico en `predial_entity_period`, y el cruce territorial se apoya en `municipal_entity_bridge` sin asumir que `sec_ejec` equivale a `ubigeo`. Los detalles y coberturas observadas se documentan en `docs/silver_transformations.md`.
+
 ## Criterio de versionamiento
 
 No versionar outputs locales derivados:

@@ -121,6 +121,10 @@ El profiling y la calidad ayudan a decidir:
 - **Granularidad:** los duplicados funcionales pueden indicar que falta incluir periodo, clasificador, entidad, pregunta u otra dimensión en la llave.
 - **Modelo Gold posterior:** las reglas actuales ayudan a separar hechos, dimensiones y catálogos, pero todavía no los definen.
 
+Los hallazgos de duplicados por llaves candidatas motivaron una integración Silver controlada, documentada en `docs/silver_transformations.md`. Esa integración evita joins crudos fila-a-fila, agrega MEF por granularidad presupuestal, conserva la granularidad predial por entidad/formulario/tiempo estadístico y usa RENAMU como contexto territorial por `ubigeo`.
+
+La cobertura de cruce se mide explícitamente en `integration_coverage`. Estos porcentajes deben interpretarse como calidad de integración y no como KPIs de negocio.
+
 ## Hallazgos por fuente
 
 ### MEF ingresos

@@ -427,6 +427,48 @@ Silver será responsable de:
 
 Bronze no debe adelantar esas decisiones.
 
+## Datasets Silver integrados
+
+La integración Silver prepara datasets intermedios para análisis posterior, sin construir todavía KPIs Gold ni modelo final.
+
+Las salidas integradas locales se organizan en:
+
+```text
+data/silver/integrated/<dataset_name>/
+```
+
+Estos Parquet son outputs locales regenerables y no deben versionarse.
+
+| Dataset | Propósito |
+| --- | --- |
+| `municipal_entity_bridge` | Puente observado entre `sec_ejec` y `ubigeo`, con validación territorial contra RENAMU. |
+| `mef_municipal_amounts` | Montos MEF agregados por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. |
+| `predial_entity_period` | Dataset predial preparado por entidad, periodo, formulario y tiempo estadístico. |
+| `renamu_municipal_context` | Contexto territorial RENAMU por `ubigeo`. |
+| `integration_coverage` | Métricas de cobertura de cruce entre MEF, Predial y RENAMU. |
+
+Columnas clave de integración:
+
+| Campo | Uso |
+| --- | --- |
+| `sec_ejec` | Identificador de entidad ejecutora o entidad predial. No equivale directamente a `ubigeo`. |
+| `ubigeo` | Llave territorial principal para cruce con RENAMU. |
+| `anio` | Año tipado para MEF o RENAMU. |
+| `mes` | Mes tipado en MEF. |
+| `ano_aplicacion` | Año de aplicación predial. |
+| `periodo` | Periodo operativo predial. |
+| `formulario_id` | Identificador de formulario predial. |
+| `ano_estadistica` | Año estadístico predial. |
+| `mes_estadistica` | Mes estadístico predial. |
+| `monto_pia_total` | Suma integrada de PIA MEF. |
+| `monto_pim_total` | Suma integrada de PIM MEF. |
+| `monto_recaudado_total` | Suma integrada de recaudación MEF. |
+| `integration_grain` | Descripción técnica de la granularidad integrada. |
+| `source_dataset` | Dataset fuente usado para construir la salida integrada. |
+| `silver_integration_processed_at_utc` | Fecha y hora UTC del procesamiento de integración Silver. |
+
+El detalle de reglas, decisiones y problemas de cruce se documenta en `docs/silver_transformations.md`.
+
 ## Relación con Gold y Power BI
 
 Gold será responsable de definir los datasets analíticos finales y los KPIs para Power BI.
