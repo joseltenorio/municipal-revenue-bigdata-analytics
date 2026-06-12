@@ -99,3 +99,55 @@ def test_render_create_external_table() -> None:
     assert "`metric_name` STRING" in sql
     assert "STORED AS PARQUET" in sql
     assert "LOCATION '/app/data/silver/integrated/integration_coverage'" in sql
+
+
+def test_discover_gold_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    """La función discover_gold_tables descubre directorios Gold con Parquet."""
+
+    # Crear estructura simulada: area/dataset/file.parquet
+    gold_mock = tmp_path / "data" / "gold"
+    area_mock = gold_mock / "municipal_revenue"
+    dataset_mock = area_mock / "fact_municipal_income_execution"
+    dataset_mock.mkdir(parents=True)
+
+    # Crear un archivo parquet vacío para que sea detectado por parquet_files_exist
+    (dataset_mock / "part-0.parquet").write_text("dummy content")
+
+    # Mockear GOLD_DIR y PROJECT_ROOT en generate_external_tables
+    import src.hive.generate_external_tables as gen
+
+    monkeypatch.setattr(gen, "GOLD_DIR", gold_mock)
+    monkeypatch.setattr(gen, "PROJECT_ROOT", tmp_path)
+
+    specs = gen.discover_gold_tables()
+
+    assert len(specs) == 1
+    spec = specs[0]
+    assert spec.database == "gold"
+    assert spec.table_name == "fact_municipal_income_execution"
+    assert spec.hive_location == "/app/data/gold/municipal_revenue/fact_municipal_income_execution"
+
+
+def test_render_create_external_table_gold() -> None:
+    """La sentencia CREATE EXTERNAL TABLE para Gold incluye base de datos gold y location."""
+
+    spec = ExternalTableSpec(
+        database="gold",
+        table_name="fact_municipal_income_execution",
+        dataset_path=Path("data/gold/municipal_revenue/fact_municipal_income_execution"),
+        hive_location="/app/data/gold/municipal_revenue/fact_municipal_income_execution",
+    )
+    sql = render_create_external_table(
+        spec,
+        [
+            ("sec_ejec", "STRING"),
+            ("monto_recaudado_total", "DECIMAL(30,4)"),
+        ],
+    )
+
+    assert "CREATE EXTERNAL TABLE IF NOT EXISTS `gold`.`fact_municipal_income_execution`" in sql
+    assert "`sec_ejec` STRING" in sql
+    assert "`monto_recaudado_total` DECIMAL(30,4)" in sql
+    assert "STORED AS PARQUET" in sql
+    assert "LOCATION '/app/data/gold/municipal_revenue/fact_municipal_income_execution'" in sql
+

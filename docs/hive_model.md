@@ -19,9 +19,9 @@ Se crean tres bases:
 | --- | --- | --- |
 | `bronze` | Disponible con tablas externas | Consulta técnica de recursos en granularidad original |
 | `silver` | Disponible con tablas externas | Consulta de datos limpios, tipados e integrados |
-| `gold` | Disponible sin tablas | Capa final para marts analíticos futuros |
+| `gold` | Disponible con tablas externas | Capa final para marts analíticos y consumo de reportabilidad |
 
-Gold existe como base para mantener la arquitectura completa, pero todavía no tiene tablas externas porque los marts Gold aún no se han construido.
+Gold ahora está completamente poblado con tablas externas mapeando los marts de la arquitectura Medallion.
 
 ## Tablas Bronze
 
@@ -60,11 +60,28 @@ Estas tablas permiten validar integración y cobertura antes de construir Gold. 
 
 ## Gold
 
-La base `gold` se crea desde `sql/hive/create_databases.sql`.
+La base `gold` registra 15 tablas externas correspondientes a los marts y dimensiones analíticas generados para ingresos municipales, cumplimiento predial y contexto territorial.
 
-El archivo `sql/hive/create_gold_external_tables.sql` es un placeholder no-op documentado. No registra tablas porque no existen Parquet Gold en esta etapa.
+El archivo `sql/hive/create_gold_external_tables.sql` define los DDL correspondientes a las siguientes tablas de negocio:
 
-No se deben inventar tablas Gold antes de construir los marts correspondientes.
+* **Ingresos municipales (`municipal_revenue`):**
+  * `gold.dim_municipality`: Dimensión municipal unificada con ubigeos y códigos ejecutores.
+  * `gold.dim_time`: Dimensión temporal a nivel anual/mensual.
+  * `gold.fact_municipal_income_execution`: Hecho de ejecución de ingresos mensuales y anuales con KPIs de recaudación vs PIA/PIM.
+  * `gold.mart_municipal_revenue_overview`: Agregado ejecutivo para análisis visual.
+  * `gold.fact_revenue_integration_coverage`: Cobertura técnica de integración presupuestal.
+* **Cumplimiento predial (`predial_compliance`):**
+  * `gold.dim_predial_period`: Dimensión temporal y de contexto estadístico predial.
+  * `gold.fact_predial_compliance`: Hecho de cumplimiento e importes de recaudación y saldos del impuesto predial.
+  * `gold.mart_predial_compliance_overview`: Mart agregado de efectividad predial.
+  * `gold.mart_predial_ranking`: Ranking municipal según volumen y efectividad de recaudación.
+  * `gold.fact_predial_integration_coverage`: Cobertura de la integración predial.
+* **Contexto territorial (`territorial_context`):**
+  * `gold.dim_geography`: Dimensión geográfica jerárquica a nivel distrital, provincial y departamental.
+  * `gold.dim_municipality_context`: Atributos y tipo de municipalidades.
+  * `gold.mart_municipal_capacity`: Mart de capacidades institucionales (personal, sistemas, internet, catastro, etc.).
+  * `gold.mart_territorial_context`: Agrupador analítico distrital y provincial.
+  * `gold.fact_territorial_integration_coverage`: Cobertura del cruce geográfico-territorial.
 
 ## Generación de SQL
 
@@ -94,11 +111,11 @@ Se validó la generación y aplicación del SQL con:
 - `create_databases.sql`: correcto.
 - `create_bronze_external_tables.sql`: correcto.
 - `create_silver_external_tables.sql`: correcto.
-- `create_gold_external_tables.sql`: correcto como placeholder no-op.
+- `create_gold_external_tables.sql`: correcto con DDLs dinámicos mapeando los marts Parquet.
 - `SHOW DATABASES`: mostró `bronze`, `silver` y `gold`.
 - `SHOW TABLES IN bronze`: 25 tablas.
 - `SHOW TABLES IN silver`: 30 tablas.
-- `SHOW TABLES IN gold`: 0 tablas, esperado en esta etapa.
+- `SHOW TABLES IN gold`: 15 tablas registradas y funcionales.
 
 También se validaron consultas sobre tablas integradas:
 
@@ -114,13 +131,11 @@ La tabla `silver.mef_municipal_amounts` tiene más de 12 millones de filas, por 
 
 ## Interpretación
 
-Hive ya cumple un rol real en la arquitectura del proyecto: cataloga datasets Parquet existentes y permite validarlos mediante SQL.
+Hive cataloga de forma completa las tres capas del lakehouse local: Bronze (fuentes crudas), Silver (datos depurados y cruzados) y Gold (marts listos para visualización). 
 
-El estado actual es suficiente para consultar Bronze y Silver desde Hive. Sin embargo, todavía no representa la capa final de consumo analítico, porque Gold no existe. Power BI deberá conectarse preferentemente a tablas Gold cuando los marts estén construidos y registrados.
+Power BI consume preferentemente los marts y dimensiones analíticas finales de la capa `gold` expuestos por HiveServer2 mediante el driver ODBC. Si la conexión por Hive experimentase inestabilidad local debido a restricciones de red o controladores locales del sistema anfitrión, Power BI puede utilizar un fallback directo consumiendo los archivos Parquet físicos en `data/gold/` o una exportación local CSV controlada como respaldo de contingencia.
 
 ## Limitaciones
 
-- Gold aún no tiene tablas externas.
-- Las tablas Bronze y Silver son útiles para validación técnica, pero no deben exponerse como modelo final de negocio.
-- Beeline puede mostrar warnings de Log4j o SLF4J; no fueron bloqueantes durante las validaciones.
-- La conexión con Power BI todavía debe validarse después de construir Gold.
+- Las tablas Bronze y Silver son para auditoría interna e ingeniería de datos; no deben exponerse al usuario de negocio de Power BI.
+- Beeline puede mostrar warnings de Log4j o SLF4J; no afectan la ejecución de consultas.

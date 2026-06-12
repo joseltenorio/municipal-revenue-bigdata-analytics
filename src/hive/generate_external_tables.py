@@ -13,13 +13,14 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Iterable
 
-from src.common.paths import BRONZE_DIR, PROJECT_ROOT, SILVER_DIR, SQL_DIR
+from src.common.paths import BRONZE_DIR, GOLD_DIR, PROJECT_ROOT, SILVER_DIR, SQL_DIR
 
 
 HIVE_PROJECT_ROOT = "/app"
 HIVE_SQL_DIR = SQL_DIR / "hive"
 BRONZE_SQL_PATH = HIVE_SQL_DIR / "create_bronze_external_tables.sql"
 SILVER_SQL_PATH = HIVE_SQL_DIR / "create_silver_external_tables.sql"
+GOLD_SQL_PATH = HIVE_SQL_DIR / "create_gold_external_tables.sql"
 
 
 class HiveDdlError(Exception):
@@ -200,9 +201,33 @@ def discover_silver_integrated_tables() -> list[ExternalTableSpec]:
     return specs
 
 
+def discover_gold_tables() -> list[ExternalTableSpec]:
+    """Descubre recursos Gold bajo sus carpetas de área analítica."""
+
+    if not GOLD_DIR.exists():
+        return []
+
+    specs: list[ExternalTableSpec] = []
+    # Escanear carpetas de área (municipal_revenue, predial_compliance, territorial_context)
+    for area_path in sorted(path for path in GOLD_DIR.iterdir() if path.is_dir()):
+        for dataset_path in sorted(path for path in area_path.iterdir() if path.is_dir()):
+            if not parquet_files_exist(dataset_path):
+                continue
+            specs.append(
+                ExternalTableSpec(
+                    database="gold",
+                    table_name=normalize_hive_identifier(dataset_path.name),
+                    dataset_path=dataset_path,
+                    hive_location=project_path_to_hive_location(dataset_path),
+                )
+            )
+    return specs
+
+
 def validate_discovered_tables(
     bronze_specs: list[ExternalTableSpec],
     silver_specs: list[ExternalTableSpec],
+    gold_specs: list[ExternalTableSpec] | None = None,
 ) -> None:
     """Valida que existan tablas esperadas mínimas."""
 
@@ -210,6 +235,8 @@ def validate_discovered_tables(
         raise HiveDdlError("No se encontraron Parquet Bronze para registrar.")
     if not silver_specs:
         raise HiveDdlError("No se encontraron Parquet Silver para registrar.")
+    if gold_specs is not None and not gold_specs:
+        raise HiveDdlError("No se encontraron Parquet Gold para registrar.")
 
 
 def schema_to_hive_columns(schema: Any) -> list[tuple[str, str]]:
@@ -282,7 +309,11 @@ def write_sql_file(path: Path, content: str, overwrite_sql: bool) -> None:
     path.write_text(content, encoding="utf-8")
 
 
-def print_plan(bronze_specs: list[ExternalTableSpec], silver_specs: list[ExternalTableSpec]) -> None:
+def print_plan(
+    bronze_specs: list[ExternalTableSpec],
+    silver_specs: list[ExternalTableSpec],
+    gold_specs: list[ExternalTableSpec],
+) -> None:
     """Imprime plan de generación sin escribir SQL."""
 
     print("=" * 80)
@@ -293,7 +324,9 @@ def print_plan(bronze_specs: list[ExternalTableSpec], silver_specs: list[Externa
     print(f"Tablas Silver a generar: {len(silver_specs)}")
     for spec in silver_specs:
         print(f"- {spec.database}.{spec.table_name} -> {spec.hive_location}")
-    print("Gold: solo base de datos; sin tablas externas porque no existe Parquet Gold.")
+    print(f"Tablas Gold a generar: {len(gold_specs)}")
+    for spec in gold_specs:
+        print(f"- {spec.database}.{spec.table_name} -> {spec.hive_location}")
 
 
 def generate_external_table_sql(
@@ -309,15 +342,17 @@ def generate_external_table_sql(
         *discover_silver_source_tables(),
         *discover_silver_integrated_tables(),
     ]
+    gold_specs = discover_gold_tables()
 
     if validate_inputs:
-        validate_discovered_tables(bronze_specs, silver_specs)
+        validate_discovered_tables(bronze_specs, silver_specs, gold_specs)
 
     if dry_run:
-        print_plan(bronze_specs, silver_specs)
+        print_plan(bronze_specs, silver_specs, gold_specs)
         return {
             "bronze_tables": len(bronze_specs),
             "silver_tables": len(silver_specs),
+            "gold_tables": len(gold_specs),
             "written_files": [],
         }
 
@@ -326,7 +361,10 @@ def generate_external_table_sql(
     spark = build_spark_session(
         app_name="GenerateHiveExternalTables",
         master="local[2]",
-        extra_configs={"spark.sql.shuffle.partitions": "4"},
+        extra_configs={
+            "spark.sql.shuffle.partitions": "4",
+            "spark.hadoop.fs.file.impl": "org.apache.hadoop.fs.RawLocalFileSystem",
+        },
     )
     try:
         bronze_sql = render_sql_file(
@@ -339,24 +377,32 @@ def generate_external_table_sql(
             specs=silver_specs,
             title="Silver external tables",
         )
+        gold_sql = render_sql_file(
+            spark=spark,
+            specs=gold_specs,
+            title="Gold external tables",
+        )
     finally:
         spark.stop()
 
     write_sql_file(BRONZE_SQL_PATH, bronze_sql, overwrite_sql=overwrite_sql)
     write_sql_file(SILVER_SQL_PATH, silver_sql, overwrite_sql=overwrite_sql)
+    write_sql_file(GOLD_SQL_PATH, gold_sql, overwrite_sql=overwrite_sql)
 
     print("=" * 80)
     print("SQL Hive generado")
     print(f"- {BRONZE_SQL_PATH}")
     print(f"- {SILVER_SQL_PATH}")
+    print(f"- {GOLD_SQL_PATH}")
     print(f"Tablas Bronze: {len(bronze_specs)}")
     print(f"Tablas Silver: {len(silver_specs)}")
-    print("Tablas Gold: 0")
+    print(f"Tablas Gold: {len(gold_specs)}")
 
     return {
         "bronze_tables": len(bronze_specs),
         "silver_tables": len(silver_specs),
-        "written_files": [str(BRONZE_SQL_PATH), str(SILVER_SQL_PATH)],
+        "gold_tables": len(gold_specs),
+        "written_files": [str(BRONZE_SQL_PATH), str(SILVER_SQL_PATH), str(GOLD_SQL_PATH)],
     }
 
 
