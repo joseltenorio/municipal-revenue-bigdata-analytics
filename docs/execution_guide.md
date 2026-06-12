@@ -517,15 +517,22 @@ Salir de Beeline:
 
 Hive funciona como catálogo SQL del lakehouse local.
 
-En fases posteriores se crearán:
+En el estado actual del proyecto ya se crean:
 
 - Base `bronze`.
 - Base `silver`.
 - Base `gold`.
-- Tablas externas sobre archivos Parquet.
-- Consultas de validación.
+- Tablas externas Bronze sobre archivos Parquet.
+- Tablas externas Silver sobre archivos Parquet.
+- Consultas de validación mediante Beeline.
 
-En esta etapa se valida que Hive Metastore y HiveServer2 puedan levantarse y aceptar conexiones.
+La base `gold` queda creada, pero sin tablas externas hasta que se construyan los marts Gold.
+
+El detalle del modelo Hive, tablas registradas y validaciones ejecutadas se documenta en:
+
+```text
+docs/hive_model.md
+```
 
 ## Consideraciones para Power BI
 
