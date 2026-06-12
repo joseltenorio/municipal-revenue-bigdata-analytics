@@ -1,85 +1,124 @@
 quality:
-  default_result_levels:
+  valid_statuses:
     - PASS
     - WARNING
     - FAIL
 
-  common_rules:
-    required_columns:
-      description: Validar existencia de columnas críticas por fuente.
-      severity: FAIL
+  output:
+    results_jsonl: data/quality/bronze_quality_results.jsonl
+    report_html: reports/data_quality_report.html
 
-    null_rate:
-      description: Medir porcentaje de nulos en columnas críticas.
-      severity: WARNING
-      warning_threshold: 0.05
-      fail_threshold: 0.20
+  bronze:
+    common_metadata_columns:
+      - bronze_source_name
+      - bronze_resource_key
+      - bronze_source_file_name
+      - bronze_source_file_path
+      - bronze_processed_at_utc
 
-    duplicate_keys:
-      description: Detectar duplicados según llaves candidatas.
-      severity: WARNING
+    optional_metadata_columns:
+      - bronze_source_year
+      - bronze_source_role
+      - bronze_source_priority
 
-    invalid_year:
-      description: Validar años fuera del rango esperado.
-      severity: WARNING
-      min_year: 2010
-      max_year: 2030
+    rules:
+      dataset_path_exists:
+        severity: FAIL
+        description: Validar que exista la ruta esperada del recurso Bronze.
+      parquet_files_exist:
+        severity: FAIL
+        description: Validar que existan archivos Parquet bajo la ruta del recurso.
+      dataset_readable:
+        severity: FAIL
+        description: Validar que Spark pueda leer el dataset Parquet.
+      row_count_positive:
+        severity: FAIL
+        description: Validar que el dataset tenga al menos una fila.
+      column_count_positive:
+        severity: FAIL
+        description: Validar que el dataset tenga al menos una columna.
+      bronze_metadata_columns_present:
+        severity: FAIL
+        description: Validar columnas comunes de metadata técnica Bronze.
+      fully_null_columns:
+        severity: WARNING
+        description: Detectar columnas completamente nulas.
+      exact_duplicate_rows:
+        severity: WARNING
+        description: Detectar filas duplicadas exactas dentro del recurso.
+      invalid_year:
+        severity: WARNING
+        description: Validar años fuera del rango esperado cuando exista columna de año.
+        candidate_columns:
+          - anio
+          - ano
+          - año
+          - bronze_source_year
+        min_year: 2010
+        max_year: 2030
+      invalid_ubigeo:
+        severity: WARNING
+        description: Validar ubigeos vacíos o con formato distinto de seis dígitos cuando exista columna ubigeo.
+        candidate_columns:
+          - ubigeo
+        pattern: "^[0-9]{6}$"
+      invalid_percentage:
+        severity: WARNING
+        description: Validar columnas que sugieren porcentajes o tasas cuando existan en Bronze.
+        column_name_patterns:
+          - porcentaje
+          - percent
+          - pct
+          - avance
+          - cumplimiento
+          - rate
+        min_value: 0
+        max_value: 100
 
-    invalid_percentage:
-      description: Validar porcentajes fuera de rango.
-      severity: WARNING
-      min_value: 0
-      max_value: 100
+    sources:
+      mef_income:
+        expected_resources:
+          - annual_2012
+          - annual_2013
+          - annual_2014
+          - annual_2015
+          - annual_2016
+          - annual_2017
+          - annual_2018
+          - annual_2019
+          - annual_2020
+          - annual_2021
+          - annual_2022
+          - annual_2023
+          - annual_2024
+          - monthly_2025
+          - daily_2025
+          - monthly_2026
+          - daily_2026
+        optional_metadata_columns:
+          - bronze_source_year
 
-    invalid_ubigeo:
-      description: Validar ubigeos vacíos o con formato incorrecto.
-      severity: WARNING
-      expected_length: 6
+      predial_goal:
+        expected_resources:
+          - preguntas
+          - estadistica
+          - formulario
+          - esat_estadistica_atm
+          - respuestas
+          - ano_aplicacion
+          - entidad_estado
+        optional_metadata_columns:
+          - bronze_source_role
+          - bronze_source_priority
 
-  sources:
-    mef_income:
-      critical_columns_pending_discovery:
-        - anio
-        - municipalidad
-        - pia
-        - pim
-        - ejecucion_ingresos
-      numeric_columns_pending_discovery:
-        - pia
-        - pim
-        - ejecucion_ingresos
-        - porcentaje_ejecucion
-      candidate_keys_pending_discovery:
-        - anio
-        - codigo_entidad
-        - clasificador_ingreso
-
-    predial_goal:
-      critical_columns_pending_discovery:
-        - anio
-        - municipalidad
-        - meta_predial
-        - avance_predial
-        - porcentaje_avance_predial
-      numeric_columns_pending_discovery:
-        - meta_predial
-        - avance_predial
-        - porcentaje_avance_predial
-      candidate_keys_pending_discovery:
-        - anio
-        - ubigeo
-
-    renamu:
-      critical_columns_pending_discovery:
-        - ubigeo
-        - departamento
-        - provincia
-        - distrito
-        - municipalidad
-      candidate_keys_pending_discovery:
-        - ubigeo
+      renamu:
+        expected_resources:
+          - base_renamu_2022
+        optional_metadata_columns:
+          - bronze_source_year
 
   notes:
-    - Las reglas iniciales son parametrizadas y serán ajustadas después del profiling.
-    - No se debe asumir que los nombres de columnas reales coinciden con este borrador.
-    - Los resultados de calidad se documentarán en docs/data_quality.md.
+    - Estas reglas aplican a Bronze y son progresivas.
+    - No exigen columnas de negocio todavía.
+    - Las reglas dependientes de columnas se registran como WARNING no evaluado cuando la columna no existe.
+    - Las reglas Silver, Gold, Hive y Power BI se definirán en fases posteriores.
