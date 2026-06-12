@@ -473,7 +473,13 @@ El detalle de reglas, decisiones y problemas de cruce se documenta en `docs/silv
 
 Gold será responsable de definir los datasets analíticos finales y los KPIs para Power BI.
 
-Este documento no define todavía:
+El modelo Gold propuesto, basado en profiling, calidad e integración Silver, se documenta en:
+
+```text
+docs/gold_model.md
+```
+
+Este documento no implementa todavía:
 
 - Modelo estrella.
 - Copo de nieve.
@@ -485,6 +491,31 @@ Este documento no define todavía:
 - Páginas del dashboard.
 
 Estas decisiones dependen de profiling, calidad, limpieza Silver e integración entre fuentes.
+
+## Modelo Gold propuesto
+
+Esta sección resume las entidades analíticas candidatas. No representa tablas Gold ya materializadas.
+
+| Dataset propuesto | Tipo | Fuente Silver base | Llaves o granularidad candidata | Métricas o atributos principales |
+| --- | --- | --- | --- | --- |
+| `dim_municipality` | Dimensión | `municipal_entity_bridge`, `renamu_municipal_context` | `ubigeo`, `sec_ejec`, `idmunici` según cobertura | Identificadores municipales, tipo de municipalidad, flags de cobertura |
+| `dim_geography` | Dimensión | `renamu_municipal_context` | `ubigeo`, `ccdd`, `ccpp`, `ccdi` | Departamento, provincia, distrito y nombres normalizados |
+| `dim_time` | Dimensión | MEF Silver, Predial Silver integrado | `anio`, `mes`, periodo operativo | Año, mes, trimestre y etiquetas de periodo |
+| `fact_municipal_income_execution` | Hecho | `mef_municipal_amounts` | Año, mes, `sec_ejec`, clasificadores presupuestales | PIA, PIM, recaudación y conteo de registros fuente |
+| `fact_predial_goal_performance` | Hecho | `predial_entity_period` | `ano_aplicacion`, `periodo`, `sec_ejec`, `formulario_id`, `ano_estadistica`, `mes_estadistica` | Métricas `mon_*` y `num_*` agregadas, respuestas activas |
+| `fact_integration_coverage` | Hecho técnico | `integration_coverage` | Métrica de cobertura | Numerador, denominador y porcentaje de cobertura |
+| `mart_municipal_revenue_overview` | Mart | MEF integrado y dimensiones Gold | Municipio, periodo y clasificador agregado | PIA total, PIM total, recaudación total, avance y variación |
+| `mart_predial_compliance` | Mart | Predial integrado y dimensiones Gold | Entidad, periodo, formulario y tiempo estadístico | Indicadores prediales disponibles y métricas validadas |
+| `mart_territorial_context` | Mart | RENAMU contexto y puente municipal | `ubigeo` o entidad municipal validada | Jerarquía territorial, tipo municipal y cobertura |
+
+Criterios clave:
+
+- `sec_ejec` no reemplaza `ubigeo`.
+- MEF debe integrarse desde agregados, no desde filas crudas.
+- Predial conserva granularidad de formulario y tiempo estadístico.
+- RENAMU aporta contexto territorial.
+- Los registros sin match deben conservarse o excluirse solo mediante una regla Gold explícita.
+- Power BI debe consumir Gold y no depender de tablas Bronze o Silver como modelo final.
 
 ## Estado del contrato Bronze
 
