@@ -1,188 +1,178 @@
-# Modelo analítico Gold propuesto
+# Modelo Analítico Gold del Lakehouse
 
 ## Propósito
 
-La capa Gold será la capa analítica final del proyecto. Su objetivo será exponer datasets estables, comprensibles y eficientes para Power BI, construidos a partir de los resultados de profiling, reglas de calidad, transformaciones Silver e integración municipal.
+La capa **Gold** constituye la capa analítica final y optimizada del lakehouse local. Su objetivo es exponer tablas estables, comprensibles y eficientes para su consumo desde Power BI. A diferencia de las capas técnicas anteriores, Gold estructura la información en dimensiones, hechos y marts de datos de negocio, catalogados en Apache Hive y materializados en formato Parquet Snappy.
 
-Este documento define el modelo propuesto. No implica que Gold ya esté construido.
+Este documento detalla el modelo de datos real implementado y registrado en el catálogo SQL de Hive.
 
-Gold debe:
+Gold garantiza:
+- **Respeto a las granularidades nativas:** Evita cruces fila-a-fila que distorsionen o dupliquen importes financieros o prediales.
+- **Trazabilidad técnica:** Mantiene referencias a campos de auditoría (`gold_processed_at_utc`, `gold_grain`).
+- **Exposición transparente de la cobertura:** Incorpora métricas específicas de integración para que Power BI reporte la calidad del cruce de datos de manera explícitamente auditable.
+- **Acceso mediante Hive Server:** Las tablas están diseñadas para ser consumidas mediante ODBC de HiveServer2, con un fallback documentado directo a Parquet físicos o CSV en caso de inestabilidad local.
 
-- Respetar las granularidades observadas en Silver.
-- Evitar joins fila-a-fila entre fuentes incompatibles.
-- Conservar información de cobertura de integración.
-- Separar dimensiones, hechos y marts según uso analítico.
-- Documentar las reglas de agregación que alimenten KPIs.
+---
 
-## Criterios de modelado
+## Estructura del Modelo Gold
 
-Los hallazgos de profiling y calidad condicionan el diseño:
+El modelo está organizado en tres grandes áreas temáticas: ingresos municipales (`municipal_revenue`), cumplimiento predial (`predial_compliance`) y contexto territorial (`territorial_context`), mapeadas en la base de datos `gold` de Hive Server.
 
-- MEF no debe integrarse fila-a-fila con Predial o RENAMU. La integración debe partir de `mef_municipal_amounts`, que ya agrega montos con granularidad presupuestal controlada.
-- Predial conserva una granularidad propia por entidad, periodo, formulario y tiempo estadístico en `predial_entity_period`.
-- RENAMU funciona como contexto territorial municipal y usa `ubigeo` como llave territorial principal.
-- `sec_ejec` no equivale a `ubigeo`. El cruce debe usar un puente municipal validado.
-- La cobertura MEF con puente municipal es parcial: 1485 de 3014 `sec_ejec`, equivalente a 49.2701%.
-- La cobertura Predial con RENAMU es razonable, pero no completa: 1110 de 1485 entidades prediales, equivalente a 74.7475%.
-- RENAMU contiene 764 ubigeos sin presencia predial observada, equivalente a 40.7684% de sus ubigeos.
+```mermaid
+erDiagram
+    dim_geography ||--o{ dim_municipality : "mapea"
+    dim_municipality ||--o{ fact_municipal_income_execution : "cruzado por sec_ejec"
+    dim_municipality ||--o{ fact_predial_compliance : "cruzado por sec_ejec"
+    dim_municipality_context ||--|| mart_municipal_capacity : "extiende capacidad"
+    dim_time ||--o{ fact_municipal_income_execution : "filtra periodo"
+    dim_predial_period ||--o{ fact_predial_compliance : "filtra periodo predial"
+    mart_municipal_revenue_overview }|--|| dim_municipality : "agregado"
+    mart_predial_compliance_overview }|--|| dim_municipality : "agregado"
+```
 
-Por estos motivos, Gold no debe ocultar faltantes de integración ni excluir registros sin match sin una regla explícita.
+---
 
-## Enfoque propuesto
+## Catálogo de Tablas Gold
 
-El modelo Gold debe construirse con:
+### 1. Dimensiones (Dimensions)
 
-- Marts analíticos controlados.
-- Dimensiones compartidas solo cuando la cobertura lo permita.
-- Flags de cobertura para distinguir entidades cruzadas y no cruzadas.
-- Granularidades explícitas por tabla.
-- Métricas calculadas desde datasets Silver agregados, no desde tablas crudas incompatibles.
+#### [dim_geography](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_geography)
+* **Propósito:** Estandarizar la jerarquía político-administrativa (Departamento, Provincia, Distrito) a nivel nacional para la colocación de filtros jerárquicos y mapeo territorial.
+* **Fuente Silver base:** `renamu_municipal_context`.
+* **Granularidad:** Un registro por `ubigeo` nacional único.
+* **Columnas principales:** `geography_key`, `ubigeo`, `ccdd`, `ccpp`, `ccdi`, `departamento_normalizado`, `provincia_normalizada`, `distrito_normalizado`, `is_valid_ubigeo`.
+* **Uso en Power BI:** Filtro geográfico principal (Slicer) y mapas.
+* **Limitaciones:** Representa la estructura territorial de ubigeos reportada formalmente en RENAMU.
 
-La construcción de Gold deberá preservar trazabilidad hacia Silver mediante campos como `source_dataset`, `integration_grain` y timestamps de procesamiento.
+#### [dim_municipality](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_municipality)
+* **Propósito:** Registrar el universo municipal mapeando la relación técnica entre el código ejecutor presupuestal (`sec_ejec`) y el ubigeo territorial (`ubigeo`).
+* **Fuente Silver base:** `municipal_entity_bridge` y `renamu_municipal_context`.
+* **Granularidad:** Una fila por combinación válida de `sec_ejec` + `ubigeo` + `mapping_source`.
+* **Columnas principales:** `municipality_key`, `sec_ejec`, `ubigeo`, `municipalidad_nombre`, `tipomuni_label`, `has_renamu_match`, `is_valid_sec_ejec`, `is_valid_ubigeo`.
+* **Uso en Power BI:** Tabla de búsqueda (Lookup) para asociar hechos de ingresos (MEF) y predios a la geografía distrital.
+* **Limitaciones:** Conserva flags de cobertura técnica. Si un `sec_ejec` carece de mapeo geográfico, `has_renamu_match` se expone como falso para no forzar cruces erróneos.
 
-## Datasets Gold propuestos
+#### [dim_municipality_context](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_municipality_context)
+* **Propósito:** Contextualizar las entidades municipales de RENAMU con atributos demográficos y de conformación institucional.
+* **Fuente Silver base:** `renamu_municipal_context` y `municipal_entity_bridge`.
+* **Granularidad:** Un registro por `ubigeo`.
+* **Columnas principales:** `municipality_context_key`, `ubigeo`, `idmunici`, `tipomuni_label`, `has_municipal_identifier`, `sec_ejec_count`, `predial_sec_ejec_count`, `has_predial_match`.
+* **Uso en Power BI:** Filtrado y clasificación institucional de municipalidades.
+* **Limitaciones:** Depende de la declaración del cuestionario RENAMU.
 
-### `dim_municipality`
+#### [dim_predial_period](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/predial_compliance/dim_predial_period)
+* **Propósito:** Mapear la temporalidad y los ciclos operativos de la declaración y recolección del impuesto predial.
+* **Fuente Silver base:** `predial_entity_period`.
+* **Granularidad:** Combinación de `ano_aplicacion` + `periodo` + `ano_estadistica` + `mes_estadistica`.
+* **Columnas principales:** `predial_period_key`, `ano_aplicacion`, `periodo`, `predial_period_label`.
+* **Uso en Power BI:** Tabla de tiempo especializada para la línea de impuesto predial.
+* **Limitaciones:** Los periodos son discontinuos según los años declarados operativamente por las municipalidades.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Representar entidades municipales integrables para análisis. |
-| Fuente Silver base | `municipal_entity_bridge` y `renamu_municipal_context`. |
-| Granularidad esperada | Una fila por combinación municipal validada, preferentemente por `ubigeo` y referencias disponibles de `sec_ejec`. |
-| Llaves candidatas | `ubigeo`, `sec_ejec`, `idmunici`, según disponibilidad y cobertura. |
-| Atributos principales | Departamento, provincia, distrito, nombres normalizados, tipo de municipalidad, flags de validez y cobertura. |
-| Limitaciones | `sec_ejec` no debe reemplazar `ubigeo`; pueden existir entidades MEF sin puente y ubigeos RENAMU sin Predial. |
+#### [dim_time](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_time)
+* **Propósito:** Estandarizar el análisis de la ejecución presupuestal a nivel de año y mes de forma continua.
+* **Fuente Silver base:** `fact_municipal_income_execution`.
+* **Granularidad:** Un registro por `anio` y `mes`.
+* **Columnas principales:** `period_key`, `anio`, `mes`, `is_annual_record`, `period_label`.
+* **Uso en Power BI:** Dimensión temporal para análisis de evolución de recaudación de ingresos.
+* **Limitaciones:** No se cuenta con granularidad diaria real; la ejecución mensualizada o acumulada anual es el estándar financiero.
 
-### `dim_geography`
+---
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Exponer jerarquía territorial para filtros y análisis geográfico. |
-| Fuente Silver base | `renamu_municipal_context` y campos territoriales del puente municipal. |
-| Granularidad esperada | Una fila por `ubigeo` válido. |
-| Llaves candidatas | `ubigeo`, `ccdd`, `ccpp`, `ccdi`. |
-| Atributos principales | Departamento, provincia, distrito y versiones normalizadas. |
-| Limitaciones | Los nombres territoriales no deben usarse como llave principal porque pueden variar entre fuentes. |
+### 2. Hechos (Facts)
 
-### `dim_time`
+#### [fact_municipal_income_execution](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/fact_municipal_income_execution)
+* **Propósito:** Hecho centralizado de presupuesto y ejecución de ingresos municipales por clasificador de ingresos detallado y periodo temporal.
+* **Fuente Silver base:** `mef_municipal_amounts`.
+* **Granularidad:** `source_dataset` + `anio` + `mes` + `sec_ejec` + Clasificadores presupuestales (`rubro`, `generica`, `subgenerica`, `especifica`, etc.).
+* **Columnas principales:** `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total`, `recaudacion_vs_pia_ratio`, `recaudacion_vs_pim_ratio`, `pim_vs_pia_ratio`, `integration_quality_status`.
+* **Uso en Power BI:** Sumarización y cálculo de tasas de avance de ingresos, desglosados por rubros y partidas presupuestarias.
+* **Limitaciones:** Cerca de la mitad de las ejecutoras (`sec_ejec`) no cruzan con puente municipal, por lo que estas transacciones se exponen con `integration_quality_status = 'without_bridge'`.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Estandarizar análisis temporal en Power BI. |
-| Fuente Silver base | Campos temporales de MEF y Predial. |
-| Granularidad esperada | Año y mes cuando exista información mensual. |
-| Llaves candidatas | `anio`, `mes`, combinaciones de año-periodo según fuente. |
-| Atributos principales | Año, mes, trimestre, etiqueta de periodo y granularidad. |
-| Limitaciones | Los recursos MEF llamados diarios no tienen una columna real de día observada; no se debe inventar una fecha diaria. |
+#### [fact_predial_compliance](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/predial_compliance/fact_predial_compliance)
+* **Propósito:** Hecho principal para medir la emisión predial, recaudación ord/coactiva, saldos por cobrar y volumen de contribuyentes del impuesto predial.
+* **Fuente Silver base:** `predial_entity_period`.
+* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec` + `formulario_id` + `ano_estadistica` + `mes_estadistica`.
+* **Columnas principales:** `predial_collection_total`, `predial_issue_total`, `predial_balance_total`, `taxpayer_count_total`, `property_count_total`, `predial_effectiveness_ratio`, columnas de origen monetarias (`mon_*_total`) y numéricas (`num_*_total`).
+* **Uso en Power BI:** Cálculo de efectividad de cobranza predial y análisis de carteras morosas a nivel distrital y de periodos.
+* **Limitaciones:** La granularidad incluye el ID de formulario y el mes estadístico para fines de trazabilidad.
 
-### `fact_municipal_income_execution`
+#### [fact_revenue_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/fact_revenue_integration_coverage)
+* **Propósito:** Exponer las métricas de cobertura técnica de integración del MEF sobre el universo presupuestal.
+* **Fuente Silver base:** `integration_coverage`.
+* **Granularidad:** Registro por métrica de cobertura.
+* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`, `description`.
+* **Uso en Power BI:** Dashboard técnico de auditoría del lakehouse.
+* **Limitaciones:** **Es una métrica técnica de calidad/integración de datos**, no representa desempeño municipal.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Analizar presupuesto y recaudación de ingresos municipales. |
-| Fuente Silver base | `mef_municipal_amounts`. |
-| Granularidad esperada | `source_dataset`, año, mes, `sec_ejec` y clasificadores presupuestales principales. |
-| Llaves candidatas | `anio`, `mes`, `sec_ejec`, clasificadores presupuestales y `source_dataset`. |
-| Métricas principales | `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total`, conteo de registros fuente. |
-| Limitaciones | No todos los `sec_ejec` cruzan con el puente municipal. El hecho debe conservar flags de match o permitir análisis de no cobertura. |
+#### [fact_predial_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/predial_compliance/fact_predial_integration_coverage)
+* **Propósito:** Reportar la cobertura e integridad de la información predial mapeada a nivel territorial distrital.
+* **Fuente Silver base:** `integration_coverage`.
+* **Granularidad:** Registro por métrica de cobertura predial.
+* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`.
+* **Uso en Power BI:** Reporte técnico de auditoría.
+* **Limitaciones:** **Es una métrica técnica de calidad de datos**, no de desempeño.
 
-### `fact_predial_goal_performance`
+#### [fact_territorial_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/fact_territorial_integration_coverage)
+* **Propósito:** Registrar las métricas de cobertura territorial y el cruce geográfico de distritos.
+* **Fuente Silver base:** `integration_coverage`.
+* **Granularidad:** Registro por métrica de integración territorial.
+* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`.
+* **Uso en Power BI:** Reporte técnico de auditoría.
+* **Limitaciones:** **Es una métrica de calidad de datos**, no representa desempeño de gestión.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Analizar desempeño predial por entidad, periodo y formulario. |
-| Fuente Silver base | `predial_entity_period`. |
-| Granularidad esperada | Entidad predial, año de aplicación, periodo, formulario, año estadístico y mes estadístico. |
-| Llaves candidatas | `ano_aplicacion`, `periodo`, `sec_ejec`, `formulario_id`, `ano_estadistica`, `mes_estadistica`. |
-| Métricas principales | Totales monetarios `mon_*_decimal_total`, totales numéricos `num_*_decimal_total`, conteos fuente y respuestas activas. |
-| Limitaciones | La fuente predial no debe colapsarse solo a `sec_ejec`; `respuestas` contiene estados activos e inactivos y no debe usarse cruda como hecho final sin tratamiento. |
+---
 
-### `fact_integration_coverage`
+### 3. Marts de Negocio (Marts)
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Medir cobertura y brechas de cruce entre MEF, Predial y RENAMU. |
-| Fuente Silver base | `integration_coverage`. |
-| Granularidad esperada | Una fila por métrica de cobertura. |
-| Llaves candidatas | Nombre de métrica o identificador técnico de regla. |
-| Métricas principales | Numerador, denominador y porcentaje de cobertura. |
-| Limitaciones | Los porcentajes son métricas de calidad de integración, no KPIs de desempeño municipal. |
+#### [mart_municipal_capacity](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/mart_municipal_capacity)
+* **Propósito:** Consolidar métricas de capacidades institucionales de las municipalidades (personal contratado, computadoras, conectividad y disponibilidad de sistemas de administración tributaria y catastro) para analizar brechas operativas.
+* **Fuente Silver base:** `renamu_full` (Silver completo: `base_renamu_2022`) y `dim_municipality_context` (Gold).
+* **Granularidad:** Un registro por `ubigeo` (municipalidad).
+* **Columnas principales:** `total_personal_mar_2022`, `total_computadoras_operativas`, `ratio_computadoras_con_internet`, `tiene_internet`, `tiene_siaf`, `tiene_srtm`, `tiene_sistema_rentas`, `tiene_catastro`, `requiere_asistencia_administracion_tributaria`, `requiere_asistencia_catastro`, `renamu_income_total`, `renamu_expense_total`.
+* **Uso en Power BI:** Cruce de capacidad tecnológica e institucional con la efectividad de recaudación predial o ingresos para identificar municipalidades críticas en un análisis multidimensional de cuadrantes.
+* **Limitaciones:** Basado en el censo institucional de RENAMU 2022.
 
-### `mart_municipal_revenue_overview`
+#### [mart_municipal_revenue_overview](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/mart_municipal_revenue_overview)
+* **Propósito:** Proporcionar una vista agregada y rápida de los ingresos municipales a nivel de entidad y periodo para optimizar el rendimiento del reporte en Power BI.
+* **Fuente Gold base:** `fact_municipal_income_execution`.
+* **Granularidad:** `anio` + `mes` + `sec_ejec` + `ubigeo`.
+* **Columnas principales:** `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total`, `recaudacion_vs_pia_ratio`, `recaudacion_vs_pim_ratio`, `integration_quality_status`.
+* **Uso en Power BI:** Gráficos de tendencias, resúmenes temporales de avance presupuestal y tarjetas KPI principales de ingresos.
+* **Limitaciones:** No incluye los desgloses presupuestales (partidas de clasificadores) para evitar sobrecargar la memoria.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Vista analítica principal de ingresos municipales para Power BI. |
-| Fuente Silver base | `mef_municipal_amounts`, `municipal_entity_bridge` y dimensiones Gold. |
-| Granularidad esperada | Municipio o entidad, periodo y clasificador agregado según decisión Gold. |
-| Métricas principales | PIA total, PIM total, recaudación total, avance de recaudación y variación anual. |
-| Limitaciones | Debe exponer cobertura de cruce y no ocultar entidades MEF sin match territorial. |
+#### [mart_predial_compliance_overview](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/predial_compliance/mart_predial_compliance_overview)
+* **Propósito:** Agregar las variables clave del impuesto predial por entidad y periodo operativo eliminando el detalle de formularios.
+* **Fuente Gold base:** `fact_predial_compliance`.
+* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec` + `effective_ubigeo`.
+* **Columnas principales:** `predial_collection_total`, `predial_issue_total`, `predial_balance_total`, `taxpayer_count_total`, `property_count_total`, `predial_effectiveness_ratio`.
+* **Uso en Power BI:** Dashboards principales de cobranza predial.
+* **Limitaciones:** Agrupado a nivel de periodo y entidad ejecutora.
 
-### `mart_predial_compliance`
+#### [mart_predial_ranking](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/predial_compliance/mart_predial_ranking)
+* **Propósito:** Clasificar y ordenar las municipalidades según volumen y efectividad de recaudación predial por año y periodo para evaluaciones comparativas de desempeño.
+* **Fuente Gold base:** `mart_predial_compliance_overview`.
+* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec`.
+* **Columnas principales:** `collection_rank_desc`, `collection_rank_asc`, `effectiveness_rank_desc`, `balance_rank_desc`, `is_top_collection_candidate`, `is_bottom_collection_candidate`.
+* **Uso en Power BI:** Tablas de ranking y visualización de líderes de recaudación.
+* **Limitaciones:** El ranking se calcula independientemente para cada combinación de año y periodo.
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Vista analítica de desempeño predial por entidad y periodo. |
-| Fuente Silver base | `predial_entity_period` y puente municipal. |
-| Granularidad esperada | Entidad predial, periodo, formulario y tiempo estadístico. |
-| Métricas principales | Indicadores monetarios y numéricos prediales disponibles, con porcentajes solo cuando estén soportados por columnas y reglas documentadas. |
-| Limitaciones | No se deben inventar indicadores de cumplimiento si no están respaldados por la fuente o por reglas Gold explícitas. |
+#### [mart_territorial_context](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/mart_territorial_context)
+* **Propósito:** Agregar métricas del cruce municipal-territorial por distritos y provincias para análisis y auditoría territorial.
+* **Fuente Gold base:** `dim_municipality_context`.
+* **Granularidad:** `ubigeo` y tipo de municipalidad.
+* **Columnas principales:** `municipality_count`, `valid_ubigeo_count`, `complete_territory_count`, `predial_match_count`, `without_predial_match_count`.
+* **Uso en Power BI:** Soporte geográfico para mapas de integración y visualización nacional de brechas.
+* **Limitaciones:** No contiene importes financieros.
 
-### `mart_territorial_context`
+---
 
-| Criterio | Definición propuesta |
-| --- | --- |
-| Propósito | Exponer contexto territorial y municipal para segmentación analítica. |
-| Fuente Silver base | `renamu_municipal_context` y `municipal_entity_bridge`. |
-| Granularidad esperada | `ubigeo` o entidad municipal validada. |
-| Atributos principales | Jerarquía territorial, tipo de municipalidad, flags territoriales y cobertura con Predial/MEF. |
-| Limitaciones | RENAMU contiene variables amplias de cuestionario; Gold debe seleccionar solo variables justificadas para el análisis. |
+## Estrategia de Consumo en Power BI y Fallback
 
-## KPIs candidatos
-
-Los siguientes KPIs son candidatos, sujetos a validación durante la construcción Gold:
-
-- PIA total.
-- PIM total.
-- Recaudación total.
-- Avance de recaudación: recaudación total sobre PIM, cuando el denominador sea válido.
-- Variación anual de recaudación.
-- Ranking municipal por recaudación o avance.
-- Indicadores prediales disponibles desde columnas monetarias y numéricas validadas.
-- Cobertura de integración MEF-Predial-RENAMU.
-- Brechas territoriales por departamentos, provincias o distritos.
-
-No se definen todavía medidas DAX definitivas. Las fórmulas finales deben documentarse cuando Gold y el modelo Power BI estén implementados.
-
-## Decisiones de modelado
-
-- `sec_ejec` no reemplaza `ubigeo`.
-- El cruce municipal debe usar `municipal_entity_bridge` y conservar flags de cobertura.
-- Los registros sin match pueden ser analíticamente relevantes y no deben descartarse por defecto.
-- MEF debe agregarse antes de integrarse con contexto municipal.
-- Predial debe conservar su granularidad de formulario y tiempo estadístico.
-- RENAMU debe usarse como contexto territorial, no como fuente masiva de indicadores sin selección.
-- Power BI debe consumir Gold; Bronze y Silver quedan para validación técnica o auditoría analítica.
-
-## Riesgos
-
-| Riesgo | Impacto |
-| --- | --- |
-| Cobertura MEF parcial con puente municipal | Gold no puede asumir que todo MEF cruza con Predial o RENAMU. |
-| Diferencia de granularidades | Joins directos pueden multiplicar filas o distorsionar métricas. |
-| Nombres territoriales variables | Los nombres no son llaves confiables; debe priorizarse `ubigeo`. |
-| Llaves candidatas no únicas | Deben documentarse reglas de agregación antes de exponer KPIs. |
-| Variables RENAMU numerosas | Seleccionar demasiadas variables puede producir un modelo difícil de usar. |
-| Montos negativos MEF | Requieren interpretación presupuestal o contable antes de excluirlos. |
-
-## Relación con Power BI
-
-Gold alimentará las páginas del dashboard Power BI. El diseño inicial considera:
-
-- Resumen municipal de ingresos.
-- Análisis presupuestal y recaudación.
-- Desempeño predial.
-- Contexto territorial.
-- Cobertura de integración.
-
-El detalle de páginas, relaciones visuales y medidas se documentará en `docs/powerbi_model.md`. Este documento no afirma que Power BI ya esté implementado.
+1. **Consumo Recomendado (Hive ODBC):**
+   Power BI debe consumir preferentemente las tablas de la base de datos `gold` expuestas por HiveServer2. Esta conexión permite catalogar de forma nativa las tablas externas estructuradas, delegando el peso del procesamiento analítico a Hive y reduciendo el volumen de importación en memoria de Power BI.
+2. **Uso Técnico de Capas Anteriores:**
+   Las bases de datos `bronze` y `silver` registradas en Hive quedan reservadas como capas de auditoría, calidad de datos e ingeniería. **No deben ser expuestas en el modelo final de cara al usuario de negocio** para evitar inconsistencias en el reporte o cruces incorrectos.
+3. **Estrategia de Fallback Controlada:**
+   Si la conexión local mediante el driver ODBC de Hive experimentase inestabilidad, bloqueos de red o problemas de compatibilidad local del controlador ODBC en el sistema anfitrión, Power BI puede utilizar la contingencia consistente en:
+   - Carga directa desde los archivos físicos Parquet locales en `data/gold/` o
+   - Carga de los archivos CSV auxiliares exportados localmente.
