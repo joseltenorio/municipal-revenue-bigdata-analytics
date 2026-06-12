@@ -117,6 +117,298 @@ quality:
         optional_metadata_columns:
           - bronze_source_year
 
+  silver:
+    output:
+      results_jsonl: data/quality/silver_quality_results.jsonl
+      report_html: reports/silver_quality_report.html
+
+    common_metadata_columns:
+      - silver_source_name
+      - silver_resource_key
+      - silver_processed_at_utc
+
+    dictionary_references:
+      mef_income:
+        required: false
+        paths:
+          - data/landing/mef_income/Ingresos_Diccionario.csv
+      predial_goal:
+        required: false
+        glob_patterns:
+          - data/landing/predial_goal/rentas_*_diccionario.csv
+      renamu:
+        required: false
+        paths:
+          - data/landing/renamu/Diccionario.pdf
+          - data/landing/renamu/extracted/783-Modulo1726/2.Diccionario de Datos - RENAMU 2022.pdf
+
+    rules:
+      dataset_path_exists:
+        severity: FAIL
+        description: Validar que exista la ruta esperada del recurso Silver.
+      parquet_files_exist:
+        severity: FAIL
+        description: Validar que existan archivos Parquet bajo la ruta del recurso Silver.
+      dataset_readable:
+        severity: FAIL
+        description: Validar que Spark pueda leer el dataset Silver.
+      row_count_positive:
+        severity: FAIL
+        description: Validar que el recurso Silver tenga al menos una fila.
+      column_count_positive:
+        severity: FAIL
+        description: Validar que el recurso Silver tenga al menos una columna.
+      silver_metadata_columns_present:
+        severity: FAIL
+        description: Validar metadata técnica obligatoria de Silver.
+      expected_typed_columns_present:
+        severity: FAIL
+        description: Validar columnas tipadas críticas esperadas por recurso.
+      expected_flags_present:
+        severity: FAIL
+        description: Validar flags técnicos críticos esperados por recurso.
+      critical_nulls:
+        severity: WARNING
+        description: Detectar nulos en columnas críticas de Silver.
+      exact_duplicate_rows:
+        severity: WARNING
+        description: Detectar filas duplicadas exactas.
+      candidate_key_duplicates:
+        severity: WARNING
+        description: Detectar duplicados por llaves candidatas preliminares.
+      invalid_boolean_flags:
+        severity: WARNING
+        description: Detectar flags booleanos nulos o con valores no booleanos.
+      dictionary_reference_missing:
+        severity: WARNING
+        description: Advertir si falta una referencia semántica local opcional.
+
+    sources:
+      mef_income:
+        expected_resources:
+          - annual_2012
+          - annual_2013
+          - annual_2014
+          - annual_2015
+          - annual_2016
+          - annual_2017
+          - annual_2018
+          - annual_2019
+          - annual_2020
+          - annual_2021
+          - annual_2022
+          - annual_2023
+          - annual_2024
+          - monthly_2025
+          - daily_2025
+          - monthly_2026
+          - daily_2026
+        metadata_columns:
+          - silver_source_year
+          - silver_source_granularity
+        typed_columns:
+          - anio
+          - mes
+          - monto_pia_decimal
+          - monto_pim_decimal
+          - monto_recaudado_decimal
+        expected_flags:
+          - is_valid_anio
+          - is_valid_mes
+          - is_valid_monto_pia
+          - is_valid_monto_pim
+          - is_valid_monto_recaudado
+        critical_null_columns:
+          - anio
+          - mes
+          - monto_pia_decimal
+          - monto_pim_decimal
+          - monto_recaudado_decimal
+        amount_columns:
+          - monto_pia_decimal
+          - monto_pim_decimal
+          - monto_recaudado_decimal
+        candidate_key:
+          description: Llave presupuestal preliminar; no bloquea integración futura.
+          columns:
+            - anio
+            - mes
+            - nivel_gobierno
+            - sector
+            - pliego
+            - sec_ejec
+            - ejecutora
+            - fuente_financiamiento
+            - rubro
+            - tipo_recurso
+            - generica
+            - subgenerica
+            - subgenerica_det
+            - especifica
+            - especifica_det
+
+      predial_goal:
+        expected_resources:
+          ano_aplicacion:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+          entidad_estado:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - sec_ejec
+          esat_estadistica_atm:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+              - ano_estadistica_int
+              - mes_estadistica_int
+            dynamic_typed_patterns:
+              - mon_*_decimal
+              - num_*_decimal
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - is_valid_mes_estadistica
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - sec_ejec
+          estadistica:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+              - ano_estadistica_int
+              - mes_estadistica_int
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - is_valid_mes_estadistica
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - formulario_id
+          formulario:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - formulario_id
+          preguntas:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - formulario_id
+              - pregunta_id
+          respuestas:
+            typed_columns:
+              - ano_aplicacion_int
+              - periodo_int
+              - respuesta_decimal_value
+              - respuesta_entero_value
+              - respuesta_fecha_value
+            expected_flags:
+              - is_valid_ano_aplicacion
+              - is_valid_periodo
+              - is_valid_respuesta_decimal
+              - is_valid_respuesta_entero
+              - has_required_relationship_keys
+            critical_null_columns:
+              - ano_aplicacion_int
+              - periodo_int
+            candidate_key:
+              - ano_aplicacion
+              - periodo
+              - formulario_id
+              - pregunta_id
+              - sec_ejec
+        metadata_columns:
+          - silver_source_role
+          - silver_source_priority
+
+      renamu:
+        expected_resources:
+          base_renamu_2022:
+            expected_row_count: 1874
+            typed_columns:
+              - anio
+              - tipomuni_int
+              - departamento_normalizado
+              - provincia_normalizada
+              - distrito_normalizado
+            expected_flags:
+              - is_valid_anio
+              - is_valid_ubigeo
+              - is_valid_ccdd
+              - is_valid_ccpp
+              - is_valid_ccdi
+              - has_complete_territory
+              - has_municipal_identifier
+              - is_valid_tipomuni
+            critical_null_columns:
+              - anio
+              - ubigeo
+              - idmunici
+              - departamento_normalizado
+              - provincia_normalizada
+              - distrito_normalizado
+            duplicate_keys:
+              - ubigeo
+              - idmunici
+            valid_tipomuni_values:
+              - "1"
+              - "2"
+              - "3"
+            financial_prefixes:
+              - c96
+              - c97
+        metadata_columns:
+          - silver_source_year
+
   notes:
     - Estas reglas aplican a Bronze y son progresivas.
     - No exigen columnas de negocio todavía.
