@@ -1,16 +1,16 @@
 # Municipal Revenue Big Data Analytics
 
-Plataforma analítica local para analizar presupuesto, ejecución de ingresos e impuesto predial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
+Plataforma analítica local para analizar ingresos municipales, cumplimiento predial y contexto territorial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
 
 ## Propósito
 
-Este proyecto implementa un flujo analítico de datos orientado a municipalidades peruanas, integrando fuentes públicas relacionadas con presupuesto, ejecución de ingresos, seguimiento de la meta del impuesto predial y contexto municipal.
+Este proyecto implementa un flujo local de ingeniería y analítica de datos que permite ingestar, organizar, transformar, validar, consultar y visualizar información municipal pública de forma trazable.
 
-El objetivo no es construir únicamente un dashboard, sino desarrollar una solución de ingeniería y analítica de datos que permita ingestar, organizar, transformar, validar, consultar y visualizar información municipal de forma trazable.
+El objetivo no es construir únicamente un dashboard, sino desarrollar una solución completa de datos con capas Landing, Bronze, Silver y Gold, catálogo SQL en Hive y consumo analítico desde Power BI.
 
-## Problema analítico
+## Problema Analítico
 
-La información municipal se encuentra distribuida en distintas fuentes públicas, con formatos y estructuras que requieren exploración, limpieza e integración antes de ser utilizadas para análisis.
+La información municipal se encuentra distribuida en distintas fuentes públicas, con formatos y estructuras que requieren exploración, limpieza, validación e integración antes de ser utilizadas para análisis.
 
 El proyecto busca responder preguntas como:
 
@@ -18,9 +18,9 @@ El proyecto busca responder preguntas como:
 - ¿Qué brechas existen entre presupuesto, ejecución y cumplimiento de metas?
 - ¿Cómo varía el desempeño municipal por departamento, provincia o distrito?
 - ¿Qué municipalidades muestran mayores brechas en la meta del impuesto predial?
-- ¿Qué contexto territorial puede ayudar a interpretar los resultados?
+- ¿Qué contexto territorial y de capacidad municipal ayuda a interpretar los resultados?
 
-## Fuentes consideradas
+## Fuentes Consideradas
 
 Las fuentes principales del proyecto son:
 
@@ -28,82 +28,76 @@ Las fuentes principales del proyecto son:
 - Seguimiento de la meta del impuesto predial desde SISMERE / MEF.
 - Registro Nacional de Municipalidades RENAMU 2022 del INEI.
 
-Estas fuentes serán exploradas, perfiladas y documentadas antes de definir el modelo analítico final.
-
-## Arquitectura general
+## Arquitectura General
 
 El proyecto sigue una arquitectura Medallion local:
 
+```text
 Fuentes públicas
 -> Landing
 -> Bronze Parquet
 -> Profiling y Quality Gates
 -> Silver Parquet
+-> Integración Silver
 -> Gold Parquet / Marts analíticos
 -> Hive External Tables
--> Power BI conectado preferentemente a Hive
+-> Power BI
+```
 
-La capa Landing conserva archivos originales.
-La capa Bronze convierte las fuentes a Parquet y mantiene la granularidad original.
-La capa Silver limpia, tipa, estandariza e integra las fuentes.
-La capa Gold contiene datasets listos para análisis y consumo desde Power BI.
+La capa Landing conserva archivos originales. Bronze convierte fuentes a Parquet manteniendo granularidad. Silver limpia, tipa, estandariza e integra. Gold contiene marts listos para análisis y consumo desde Power BI.
 
-## Tecnologías principales
+## Tecnologías Principales
 
 - Python
 - Apache Spark
-- Apache Hive
-- Hive Metastore
-- HiveServer2
+- Apache Hive, Hive Metastore y HiveServer2
 - Parquet
-- Power BI Desktop
 - Docker y Docker Compose
+- Power BI Desktop
 - Git y GitHub
+
+## Ejecución Local Desde Cero
+
+La guía completa para clonar, instalar dependencias, levantar Docker, validar Hive, ejecutar/verificar capas y abrir Power BI está en:
+
+```text
+docs/execution_guide.md
+```
+
+Esa guía está pensada para una persona que recibe el repositorio en una máquina local nueva y necesita preparar Git, Python, Docker Desktop, Hive y Power BI paso a paso.
+
+Resumen mínimo:
+
+```powershell
+git clone <URL_DEL_REPOSITORIO>
+cd municipal-revenue-bigdata-analytics
+py -m venv .venv
+.venv\Scripts\Activate.ps1
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+docker compose up -d
+docker compose ps
+```
+
+Los datos reales no se versionan. Una persona que clone el repositorio debe ejecutar la ingesta y procesamiento local, o colocar los archivos de datos en las carpetas esperadas antes de construir las capas.
 
 ## Rol de Apache Spark
 
-Apache Spark será usado para procesar los datos por capas, convertir fuentes a Parquet, aplicar transformaciones, ejecutar validaciones y construir datasets analíticos.
+Apache Spark procesa los datos por capas, convierte fuentes a Parquet, aplica transformaciones, ejecuta validaciones y construye datasets analíticos.
 
 ## Rol de Apache Hive
 
-Apache Hive funcionará como catálogo SQL del lakehouse. Las tablas externas de Hive apuntarán a archivos Parquet generados por Spark, permitiendo consultar las capas Bronze, Silver y Gold sin mover los datos.
+Apache Hive funciona como catálogo SQL del lakehouse. Las tablas externas apuntan a archivos Parquet generados por Spark en Bronze, Silver y Gold, permitiendo consultas SQL sin mover ni duplicar los datos.
 
 ## Rol de Power BI
 
-Power BI consumirá preferentemente las tablas Gold expuestas mediante HiveServer2/ODBC en modo Import. Si la conexión local entre Hive y Power BI no es estable, se usará un fallback controlado mediante exportación de Gold a CSV o Parquet, sin eliminar Hive del flujo técnico.
-
-## Alcance
-
-El proyecto incluye:
-
-- Arquitectura Medallion local.
-- Ingesta de fuentes públicas hacia Landing.
-- Conversión a Parquet desde Bronze.
-- Profiling de datos.
-- Reglas de calidad.
-- Auditoría de ingesta y procesamiento.
-- Transformaciones Silver.
-- Marts analíticos Gold.
-- Tablas externas en Hive.
-- Reporte Power BI con seis páginas.
-- Evidencias y documentación técnica.
-
-## Fuera de alcance
-
-El proyecto no incluye:
-
-- Implementación en GCP, BigQuery, Dataflow o servicios cloud.
-- Procesamiento en tiempo real.
-- Orquestación empresarial avanzada.
-- Machine Learning obligatorio.
-- Versionamiento de datos reales en GitHub.
+Power BI consume preferentemente las tablas Gold expuestas por HiveServer2/ODBC en modo Import. Si la conexión local entre Hive y Power BI no es estable, existe un fallback controlado de exportación Gold a CSV.
 
 ## Documentación
 
-La documentación técnica se organizará por propósito:
-
 - `docs/project_scope.md`: alcance, objetivos y requerimientos.
-- `docs/architecture.md`: arquitectura Medallion, flujo técnico, rol de Spark, Hive, Parquet y Power BI.
+- `docs/architecture.md`: arquitectura Medallion y flujo técnico.
 - `docs/data_sources.md`: inventario de fuentes.
 - `docs/source_discovery.md`: hallazgos de acceso a fuentes.
 - `docs/data_profiling.md`: profiling de datos.
@@ -114,21 +108,33 @@ La documentación técnica se organizará por propósito:
 - `docs/gold_model.md`: modelo analítico final.
 - `docs/powerbi_model.md`: modelo semántico y páginas del reporte.
 - `docs/powerbi_hive_connection.md`: conexión Hive - Power BI.
-- `docs/final_insights.md`: conclusiones analíticas.
-- `docs/execution_guide.md`: guía de ejecución local.
+- `docs/execution_guide.md`: guía de instalación y ejecución local desde cero.
 
-## Estado del proyecto
+## Alcance
 
-Proyecto en fase inicial de ingeniería de datos.
+El proyecto incluye:
 
-La estructura base del repositorio, el alcance analítico, la arquitectura Medallion, el inventario inicial de fuentes, los scripts de discovery, el profiling inicial y la configuración local de Spark/Hive ya se encuentran definidos.
+- Arquitectura Medallion local.
+- Ingesta de fuentes públicas hacia Landing.
+- Conversión a Parquet en Bronze.
+- Profiling y reglas de calidad.
+- Transformaciones Silver.
+- Integración Silver.
+- Marts analíticos Gold.
+- Tablas externas en Hive.
+- Reporte Power BI con conexión preferente a Hive y fallback CSV.
+- Evidencias y documentación técnica.
 
-El entorno local fue validado con:
+## Fuera de Alcance
 
-- Docker Compose.
-- Apache Spark Master y Spark Worker.
-- Apache Hive Metastore.
-- HiveServer2.
-- Conexión Beeline hacia HiveServer2.
+El proyecto no incluye:
 
-Las siguientes fases se enfocarán en implementar utilidades comunes, ingesta controlada hacia Landing, conversión a Bronze Parquet, reglas de calidad, transformaciones Silver, tablas externas Hive, marts Gold y consumo analítico desde Power BI.
+- Implementación en GCP, BigQuery, Dataflow o servicios cloud.
+- Procesamiento en tiempo real.
+- Orquestación empresarial avanzada.
+- Machine Learning obligatorio.
+- Versionamiento de datos reales en GitHub.
+
+## Versionamiento de Datos
+
+El repositorio versiona código, configuración pública, SQL, tests y documentación. No versiona datasets reales ni archivos pesados como CSV, ZIP, PDF, XLSX, Parquet, reportes generados, logs pesados, `.env`, `.venv` o exports Power BI.

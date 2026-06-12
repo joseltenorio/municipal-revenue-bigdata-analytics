@@ -1,78 +1,88 @@
-# Guía de ejecución local
+# Guía de Ejecución Local de Punta a Punta
 
 ## Propósito
 
-Este documento describe la preparación, ejecución y validación del entorno local del proyecto **Municipal Revenue Big Data Analytics**.
+Esta guía explica cómo preparar y usar el proyecto **Municipal Revenue Big Data Analytics** desde cero en una máquina local. Está pensada para una persona que acaba de clonar el repositorio y todavía no tiene configurados Git, Python, Docker, Hive ni Power BI.
 
-La guía permite reproducir el entorno técnico necesario para trabajar con Python, Apache Spark, Apache Hive, Parquet y Power BI Desktop en una máquina local.
-
-El documento se enfoca en la operación del entorno. La arquitectura, fuentes de datos, profiling, calidad, modelado y Power BI se documentan en archivos técnicos separados.
+El documento cubre instalación, validación del entorno, ejecución modular por capas, registro de tablas Hive y opciones de consumo desde Power BI. No reemplaza la documentación especializada de arquitectura, calidad, modelo Gold o Power BI; funciona como guía operativa central.
 
 ## Alcance
 
 Esta guía cubre:
 
-- Preparación del entorno Python.
-- Instalación de dependencias.
-- Validación de rutas internas.
-- Ejecución de scripts de discovery.
-- Ejecución del profiling inicial.
-- Levantamiento del entorno Spark y Hive con Docker Compose.
-- Validación de Spark Master y Spark Worker.
-- Validación de Hive Metastore y HiveServer2.
-- Consideraciones iniciales para conexión futura con Power BI.
+- Requisitos previos de software.
+- Clonado del repositorio.
+- Entorno virtual Python en Windows PowerShell.
+- Variables locales.
+- Docker Compose, Spark, Hive Metastore y HiveServer2.
+- Validaciones mínimas del entorno.
+- Ejecución modular del flujo por capas.
+- Registro de tablas externas Hive.
+- Consumo desde Power BI con ODBC y fallback CSV.
+- Problemas comunes.
 
 No cubre:
 
-- Ingesta final de fuentes hacia Landing.
-- Construcción de capas Bronze, Silver y Gold.
-- Creación de tablas externas Hive.
-- Construcción del reporte Power BI.
-- Ejecución completa del pipeline analítico final.
+- Explicación detallada del modelo semántico Power BI.
+- Diseño visual del dashboard.
+- Reglas internas completas de calidad.
+- Documentación exhaustiva de cada columna.
 
-Estas actividades se incorporarán a la guía cuando las respectivas capacidades estén disponibles en el proyecto.
+Para esos temas usar:
 
-## Requisitos previos
+- `docs/architecture.md`
+- `docs/data_quality.md`
+- `docs/gold_model.md`
+- `docs/hive_model.md`
+- `docs/powerbi_model.md`
+- `docs/powerbi_hive_connection.md`
+- `powerbi/README.md`
 
-Se recomienda contar con:
+## 1. Requisitos Previos
 
-- Windows 10 o Windows 11.
-- Git.
-- Python 3.11.
-- Docker Desktop.
-- PowerShell.
-- Visual Studio Code.
-- Power BI Desktop.
-- Conexión a internet para instalar dependencias y descargar imágenes Docker.
+Instalar en la máquina local:
 
-## Estructura esperada del repositorio
+- **Git** para clonar el repositorio.
+- **Python 3.11** o una versión compatible con las dependencias del proyecto.
+- **Docker Desktop** con backend Linux activo.
+- **PowerShell** en Windows.
+- **Power BI Desktop** para abrir o construir el reporte.
+- **Driver ODBC de Apache Hive** o compatible, preferentemente de 64 bits, para conectar Power BI con HiveServer2.
+- **Visual Studio Code**, opcional pero recomendado.
 
-El repositorio debe estar clonado localmente y mantener una estructura similar a:
+También se requiere conexión a internet para:
 
-```text
-municipal-revenue-bigdata-analytics/
-|-- config/
-|-- data/
-|-- docs/
-|-- evidence/
-|-- logs/
-|-- notebooks/
-|-- powerbi/
-|-- reports/
-|-- src/
-|-- tests/
-|-- Dockerfile
-|-- docker-compose.yml
-|-- requirements.txt
-|-- requirements-dev.txt
-|-- .env.example
+- Clonar el repositorio.
+- Instalar dependencias Python.
+- Descargar imágenes Docker la primera vez.
+- Descargar fuentes públicas si se ejecuta la ingesta real.
+
+## 2. Clonar el Repositorio
+
+Desde PowerShell:
+
+```powershell
+git clone <URL_DEL_REPOSITORIO>
+cd municipal-revenue-bigdata-analytics
 ```
 
-Los datos reales no deben versionarse. Las carpetas de datos se conservan en Git mediante archivos `.gitkeep`.
+Todos los comandos siguientes deben ejecutarse desde la raíz del proyecto, donde se encuentran `README.md`, `docker-compose.yml`, `requirements.txt` y `requirements-dev.txt`.
 
-## Entorno Python local
+Validar ubicación:
 
-Desde la raíz del proyecto, crear el entorno virtual:
+```powershell
+Get-Location
+```
+
+La ruta debe terminar en:
+
+```text
+municipal-revenue-bigdata-analytics
+```
+
+## 3. Crear el Entorno Virtual Python
+
+Crear `.venv`:
 
 ```powershell
 py -m venv .venv
@@ -84,26 +94,37 @@ Activar el entorno:
 .venv\Scripts\Activate.ps1
 ```
 
+Si PowerShell bloquea la activación por política de ejecución, abrir una consola como usuario normal y ejecutar:
+
+```powershell
+Set-ExecutionPolicy -Scope CurrentUser RemoteSigned
+```
+
+Luego activar nuevamente:
+
+```powershell
+.venv\Scripts\Activate.ps1
+```
+
 Actualizar `pip`:
 
 ```powershell
 python -m pip install --upgrade pip
 ```
 
-Instalar dependencias de desarrollo:
+Instalar dependencias de ejecución:
+
+```powershell
+pip install -r requirements.txt
+```
+
+Instalar dependencias de desarrollo y validación:
 
 ```powershell
 pip install -r requirements-dev.txt
 ```
 
-Si el sistema no reconoce `python`, se puede usar `py`:
-
-```powershell
-py -m pip install --upgrade pip
-py -m pip install -r requirements-dev.txt
-```
-
-Validar versión de Python:
+Validar Python:
 
 ```powershell
 python --version
@@ -112,10 +133,10 @@ python --version
 Validar dependencias principales:
 
 ```powershell
-python -c "import pandas; import pyarrow; import pyspark; print('Dependencias principales disponibles')"
+python -c "import pyarrow; import pyspark; import yaml; print('Dependencias principales disponibles')"
 ```
 
-## Variables de entorno
+## 4. Configurar Variables Locales
 
 El archivo versionado es:
 
@@ -123,274 +144,53 @@ El archivo versionado es:
 .env.example
 ```
 
-Este archivo contiene variables públicas y mínimas del entorno local:
+Si se necesita un `.env` local:
 
-```env
-PROJECT_NAME=municipal-revenue-bigdata-analytics
-ENVIRONMENT=local
-LOG_LEVEL=INFO
-
-SPARK_APP_NAME=MunicipalRevenueLakehouse
-SPARK_MASTER=local[*]
-
-HIVE_HOST=localhost
-HIVE_PORT=10000
-HIVE_DATABASE_BRONZE=bronze
-HIVE_DATABASE_SILVER=silver
-HIVE_DATABASE_GOLD=gold
-
-POWERBI_CONNECTION_MODE=hive_import
+```powershell
+Copy-Item .env.example .env
 ```
 
 El archivo `.env` real no debe subirse al repositorio.
 
-Las rutas internas del proyecto no se definen en `.env`. Se resuelven desde:
+Las rutas internas del proyecto no se configuran en `.env`. Se resuelven de forma centralizada en:
 
 ```text
 src/common/paths.py
 ```
 
-Este criterio evita rutas absolutas dependientes de una máquina específica y mantiene el proyecto portable.
+Ese módulo deriva rutas desde la raíz del repositorio, por ejemplo:
 
-## Validación de rutas internas
+- `data/landing`
+- `data/bronze`
+- `data/silver`
+- `data/gold`
+- `data/quality`
+- `reports`
+- `powerbi`
 
-Ejecutar:
+Validar rutas:
 
 ```powershell
 python -c "from src.common.paths import PROJECT_ROOT, LANDING_DIR, BRONZE_DIR, SILVER_DIR, GOLD_DIR; print(PROJECT_ROOT); print(LANDING_DIR); print(BRONZE_DIR); print(SILVER_DIR); print(GOLD_DIR)"
 ```
 
-El resultado debe mostrar rutas ubicadas dentro del repositorio local.
+Todas las rutas deben estar dentro del repositorio local.
 
-## Discovery inicial de fuentes
+## 5. Levantar Servicios Docker
 
-Los scripts de discovery e ingesta inicial validan conectividad y metadatos técnicos de fuentes candidatas. En el estado actual del proyecto, estos scripts también están preparados para descarga controlada hacia Landing, pero para validación inicial se recomienda usar `--dry-run`.
-
-Ejecutar validaciones sin descarga pesada:
-
-```powershell
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
-python -m src.ingestion.download_renamu --all-enabled --dry-run
-```
-
-Resultado esperado:
-
-- Estado HTTP de recursos seleccionados.
-- Tipo de contenido.
-- Tamaño declarado, si existe.
-- Validación de reintentos HTTP y fallback de `HEAD` a `GET` cuando corresponda.
-- Registro de eventos de inicio y fin en la auditoría local.
-- Ausencia de archivos descargados cuando se usa `--dry-run`.
-
-Los hallazgos específicos de acceso a fuentes se documentan en:
-
-```text
-docs/source_discovery.md
-```
-
-## Validación de ingesta con auditoría y reintentos
-
-Antes de ejecutar descargas completas hacia Landing, se recomienda validar los scripts de ingesta en modo `--dry-run`.
-
-Estos comandos validan disponibilidad, estado HTTP, tipo de contenido, tamaño declarado, reintentos y fallback de validación sin descargar archivos pesados.
-
-### Validar MEF ingresos
-
-```powershell
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
-```
-
-### Validar meta predial
-
-```powershell
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
-```
-
-### Validar RENAMU 2022
-
-```powershell
-python -m src.ingestion.download_renamu --all-enabled --dry-run
-```
-
-### Revisar auditoría local
-
-```powershell
-Get-Content data/quality/ingestion_audit.jsonl -Tail 20
-```
-
-En modo `--dry-run`, la auditoría registra principalmente eventos de inicio y fin de ejecución. Los resultados de recursos descargados se registran cuando se ejecuta una descarga real.
-
-### Validar que no se versionen datos ni auditorías locales
-
-```powershell
-git status --short
-```
-
-No deben aparecer archivos como:
-
-```text
-data/landing/
-data/quality/ingestion_audit.jsonl
-*.csv
-*.zip
-*.xlsx
-*.pdf
-*.parquet
-```
-
-Si aparecen archivos de datos o auditoría local en `git status`, se debe revisar `.gitignore` antes de hacer commit.
-
-### Criterio operativo
-
-La descarga completa de fuentes debe ejecutarse solo después de validar:
-
-- Configuración de fuentes en `config/sources.yaml`.
-- Política de reintentos en `config/retry_policy.yaml`.
-- Auditoría local en `config/audit.yaml`.
-- Funcionamiento de los scripts con `--dry-run`.
-- Exclusión de archivos reales mediante `.gitignore`.
-
-La ingesta hacia Landing no transforma datos, no genera Bronze y no interpreta columnas de negocio.
-
-## Runner maestro de ingesta
-
-Además de ejecutar cada fuente por separado, el proyecto cuenta con un runner maestro para validar o descargar las tres fuentes principales con un solo comando:
-
-```powershell
-python -m src.ingestion.run_all_ingestion --dry-run
-```
-
-Este comando valida MEF ingresos, meta predial y RENAMU 2022 sin descargar archivos reales.
-
-Para ejecutar la descarga completa hacia Landing:
-
-```powershell
-python -m src.ingestion.run_all_ingestion
-```
-
-Este runner ejecuta internamente:
-
-```powershell
-python -m src.ingestion.download_mef_income --all-resources --include-documentation
-python -m src.ingestion.download_predial_goal --all-enabled
-python -m src.ingestion.download_renamu --all-enabled --extract
-```
-
-También se puede usar sobrescritura controlada:
-
-```powershell
-python -m src.ingestion.run_all_ingestion --overwrite
-```
-
-La opción `--overwrite` permite reemplazar archivos existentes y limpiar temporales `.part` previos.
-
-## Descarga segura con archivos temporales .part
-
-Las descargas reales hacia Landing usan una utilidad común:
-
-```text
-src/common/download.py
-```
-
-Esta utilidad escribe primero en un archivo temporal `.part` y solo renombra al archivo final cuando la descarga termina correctamente.
-
-Ejemplo durante una descarga:
-
-```text
-data/landing/mef_income/2024-Ingreso.csv.part
-```
-
-Ejemplo al finalizar correctamente:
-
-```text
-data/landing/mef_income/2024-Ingreso.csv
-```
-
-Este criterio evita que una descarga interrumpida deje un CSV, ZIP o PDF incompleto con nombre final.
-
-Si existe un `.part`, el proceso intenta reanudar la descarga usando el header HTTP `Range`. Si el servidor no soporta reanudación, la descarga se reinicia desde cero.
-
-Los archivos `.part` son temporales y no deben versionarse en Git.
-
-## Profiling inicial
-
-El profiling inicial analiza archivos locales disponibles en Landing.
-
-Ejecutar:
-
-```powershell
-python -m src.quality.profile_sources
-```
-
-Si todavía no existen archivos en `data/landing`, el script indicará que no encontró archivos soportados y generará un reporte local vacío.
-
-También puede indicarse una carpeta específica:
-
-```powershell
-python -m src.quality.profile_sources --input-dir data/landing --max-rows 10000
-```
-
-El reporte local se genera en:
-
-```text
-reports/profiling_summary.json
-```
-
-Los reportes generados localmente no deben subirse si contienen resultados pesados o derivados de datos reales.
-
-## Validación de Docker Desktop
-
-Antes de usar Docker Compose, validar que Docker Desktop esté activo:
+Validar Docker Desktop:
 
 ```powershell
 docker version
-```
-
-La salida debe mostrar información de `Client` y `Server`.
-
-También se puede validar con:
-
-```powershell
 docker info
 ```
 
-Si solo aparece información de `Client` y falla la conexión con `Server`, Docker Desktop no está corriendo correctamente o el backend Linux no está activo.
+Si `docker info` no responde, abrir Docker Desktop y esperar a que el motor Linux esté activo.
 
-## Ejecución con Docker Compose
-
-Los comandos de Docker Compose deben ejecutarse desde la raíz del proyecto, donde se encuentra `docker-compose.yml`.
-
-Validar la configuración efectiva:
+Validar configuración Docker Compose:
 
 ```powershell
 docker compose config
-```
-
-Este comando no levanta contenedores. Solo muestra la configuración interpretada por Docker Compose.
-
-Descargar imágenes base:
-
-```powershell
-docker compose pull
-```
-
-Imágenes principales usadas por el entorno:
-
-- `apache/spark:4.0.3-python3`
-- `apache/hive:4.1.0`
-- Imagen local construida para `python-app`
-
-Construir imagen Python del proyecto:
-
-```powershell
-docker compose build python-app
-```
-
-Para una reconstrucción limpia:
-
-```powershell
-docker compose build --no-cache python-app
 ```
 
 Levantar servicios:
@@ -399,213 +199,105 @@ Levantar servicios:
 docker compose up -d
 ```
 
-Verificar estado:
+La primera ejecución puede tardar porque Docker descargará imágenes base y construirá la imagen local cuando corresponda.
+
+Validar contenedores:
 
 ```powershell
 docker compose ps
 ```
 
-Servicios esperados:
+Servicios y puertos principales:
 
-| Servicio           | Puerto | Uso                            |
-| ------------------ | -----: | ------------------------------ |
-| Spark Master       |   7077 | Coordinación del clúster Spark |
-| Spark Master UI    |   8080 | Interfaz web de Spark Master   |
-| Spark Worker UI    |   8081 | Interfaz web del worker Spark  |
-| Hive Metastore     |   9083 | Catálogo de metadatos Hive     |
-| HiveServer2        |  10000 | Conexión JDBC/ODBC             |
-| HiveServer2 Web UI |  10002 | Interfaz web de HiveServer2    |
-
-El contenedor `municipal_revenue_python` puede finalizar con estado `Exited (0)` porque ejecuta `python --version` y termina correctamente. Ese comportamiento no representa un error.
-
-## Validación de Apache Spark
+| Servicio | Puerto | Uso |
+| --- | ---: | --- |
+| Spark Master | 7077 | Coordinación del clúster Spark |
+| Spark Master UI | 8080 | Interfaz web del master |
+| Spark Worker UI | 8081 | Interfaz web del worker |
+| Hive Metastore | 9083 | Catálogo de metadatos Hive |
+| HiveServer2 | 10000 | Conexión JDBC/ODBC |
+| HiveServer2 Web UI | 10002 | Interfaz web de HiveServer2 |
 
 Abrir en navegador:
 
 ```text
 http://localhost:8080
-```
-
-Resultado esperado:
-
-- Spark Master visible.
-- Estado activo.
-- Worker registrado.
-
-Abrir también:
-
-```text
 http://localhost:8081
 ```
 
-Resultado esperado:
+El contenedor `python-app` puede finalizar con `Exited (0)` si solo ejecuta una validación corta. Eso no indica error.
 
-- Spark Worker visible.
-- Cores disponibles.
-- Memoria asignada.
+## 6. Validar HiveServer2 con Beeline
 
-También pueden revisarse logs:
+Con Docker activo:
 
 ```powershell
-docker logs municipal_revenue_spark_master --tail 80
-docker logs municipal_revenue_spark_worker --tail 80
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW DATABASES;"
 ```
 
-## Validación de Apache Hive
-
-Revisar que los servicios estén activos:
-
-```powershell
-docker compose ps -a
-```
-
-Revisar logs del metastore:
-
-```powershell
-docker logs municipal_revenue_hive_metastore --tail 80
-```
-
-Revisar logs de HiveServer2:
-
-```powershell
-docker logs municipal_revenue_hive_server --tail 80
-```
-
-Mensajes esperados en HiveServer2:
+Si el entorno está recién levantado y todavía no se aplicaron DDLs, puede aparecer solo `default`. Después de registrar tablas externas deben aparecer:
 
 ```text
-ThriftBinaryCLIService on port 10000
-Service:HiveServer2 is started
-Web UI has started on port 10002
+bronze
+silver
+gold
 ```
 
-## Conexión con Beeline
-
-Con HiveServer2 activo, conectarse mediante Beeline:
+Validar tablas Gold, si ya existen Parquet Gold y DDL aplicado:
 
 ```powershell
-docker exec -it municipal_revenue_hive_server beeline -u "jdbc:hive2://localhost:10000/"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN gold;"
 ```
 
-Resultado esperado:
+Si no aparecen tablas Gold, revisar:
 
-```text
-Connected to: Apache Hive
-Driver: Hive JDBC
-Beeline version
-```
+- Que `data/gold` exista y contenga Parquet generados.
+- Que se haya ejecutado la generación de SQL Hive.
+- Que se haya aplicado `sql/hive/create_gold_external_tables.sql`.
 
-Validar bases disponibles:
+## 7. Ejecutar Tests
 
-```sql
-SHOW DATABASES;
-```
-
-Resultado esperado inicial:
-
-```text
-default
-```
-
-Salir de Beeline:
-
-```sql
-!quit
-```
-
-## Rol de Hive en el proyecto
-
-Hive funciona como catálogo SQL del lakehouse local.
-
-En el estado actual del proyecto ya se crean:
-
-- Base `bronze`.
-- Base `silver`.
-- Base `gold`.
-- Tablas externas Bronze sobre archivos Parquet.
-- Tablas externas Silver sobre archivos Parquet.
-- Consultas de validación mediante Beeline.
-
-La base `gold` queda creada, pero sin tablas externas hasta que se construyan los marts Gold.
-
-El detalle del modelo Hive, tablas registradas y validaciones ejecutadas se documenta en:
-
-```text
-docs/hive_model.md
-```
-
-## Consideraciones para Power BI
-
-La conexión recomendada para Power BI será:
-
-```text
-Gold Parquet
--> Hive External Tables
--> HiveServer2
--> Driver ODBC/JDBC
--> Power BI Desktop en modo Import
-```
-
-En esta etapa todavía no se conecta Power BI porque aún no existen tablas Gold.
-
-Cuando las tablas Gold estén disponibles en Hive, se probará la conexión usando:
-
-- Host: `localhost`.
-- Puerto: `10000`.
-- Base: `gold`.
-- Modo recomendado: `Import`.
-
-Si la conexión local Power BI - Hive no es estable, se usará un fallback controlado exportando Gold a CSV o Parquet. Este fallback no reemplaza el uso de Hive.
-
-## Detención de servicios
-
-Detener servicios sin borrar volúmenes:
+Ejecutar la suite disponible:
 
 ```powershell
-docker compose down
+python -m pytest
 ```
 
-Detener servicios y eliminar volúmenes locales asociados:
+Para validaciones más acotadas, se pueden ejecutar tests por tema:
 
 ```powershell
-docker compose down -v
+python -m pytest tests/test_paths.py tests/test_config.py
+python -m pytest tests/test_hive_external_tables.py
+python -m pytest tests/test_gold_municipal_revenue.py tests/test_gold_predial_compliance.py tests/test_gold_territorial_context.py
 ```
 
-Usar `-v` solo si se desea limpiar completamente el estado local de los servicios. Si ya existen tablas Hive o metadata útil, no usar `-v`.
+Los tests no reemplazan la ejecución real del pipeline, pero permiten validar helpers, configuración y contratos de scripts.
 
-## Limpieza de imágenes y espacio
+## 8. Flujo Conceptual por Capas
 
-Ver imágenes descargadas:
+El proyecto se ejecuta por módulos. No hay un único runner global para todo el lakehouse, por lo que el orden recomendado es:
 
-```powershell
-docker images
-```
+1. Landing / Ingestion.
+2. Bronze.
+3. Quality Bronze.
+4. Silver.
+5. Quality Silver.
+6. Integración Silver.
+7. Gold.
+8. Generación y registro de tablas Hive.
+9. Power BI.
 
-Ver uso de espacio:
+Los comandos siguientes son los módulos reales disponibles en el repositorio.
 
-```powershell
-docker system df
-```
+## 9. Landing e Ingesta
 
-Limpiar recursos no usados:
-
-```powershell
-docker system prune
-```
-
-No usar `docker system prune -a` sin revisar, porque puede borrar imágenes de otros proyectos que luego tendrían que descargarse nuevamente.
-
-## Validaciones recomendadas por etapa
-
-### Antes de ingesta
-
-Validar ingesta completa en modo `--dry-run`:
+Validar fuentes sin descargar:
 
 ```powershell
 python -m src.ingestion.run_all_ingestion --dry-run
 ```
 
-También se pueden validar fuentes individuales:
+Validar fuentes individuales:
 
 ```powershell
 python -m src.ingestion.download_mef_income --resource dictionary --dry-run
@@ -613,60 +305,298 @@ python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
 python -m src.ingestion.download_renamu --all-enabled --dry-run
 ```
 
-Revisar auditoría local:
+Ejecutar ingesta real hacia `data/landing`:
 
 ```powershell
-Get-Content data/quality/ingestion_audit.jsonl -Tail 20
+python -m src.ingestion.run_all_ingestion
 ```
 
-### Antes de Bronze
+La ingesta real descarga archivos locales. Esos archivos no deben versionarse.
 
-Confirmar existencia de archivos locales en Landing:
+## 10. Construir Bronze
+
+Primero validar planes sin escribir:
 
 ```powershell
-Get-ChildItem data/landing -Recurse
+python -m src.bronze.build_bronze_mef_income --dry-run
+python -m src.bronze.build_bronze_predial_goal --dry-run
+python -m src.bronze.build_bronze_renamu --dry-run
 ```
 
-### Antes de Hive
-
-Confirmar existencia de archivos Parquet en Bronze, Silver o Gold:
+Ejecutar construcción real, si los datos Landing ya existen:
 
 ```powershell
-Get-ChildItem data -Recurse -Filter *.parquet
+python -m src.bronze.build_bronze_mef_income
+python -m src.bronze.build_bronze_predial_goal
+python -m src.bronze.build_bronze_renamu
 ```
 
-### Antes de Power BI
+Las salidas se escriben en:
 
-Confirmar que HiveServer2 está activo:
+```text
+data/bronze/
+```
+
+## 11. Ejecutar Calidad Bronze
+
+Validar plan:
+
+```powershell
+python -m src.quality.run_quality_checks --dry-run
+```
+
+Ejecutar calidad real:
+
+```powershell
+python -m src.quality.run_quality_checks
+```
+
+Generar reporte HTML local:
+
+```powershell
+python -m src.quality.generate_quality_report
+```
+
+Salidas locales:
+
+```text
+data/quality/bronze_quality_results.jsonl
+reports/data_quality_report.html
+```
+
+Estas salidas no deben versionarse.
+
+## 12. Construir Silver
+
+Validar planes:
+
+```powershell
+python -m src.silver.transform_mef_income --dry-run
+python -m src.silver.transform_predial_goal --dry-run
+python -m src.silver.transform_renamu --dry-run
+```
+
+Ejecutar transformaciones reales:
+
+```powershell
+python -m src.silver.transform_mef_income --overwrite
+python -m src.silver.transform_predial_goal --overwrite
+python -m src.silver.transform_renamu --overwrite
+```
+
+Construir integración Silver:
+
+```powershell
+python -m src.silver.integrate_municipal_sources --dry-run
+python -m src.silver.integrate_municipal_sources --overwrite
+```
+
+Las salidas se escriben en:
+
+```text
+data/silver/
+```
+
+## 13. Ejecutar Calidad Silver
+
+Validar plan:
+
+```powershell
+python -m src.quality.run_silver_quality_checks --dry-run
+```
+
+Ejecutar calidad real:
+
+```powershell
+python -m src.quality.run_silver_quality_checks
+```
+
+Generar reporte:
+
+```powershell
+python -m src.quality.generate_silver_quality_report
+```
+
+Salidas locales:
+
+```text
+data/quality/silver_quality_results.jsonl
+reports/silver_quality_report.html
+```
+
+## 14. Construir Gold
+
+Validar planes:
+
+```powershell
+python -m src.gold.build_municipal_revenue_marts --dry-run
+python -m src.gold.build_predial_compliance_marts --dry-run
+python -m src.gold.build_territorial_context_marts --dry-run
+```
+
+Ejecutar construcción real:
+
+```powershell
+python -m src.gold.build_municipal_revenue_marts --overwrite
+python -m src.gold.build_predial_compliance_marts --overwrite
+python -m src.gold.build_territorial_context_marts --overwrite
+```
+
+Las salidas se escriben en:
+
+```text
+data/gold/
+```
+
+## 15. Generar y Registrar Tablas Hive
+
+Generar SQL de tablas externas desde los Parquet existentes:
+
+```powershell
+docker compose run --rm python-app python -m src.hive.generate_external_tables --overwrite-sql --validate-inputs
+```
+
+Aplicar DDLs:
+
+```powershell
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -f /app/sql/hive/create_databases.sql
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -f /app/sql/hive/create_bronze_external_tables.sql
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -f /app/sql/hive/create_silver_external_tables.sql
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -f /app/sql/hive/create_gold_external_tables.sql
+```
+
+Validar catálogo:
+
+```powershell
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW DATABASES;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN bronze;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN silver;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN gold;"
+```
+
+Validar consultas ligeras:
+
+```powershell
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT COUNT(*) FROM gold.mart_municipal_capacity;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT * FROM gold.mart_municipal_revenue_overview LIMIT 5;"
+```
+
+## 16. Power BI
+
+La ruta preferente es:
+
+```text
+Gold Parquet
+-> Hive External Tables
+-> HiveServer2
+-> ODBC
+-> Power BI Desktop en modo Import
+```
+
+Parámetros esperados:
+
+| Parámetro | Valor |
+| --- | --- |
+| Host | `localhost` |
+| Puerto | `10000` |
+| Base | `gold` |
+| Modo recomendado | Import |
+
+Antes de abrir Power BI:
 
 ```powershell
 docker compose ps
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN gold;"
 ```
 
-Validar conexión con Beeline:
+Si la conexión ODBC local falla, existe fallback CSV:
 
 ```powershell
-docker exec -it municipal_revenue_hive_server beeline -u "jdbc:hive2://localhost:10000/"
+python -m src.powerbi.export_gold_fallback --dry-run
+python -m src.powerbi.export_gold_fallback
 ```
 
-## Problemas comunes
+Los CSV se generan bajo:
 
-### Docker Desktop no está iniciado
+```text
+powerbi/exports/
+```
+
+No deben versionarse.
+
+Para el modelo semántico y el reporte, revisar:
+
+- `docs/powerbi_model.md`
+- `docs/powerbi_hive_connection.md`
+- `powerbi/README.md`
+
+## 17. Datos Reales y Archivos No Versionados
+
+El repositorio versiona:
+
+- Código fuente.
+- Configuración pública.
+- SQL.
+- Tests.
+- Documentación.
+- Archivos `.gitkeep`.
+
+No versiona:
+
+- `.env`
+- `.venv`
+- `data/landing`
+- `data/bronze`
+- `data/silver`
+- `data/gold`
+- `data/quality`
+- CSV, ZIP, XLSX, PDF, Parquet y JSONL generados.
+- Logs pesados.
+- Reportes HTML generados.
+- Exports CSV de Power BI.
+- Archivos `.pbix` pesados.
+
+Una persona que clone el repositorio debe ejecutar la ingesta/procesamiento local, o colocar los datos esperados en las carpetas correspondientes antes de construir las capas.
+
+## 18. Orden Recomendado Para Usuarios Nuevos
+
+1. Instalar Git, Python, Docker Desktop, Power BI Desktop y driver ODBC Hive.
+2. Clonar el repositorio.
+3. Crear y activar `.venv`.
+4. Instalar `requirements.txt` y `requirements-dev.txt`.
+5. Copiar `.env.example` a `.env` si se requiere configuración local.
+6. Levantar Docker con `docker compose up -d`.
+7. Validar Spark UI y HiveServer2.
+8. Ejecutar ingesta o colocar datos locales en `data/landing`.
+9. Construir Bronze.
+10. Ejecutar calidad Bronze.
+11. Construir Silver.
+12. Ejecutar calidad Silver.
+13. Construir integración Silver.
+14. Construir Gold.
+15. Generar y aplicar DDLs Hive.
+16. Validar `SHOW TABLES IN gold`.
+17. Abrir Power BI y conectar por ODBC.
+18. Usar fallback CSV solo si ODBC falla.
+
+## 19. Troubleshooting
+
+### Docker Desktop no inicia
 
 Síntoma:
 
 ```text
-failed to connect to the docker API
-dockerDesktopLinuxEngine
+Cannot connect to the Docker daemon
 ```
 
-Acción recomendada:
+Acciones:
 
 - Abrir Docker Desktop.
-- Esperar a que el motor Docker esté activo.
-- Ejecutar `docker version` y `docker info`.
+- Esperar a que el backend Linux esté activo.
+- Ejecutar `docker version`.
+- Ejecutar `docker compose ps`.
 
-### Puerto ocupado
+### Puerto 10000 ocupado
 
 Síntoma:
 
@@ -674,127 +604,139 @@ Síntoma:
 port is already allocated
 ```
 
-Acción recomendada:
+Acciones:
 
-- Verificar si otro contenedor o programa usa el puerto.
 - Revisar contenedores activos con `docker ps`.
-- Detener servicios anteriores si corresponde.
+- Cerrar otros servicios que usen HiveServer2 o el puerto `10000`.
+- Reiniciar Docker Desktop si el puerto quedó retenido.
 
-### Imagen Python falla por OpenJDK
-
-Síntoma:
-
-```text
-Package openjdk-17-jre-headless is not available
-```
-
-Acción recomendada:
-
-Usar una base estable en el `Dockerfile`:
-
-```dockerfile
-FROM python:3.11-slim-bookworm
-```
-
-### Hive Metastore falla por schema
+### HiveServer2 no responde
 
 Síntoma:
 
 ```text
-Version information not found in metastore
-```
-
-Acción recomendada en una primera ejecución limpia:
-
-```powershell
-docker compose down -v
-docker compose up -d
-```
-
-También se recomienda no usar `IS_RESUME: "true"` en la primera inicialización del entorno.
-
-### HiveServer2 rechaza conexión
-
-Síntoma:
-
-```text
-Could not open client transport
 Connection refused
 ```
 
-Acciones recomendadas:
+Acciones:
 
-- Esperar unos segundos después de levantar contenedores.
-- Verificar estado con `docker compose ps -a`.
-- Revisar logs de `municipal_revenue_hive_server`.
-- Revisar logs de `municipal_revenue_hive_metastore`.
-- Confirmar que HiveServer2 indique en logs que inició el servicio en el puerto `10000`.
+- Esperar unos segundos después de `docker compose up -d`.
+- Revisar `docker compose ps`.
+- Revisar logs:
 
-### Warnings de SLF4J o Log4j
-
-Durante Beeline pueden aparecer mensajes como:
-
-```text
-SLF4J: Class path contains multiple SLF4J bindings
+```powershell
+docker logs municipal_revenue_hive_server --tail 80
+docker logs municipal_revenue_hive_metastore --tail 80
 ```
 
-Estos mensajes son advertencias de librerías Java y no necesariamente indican error.
+### Power BI no conecta por ODBC
 
-El criterio de éxito es que Beeline muestre:
+Acciones:
+
+- Confirmar que HiveServer2 responde en `localhost:10000`.
+- Confirmar que el driver ODBC de Hive sea de 64 bits.
+- Crear un DSN de sistema en el Administrador ODBC de Windows.
+- Probar conexión en el DSN antes de abrir Power BI.
+- Usar modo Import.
+- Si persiste el problema, usar el fallback CSV.
+
+### Falta driver ODBC de Hive
+
+Acciones:
+
+- Instalar un driver ODBC compatible con Apache Hive y Windows de 64 bits.
+- Reiniciar Power BI Desktop después de instalarlo.
+- Revisar que el driver aparezca en el Administrador de Orígenes de Datos ODBC de 64 bits.
+
+### Entorno virtual no activado
+
+Síntoma:
 
 ```text
-Connected to: Apache Hive
+ModuleNotFoundError
 ```
 
-## Criterios de versionamiento
+Acciones:
 
-No subir al repositorio:
+```powershell
+.venv\Scripts\Activate.ps1
+pip install -r requirements.txt
+pip install -r requirements-dev.txt
+```
 
-- `.env`
-- `.venv`
-- Archivos CSV reales.
-- Archivos ZIP reales.
-- Archivos XLSX reales.
-- Archivos Parquet.
-- Archivos temporales `.part`.
-- Logs pesados.
-- Reportes generados con datos reales.
-- Exports pesados de Power BI.
+### Dependencias no instaladas
 
-Sí subir:
+Síntoma:
 
-- Código fuente.
-- Documentación.
-- Configuración pública.
-- `.env.example`.
-- `.gitkeep`.
-- SQL.
-- Evidencias controladas y ligeras cuando correspondan.
+```text
+No module named pyspark
+```
 
-## Validación mínima del entorno local
+Acciones:
 
-Para considerar validado el entorno local, se debe comprobar:
+```powershell
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+```
 
-- `docker compose config` ejecuta sin errores.
-- `docker compose pull` descarga imágenes principales.
-- `docker compose build python-app` construye la imagen Python.
+### Rutas `data/` inexistentes
+
+Acciones:
+
+- Confirmar que se está en la raíz del repositorio.
+- Validar rutas con `src/common/paths.py`.
+- Ejecutar ingesta o colocar los archivos esperados localmente.
+- No crear rutas absolutas manuales fuera del proyecto.
+
+### Tablas Hive Gold no aparecen
+
+Acciones:
+
+- Confirmar que `data/gold` contiene Parquet.
+- Generar SQL Hive con `src.hive.generate_external_tables`.
+- Aplicar `create_gold_external_tables.sql`.
+- Ejecutar:
+
+```powershell
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SHOW TABLES IN gold;"
+```
+
+### Error al cargar archivos no generados
+
+Acciones:
+
+- Revisar que la capa previa exista.
+- Ejecutar primero el comando `--dry-run` del módulo correspondiente.
+- Construir la capa faltante antes de continuar.
+- Evitar ejecutar pasos Gold si Silver integrado todavía no existe.
+
+## 20. Detener Servicios
+
+Detener contenedores sin borrar volúmenes:
+
+```powershell
+docker compose down
+```
+
+Detener contenedores y borrar volúmenes:
+
+```powershell
+docker compose down -v
+```
+
+Usar `-v` solo si se quiere limpiar completamente el estado local de Hive y otros servicios.
+
+## 21. Criterio de Entorno Listo
+
+El entorno local queda listo cuando:
+
+- `python --version` responde dentro de `.venv`.
+- `python -m pytest` no muestra errores bloqueantes.
 - `docker compose up -d` levanta servicios.
 - Spark Master responde en `http://localhost:8080`.
 - Spark Worker responde en `http://localhost:8081`.
-- Hive Metastore permanece en estado `Up`.
-- HiveServer2 permanece en estado `Up`.
-- Beeline conecta a `jdbc:hive2://localhost:10000/`.
-- `SHOW DATABASES;` responde correctamente.
-
-## Estado del entorno
-
-El entorno local queda preparado para las siguientes fases del proyecto:
-
-- Descarga local completa y controlada hacia Landing.
-- Revisión de auditoría de ingesta generada localmente.
-- Conversión a Bronze Parquet.
-- Ejecución de reglas de calidad.
-- Transformaciones Silver.
-- Registro de tablas externas Hive.
-- Construcción de marts Gold.
-- Consumo analítico desde Power BI.
+- Beeline conecta a HiveServer2.
+- `SHOW DATABASES` responde.
+- Las capas requeridas existen localmente en `data/`.
+- `SHOW TABLES IN gold` lista tablas cuando Gold y DDL Hive ya fueron generados.
+- Power BI puede conectarse a Hive por ODBC o usar fallback CSV.
