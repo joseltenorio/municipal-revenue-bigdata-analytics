@@ -58,6 +58,7 @@ services:
       SERVICE_NAME: metastore
     volumes:
       - hive-warehouse:/opt/hive/data/warehouse
+      - ./data:/app/data
 
   hive-server:
     image: apache/hive:4.1.0
