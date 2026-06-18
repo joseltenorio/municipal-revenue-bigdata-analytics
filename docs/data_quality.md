@@ -4,7 +4,7 @@
 
 Este documento describe la estrategia de calidad de datos aplicada al proyecto **Municipal Revenue Big Data Analytics**.
 
-La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar MEF, Predial y RENAMU.
+La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar MEF, Predial, RENAMU y la fuente manual de categorías municipales.
 
 El objetivo no es corregir datos dentro del motor de calidad ni construir el modelo analítico final. El objetivo es medir riesgos, dejar evidencia reproducible y separar problemas técnicos bloqueantes de hallazgos de datos que requieren interpretación.
 
@@ -14,8 +14,8 @@ La calidad actual cubre dos capas:
 
 | Capa | Propósito | Recursos evaluados |
 | --- | --- | ---: |
-| Bronze | Validar existencia, lectura, filas, columnas y metadata técnica de los Parquet preservados. | 25 |
-| Silver | Validar datasets limpios/tipados por fuente antes de integración. | 25 |
+| Bronze | Validar existencia, lectura, filas, columnas y metadata técnica de los Parquet preservados. | 26 |
+| Silver | Validar datasets limpios/tipados por fuente antes de integración. | Por redefinir |
 
 Fuentes evaluadas:
 
@@ -24,6 +24,7 @@ Fuentes evaluadas:
 | `mef_income` | Presupuesto y ejecución de ingresos MEF. | 17 |
 | `predial_goal` | Seguimiento de la meta del impuesto predial. | 7 |
 | `renamu` | Registro Nacional de Municipalidades 2022. | 1 |
+| `municipal_categories` | Categorías municipales manuales. | 1 |
 
 ## Configuración
 
