@@ -471,3 +471,7 @@ Las pruebas realizadas confirman que:
 - No se debe versionar ningún archivo real descargado ni archivos locales de auditoría generados.
 
 La siguiente etapa operativa será ejecutar una descarga local completa y controlada de las fuentes necesarias, revisar la auditoría generada y luego perfilar los archivos descargados antes de construir Bronze Parquet.
+
+## Fuente manual fuera de discovery web: categorías municipales
+
+`CategoriasMunicipalidades.csv` no se evalúa mediante discovery HTTP porque no proviene de un portal público ni de una URL descargable. Se registra como fuente manual controlada en `config/sources.yaml`, se conserva en `data/landing/category/` y se valida operativamente durante la construcción Bronze.

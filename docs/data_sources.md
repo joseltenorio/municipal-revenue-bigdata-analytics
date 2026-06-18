@@ -2,7 +2,7 @@
 
 ## Propósito del documento
 
-Este documento describe las fuentes públicas consideradas para el proyecto **Municipal Revenue Big Data Analytics**.
+Este documento describe las fuentes consideradas para el proyecto **Municipal Revenue Big Data Analytics**: tres fuentes públicas descargadas desde web y una fuente manual controlada de categorías municipales.
 
 El objetivo es identificar el origen, uso analítico, método de acceso observado, formato esperado, recursos disponibles, riesgos y criterios de uso para los procesos de ingesta hacia Landing.
 
@@ -14,6 +14,7 @@ Actualmente, el proyecto cuenta con:
 
 - Inventario de fuentes principales.
 - Recursos directos identificados para MEF, meta predial y RENAMU.
+- Fuente manual de categorías municipales registrada como insumo local controlado.
 - Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
 - Descarga controlada implementada para la fuente de seguimiento de meta del impuesto predial.
 - Descarga y extracción controlada implementada para RENAMU 2022.
@@ -30,6 +31,7 @@ Este documento no representa todavía el modelo final de datos. Su función es d
 | Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible               |
 | Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Ingesta controlada hacia Landing disponible               |
 | RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Descarga y extracción controlada hacia Landing disponible |
+| Categorías de municipalidades            | Docente/local | Segmentación por categoría municipal                       | CSV manual                     | Fuente local versionada en Landing y convertible a Bronze |
 
 ## Fuente 1: Presupuesto y ejecución de ingresos - MEF / SIAF
 
@@ -539,3 +541,38 @@ Las siguientes etapas técnicas serán:
 - Revisar la auditoría local generada por los procesos de ingesta.
 - Perfilar archivos descargados en Landing.
 - Convertir fuentes Landing hacia Bronze Parquet.
+
+## Fuente 4: Categorías de municipalidades - CSV manual controlado
+
+### Descripción
+
+Fuente local entregada como insumo académico para clasificar municipalidades por categoría. No proviene de descarga web; por eso se conserva de forma controlada en `data/landing/category/CategoriasMunicipalidades.csv` y es la única excepción al criterio general de no versionar CSV de Landing.
+
+### Método de acceso observado
+
+Método observado: CSV manual local con delimitador `;`.
+
+### Ubicación Landing
+
+```text
+data/landing/category/CategoriasMunicipalidades.csv
+```
+
+### Uso en Bronze
+
+La fuente se convierte a Parquet mediante:
+
+```powershell
+python -m src.bronze.build_bronze_municipal_categories --dry-run
+python -m src.bronze.build_bronze_municipal_categories --overwrite
+```
+
+La salida Bronze esperada es:
+
+```text
+data/bronze/municipal_categories/resource_key=categorias_municipalidades/
+```
+
+### Criterio de uso
+
+Bronze solo preserva la fuente en Parquet con metadata técnica. La normalización de nombres municipales, resolución de duplicados, ambigüedades y reglas de cruce deben definirse en Silver/Gold, no en Bronze.

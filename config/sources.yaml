@@ -223,6 +223,36 @@ sources:
       - "La descarga completa de todos los recursos MEF puede ejecutarse localmente, pero los archivos descargados no deben versionarse en Git."
       - "La definicion de granularidad analitica se realizara despues del profiling y antes de Silver."
 
+
+  municipal_categories:
+    name: municipal_categories
+    display_name: Categorias municipales
+    institution: Docente / fuente local controlada
+    source_system: manual_csv
+    description: Fuente manual de categorias municipales A-G entregada como CSV local para segmentacion analitica.
+    access_method: manual_csv
+    expected_formats:
+      - csv
+    landing_subdir: category
+    bronze_subdir: municipal_categories
+    silver_subdir: municipal_categories
+    gold_subject_area: municipal_categories
+    enabled: true
+    candidate_resources:
+      categorias_municipalidades:
+        file_name: "CategoriasMunicipalidades.csv"
+        path: "data/landing/category/CategoriasMunicipalidades.csv"
+        format: csv
+        delimiter: ";"
+        role: source_table
+        resource_key: categorias_municipalidades
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: false
+    notes:
+      - "Es la unica fuente real versionada bajo data/landing porque no se descarga desde web."
+      - "Bronze conserva el CSV como Parquet con metadata tecnica; Silver definira normalizacion y llaves de cruce."
+
   predial_goal:
     name: predial_goal
     display_name: Seguimiento de meta del impuesto predial
