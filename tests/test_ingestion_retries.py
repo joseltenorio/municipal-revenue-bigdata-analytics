@@ -15,10 +15,10 @@ from src.common.retry import (
 )
 
 
-def test_load_retry_policy_for_mef_income() -> None:
+def test_load_retry_policy_for_siaf_income() -> None:
     """Valida que la política MEF pueda cargarse desde YAML."""
 
-    policy = load_retry_policy("mef_income")
+    policy = load_retry_policy("siaf_income")
 
     assert policy.max_attempts >= 1
     assert policy.timeout_seconds > 0
@@ -72,7 +72,7 @@ def test_append_and_read_audit_record(tmp_path: Path, monkeypatch) -> None:
 
     record = IngestionAuditRecord(
         run_id="test-run",
-        source_name="mef_income",
+        source_name="siaf_income",
         source_url="https://example.com/file.csv",
         access_method="csv",
         started_at="2026-01-01T00:00:00+00:00",

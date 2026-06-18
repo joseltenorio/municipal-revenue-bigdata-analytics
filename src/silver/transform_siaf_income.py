@@ -1,7 +1,7 @@
 """Limpieza y estandarización Silver para ingresos MEF.
 
-Este módulo lee datasets Bronze Parquet de MEF ingresos y escribe un dataset
-Silver por recurso bajo ``data/silver/mef_income``. La transformación aplica
+Este módulo lee datasets Bronze Parquet de SIAF ingresos y escribe un dataset
+Silver por recurso bajo ``data/silver/siaf_income``. La transformación aplica
 limpieza técnica ligera, tipado semántico inicial y flags de calidad por fila.
 
 No integra recursos, no elimina filas y no construye métricas analíticas finales.
@@ -20,7 +20,7 @@ from src.common.logger import get_logger
 from src.common.paths import get_source_bronze_path, get_source_silver_path
 
 
-SOURCE_NAME = "mef_income"
+SOURCE_NAME = "siaf_income"
 DICTIONARY_FILE_NAME = "Ingresos_Diccionario.csv"
 
 TYPED_COLUMNS = [
@@ -52,7 +52,7 @@ REQUIRED_BRONZE_COLUMNS = [
 
 
 class SilverTransformError(Exception):
-    """Error controlado durante la transformación Silver de MEF ingresos."""
+    """Error controlado durante la transformación Silver de SIAF ingresos."""
 
 
 @dataclass(frozen=True)
@@ -73,8 +73,8 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_mef_income_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente MEF ingresos."""
+def load_siaf_income_config() -> dict[str, Any]:
+    """Carga la configuración de la fuente SIAF ingresos."""
 
     config = load_sources_config()
     source_config = get_config_value(config, f"sources.{SOURCE_NAME}")
@@ -387,14 +387,14 @@ def write_resource_silver(
     )
 
 
-def transform_mef_income(
+def transform_siaf_income(
     *,
     resources: list[SilverResource],
     dry_run: bool,
     overwrite: bool,
     limit: int | None,
 ) -> list[dict[str, Any]]:
-    """Transforma MEF ingresos hacia Silver o retorna un resumen de dry-run."""
+    """Transforma SIAF ingresos hacia Silver o retorna un resumen de dry-run."""
 
     validate_bronze_inputs(resources)
 
@@ -441,7 +441,7 @@ def parse_args() -> argparse.Namespace:
     """Procesa los argumentos de línea de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Limpia y estandariza MEF ingresos desde Bronze hacia Silver."
+        description="Limpia y estandariza SIAF ingresos desde Bronze hacia Silver."
     )
     parser.add_argument(
         "--resource",
@@ -476,13 +476,13 @@ def main() -> None:
     if args.limit is not None and args.limit <= 0:
         raise SilverTransformError("--limit debe ser un entero positivo.")
 
-    source_config = load_mef_income_config()
+    source_config = load_siaf_income_config()
     resources = select_silver_resources(
         source_config=source_config,
         resource_keys=args.resources,
     )
 
-    summary = transform_mef_income(
+    summary = transform_siaf_income(
         resources=resources,
         dry_run=args.dry_run,
         overwrite=args.overwrite,
@@ -490,7 +490,7 @@ def main() -> None:
     )
 
     print("=" * 80)
-    print("Silver MEF ingresos")
+    print("Silver SIAF ingresos")
     print(f"Modo dry-run: {args.dry_run}")
     print(f"Recursos seleccionados: {len(summary)}")
     print(f"Columnas tipadas previstas: {', '.join(TYPED_COLUMNS)}")

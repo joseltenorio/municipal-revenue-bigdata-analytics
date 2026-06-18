@@ -12,8 +12,8 @@ Esta documentación no reemplaza el profiling ni la calidad de datos. La auditor
 
 La auditoría de ingesta aplica a los scripts ubicados en:
 
-- `src/ingestion/download_mef_income.py`
-- `src/ingestion/download_predial_goal.py`
+- `src/ingestion/download_siaf_income.py`
+- `src/ingestion/download_sismepre.py`
 - `src/ingestion/download_renamu.py`
 - `src/ingestion/run_all_ingestion.py`
 
@@ -76,8 +76,8 @@ Ejemplo conceptual:
 {
   "timestamp": "2026-06-11T00:00:00+00:00",
   "level": "INFO",
-  "run_id": "mef_income_20260611000000_abcd1234",
-  "source_name": "mef_income",
+  "run_id": "siaf_income_20260611000000_abcd1234",
+  "source_name": "siaf_income",
   "event_type": "INGESTION_START",
   "message": "Inicio de proceso de ingesta.",
   "metadata": {
@@ -141,7 +141,7 @@ Formato general:
 
 Ejemplo:
 
-`mef_income_20260611123045_a1b2c3d4`
+`siaf_income_20260611123045_a1b2c3d4`
 
 ## Política de reintentos
 
@@ -202,13 +202,13 @@ El comportamiento esperado es:
 Ejemplo conceptual:
 
 ```text
-data/landing/mef_income/2024-Ingreso.csv.part
+data/landing/siaf_income/2024-Ingreso.csv.part
 ```
 
 Al finalizar correctamente:
 
 ```text
-data/landing/mef_income/2024-Ingreso.csv
+data/landing/siaf_income/2024-Ingreso.csv
 ```
 
 Los archivos `.part` no deben versionarse en Git.
@@ -221,7 +221,7 @@ La auditoría central registra eventos de ejecución en:
 
 La metadata local por archivo descargado se guarda junto al archivo en Landing, por ejemplo:
 
-`data/landing/mef_income/Ingresos_Diccionario.csv.metadata.json`
+`data/landing/siaf_income/Ingresos_Diccionario.csv.metadata.json`
 
 La diferencia es:
 
@@ -235,13 +235,13 @@ La diferencia es:
 Validar MEF con el diccionario:
 
 ```powershell
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+python -m src.ingestion.download_siaf_income --resource dictionary --dry-run
 ```
 
-Validar meta predial con una tabla pequeña:
+Validar SISMEPRE con una tabla pequeña:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+python -m src.ingestion.download_sismepre --resource estadistica --dry-run
 ```
 
 Validar RENAMU sin descargar:
@@ -279,8 +279,8 @@ python -m src.ingestion.run_all_ingestion
 Este comando ejecuta internamente:
 
 ```powershell
-python -m src.ingestion.download_mef_income --all-resources --include-documentation
-python -m src.ingestion.download_predial_goal --all-enabled
+python -m src.ingestion.download_siaf_income --all-resources --include-documentation
+python -m src.ingestion.download_sismepre --all-enabled
 python -m src.ingestion.download_renamu --all-enabled --extract
 ```
 
@@ -357,7 +357,7 @@ El fallback manual no debe usarse para evitar la trazabilidad. Debe ser una exce
 
 ## Estado actual
 
-Actualmente, los scripts de ingesta de MEF ingresos, meta predial y RENAMU 2022 incorporan:
+Actualmente, los scripts de ingesta de SIAF ingresos, SISMEPRE y RENAMU 2022 incorporan:
 
 - Validación de disponibilidad.
 - Fallback de `HEAD` a `GET`.

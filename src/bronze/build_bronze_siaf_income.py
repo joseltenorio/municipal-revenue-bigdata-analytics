@@ -1,7 +1,7 @@
 """Construcción de archivos Parquet Bronze para la fuente MEF de ingresos.
 
 Este módulo lee archivos CSV originales de MEF desde Landing y escribe un
-dataset Parquet por recurso bajo data/bronze/mef_income.
+dataset Parquet por recurso bajo data/bronze/siaf_income.
 
 La capa Bronze conserva la granularidad de origen y aplica únicamente cambios
 técnicos: normalización de nombres de columnas y metadata de procesamiento.
@@ -23,12 +23,12 @@ from src.common.logger import get_logger
 from src.common.paths import get_source_bronze_path, get_source_landing_path
 
 
-SOURCE_NAME = "mef_income"
+SOURCE_NAME = "siaf_income"
 DICTIONARY_FILE_NAME = "Ingresos_Diccionario.csv"
 
 
 class BronzeBuildError(Exception):
-    """Error controlado durante la construcción Bronze de MEF ingresos."""
+    """Error controlado durante la construcción Bronze de SIAF ingresos."""
 
 
 @dataclass(frozen=True)
@@ -93,8 +93,8 @@ def normalize_column_names(column_names: list[str]) -> list[str]:
     return normalized_names
 
 
-def load_mef_income_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente MEF ingresos."""
+def load_siaf_income_config() -> dict[str, Any]:
+    """Carga la configuración de la fuente SIAF ingresos."""
 
     config = load_sources_config()
     source_config = get_config_value(config, f"sources.{SOURCE_NAME}")
@@ -289,13 +289,13 @@ def build_resource_bronze(
     )
 
 
-def build_bronze_mef_income(
+def build_bronze_siaf_income(
     *,
     resources: list[BronzeResource],
     dry_run: bool,
     overwrite: bool,
 ) -> list[dict[str, Any]]:
-    """Construye Bronze MEF ingresos o retorna un resumen de dry-run."""
+    """Construye Bronze SIAF ingresos o retorna un resumen de dry-run."""
 
     validate_landing_inputs(resources)
     summary = build_dry_run_summary(resources)
@@ -332,7 +332,7 @@ def parse_args() -> argparse.Namespace:
     """Procesa los argumentos de línea de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Convierte MEF ingresos desde Landing hacia Bronze Parquet."
+        description="Convierte SIAF ingresos desde Landing hacia Bronze Parquet."
     )
     parser.add_argument(
         "--resource",
@@ -371,7 +371,7 @@ def main() -> None:
     """Punto de entrada CLI."""
 
     args = parse_args()
-    source_config = load_mef_income_config()
+    source_config = load_siaf_income_config()
     resources = select_bronze_resources(
         source_config=source_config,
         resource_keys=args.resources,
@@ -379,14 +379,14 @@ def main() -> None:
         granularities=args.granularities,
     )
 
-    summary = build_bronze_mef_income(
+    summary = build_bronze_siaf_income(
         resources=resources,
         dry_run=args.dry_run,
         overwrite=args.overwrite,
     )
 
     print("=" * 80)
-    print("Bronze MEF ingresos")
+    print("Bronze SIAF ingresos")
     print(f"Modo dry-run: {args.dry_run}")
     print(f"Recursos seleccionados: {len(summary)}")
 

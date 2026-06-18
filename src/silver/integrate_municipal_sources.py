@@ -17,8 +17,8 @@ from src.common.logger import get_logger
 from src.common.paths import SILVER_DIR, get_source_silver_path
 
 
-MEF_SOURCE = "mef_income"
-PREDIAL_SOURCE = "predial_goal"
+MEF_SOURCE = "siaf_income"
+PREDIAL_SOURCE = "sismepre"
 RENAMU_SOURCE = "renamu"
 RENAMU_RESOURCE_KEY = "base_renamu_2022"
 
@@ -326,7 +326,7 @@ def build_municipal_entity_bridge(
             mapping_frames.append(
                 select_predial_mapping(
                     read_parquet(spark, path, limit),
-                    mapping_source=f"predial_goal/{resource_key}",
+                    mapping_source=f"sismepre/{resource_key}",
                 )
             )
 
@@ -493,7 +493,7 @@ def build_predial_entity_period(
             "integration_grain",
             F.lit("ano_aplicacion_periodo_sec_ejec_formulario_ano_mes_estadistica"),
         )
-        .withColumn("source_dataset", F.lit("predial_goal/esat_estadistica_atm"))
+        .withColumn("source_dataset", F.lit("sismepre/esat_estadistica_atm"))
     )
 
 

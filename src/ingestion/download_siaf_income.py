@@ -1,11 +1,10 @@
-"""Descarga controlada de la fuente MEF/SISMERE de meta predial.
+"""Descarga controlada de la fuente MEF de presupuesto y ejecución de ingresos.
 
-Este script implementa la ingesta inicial hacia Landing para la fuente de
-seguimiento de meta del impuesto predial. Descarga recursos CSV definidos en
-config/sources.yaml y conserva los archivos originales sin transformarlos.
+Este script implementa la ingesta inicial hacia Landing para la fuente MEF.
+Descarga recursos CSV directos definidos en config/sources.yaml y conserva los
+archivos originales sin transformarlos.
 
-No construye Bronze, no integra tablas, no limpia datos y no interpreta columnas
-de negocio.
+No construye Bronze, no limpia datos y no interpreta columnas de negocio.
 """
 
 from __future__ import annotations
@@ -28,12 +27,12 @@ from src.common.paths import get_source_landing_path
 from src.common.retry import RetryError, build_retry_config, probe_with_fallback
 
 
-SOURCE_NAME = "predial_goal"
+SOURCE_NAME = "siaf_income"
 DEFAULT_CHUNK_SIZE = 1024 * 1024
 
 
 class IngestionError(Exception):
-    """Error controlado durante la ingesta predial."""
+    """Error controlado durante la ingesta MEF."""
 
 
 @dataclass(frozen=True)
@@ -45,6 +44,9 @@ class ResourceMetadata:
     resource_key: str
     file_name: str
     source_url: str
+    role: str | None
+    year: int | None
+    granularity: str | None
     started_at: str
     finished_at: str
     duration_seconds: float
@@ -69,8 +71,8 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_predial_goal_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente predial_goal."""
+def load_siaf_income_config() -> dict[str, Any]:
+    """Carga la configuración de la fuente SIAF income."""
 
     config = load_sources_config()
     sources = config.get("sources", {})
@@ -89,57 +91,92 @@ def load_predial_goal_config() -> dict[str, Any]:
 
 
 def get_candidate_resources(source_config: dict[str, Any]) -> dict[str, Any]:
-    """Obtiene recursos candidatos definidos para predial_goal."""
+    """Obtiene recursos candidatos definidos para SIAF income."""
 
     resources = source_config.get("candidate_resources", {})
 
     if not resources:
         raise IngestionError(
-            "No existen candidate_resources para predial_goal en config/sources.yaml."
+            "No existen candidate_resources para siaf_income en config/sources.yaml."
         )
 
     return resources
 
 
+def print_available_resources(resources: dict[str, Any]) -> None:
+    """Imprime recursos configurados para la fuente MEF."""
+
+    print("=" * 80)
+    print("Recursos MEF configurados")
+
+    for resource_key, resource in resources.items():
+        print(
+            f"- {resource_key}: {resource.get('file_name')} | "
+            f"anio={resource.get('year', 'no_aplica')} | "
+            f"granularidad={resource.get('granularity', 'no_aplica')} | "
+            f"rol={resource.get('role')} | "
+            f"prioridad={resource.get('priority')} | "
+            f"documentacion={resource.get('use_for_documentation', False)}"
+        )
+
+
 def select_resources(
     resources: dict[str, Any],
-    resource_key: str | None,
+    resource_keys: list[str] | None,
+    years: list[int] | None,
+    granularities: list[str] | None,
     include_documentation: bool,
-    all_enabled: bool,
+    all_resources: bool,
 ) -> dict[str, Any]:
     """Selecciona recursos a descargar según argumentos de ejecución."""
 
-    if resource_key:
-        if resource_key not in resources:
-            available = ", ".join(sorted(resources))
-            raise IngestionError(
-                f"Recurso no encontrado: '{resource_key}'. "
-                f"Recursos disponibles: {available}."
-            )
-        return {resource_key: resources[resource_key]}
-
     selected_resources: dict[str, Any] = {}
 
+    if resource_keys:
+        for resource_key in resource_keys:
+            if resource_key not in resources:
+                available = ", ".join(sorted(resources))
+                raise IngestionError(
+                    f"Recurso no encontrado: '{resource_key}'. "
+                    f"Recursos disponibles: {available}."
+                )
+
+            selected_resources[resource_key] = resources[resource_key]
+
+        return selected_resources
+
     for key, resource in resources.items():
-        use_for_ingestion = bool(resource.get("use_for_ingestion", False))
-        use_for_documentation = bool(resource.get("use_for_documentation", False))
+        is_documentation = bool(resource.get("use_for_documentation", False))
+        resource_year = resource.get("year")
+        resource_granularity = resource.get("granularity")
 
-        if all_enabled and (use_for_ingestion or use_for_documentation):
+        if all_resources:
+            if is_documentation and not include_documentation:
+                continue
             selected_resources[key] = resource
             continue
 
-        if include_documentation and use_for_documentation:
+        if years and resource_year in years:
+            if is_documentation and not include_documentation:
+                continue
             selected_resources[key] = resource
             continue
 
-        if use_for_ingestion:
+        if granularities and resource_granularity in granularities:
+            if is_documentation and not include_documentation:
+                continue
+            selected_resources[key] = resource
+            continue
+
+        if include_documentation and is_documentation:
             selected_resources[key] = resource
 
     if not selected_resources:
         available = ", ".join(sorted(resources))
         raise IngestionError(
-            "No se seleccionó ningún recurso predial para descargar. "
-            "Usa --resource, --include-documentation o --all-enabled. "
+            "No se seleccionó ningún recurso MEF para descargar. "
+            "Usa --resource, --year, --granularity, --all-resources "
+            "o --include-documentation. "
             f"Recursos disponibles: {available}."
         )
 
@@ -160,7 +197,7 @@ def validate_resource(resource_key: str, resource: dict[str, Any]) -> None:
     if resource["format"] != "csv":
         raise IngestionError(
             f"El recurso '{resource_key}' tiene formato '{resource['format']}'. "
-            "Este script de predial solo descarga CSV."
+            "Este script de SIAF income solo descarga recursos CSV."
         )
 
 
@@ -183,13 +220,15 @@ def calculate_sha256(file_path: Path) -> str:
     return sha256.hexdigest()
 
 
-def format_bytes(value: int | None) -> str:
-    """Formatea bytes para impresión en consola."""
+def parse_content_length(response: requests.Response) -> int | None:
+    """Obtiene content-length como entero si está disponible."""
 
-    if value is None:
-        return "no_disponible"
+    content_length = response.headers.get("content-length")
 
-    return f"{value:,} bytes"
+    if content_length and content_length.isdigit():
+        return int(content_length)
+
+    return None
 
 
 def download_resource(
@@ -222,16 +261,11 @@ def download_resource(
     response = probe_resource(url=url, timeout_seconds=timeout_seconds)
 
     content_type = response.headers.get("content-type")
-    content_length = response.headers.get("content-length")
-    content_length_bytes = (
-        int(content_length)
-        if content_length and content_length.isdigit()
-        else None
-    )
+    content_length_bytes = parse_content_length(response)
 
     print(f"Estado HTTP: {response.status_code}")
     print(f"Tipo de contenido: {content_type}")
-    print(f"Tamaño declarado: {format_bytes(content_length_bytes)}")
+    print(f"Tamaño declarado: {content_length_bytes}")
 
     if dry_run:
         print("Dry run activo. No se descargó el archivo.")
@@ -271,6 +305,9 @@ def download_resource(
         resource_key=resource_key,
         file_name=file_name,
         source_url=url,
+        role=resource.get("role"),
+        year=resource.get("year"),
+        granularity=resource.get("granularity"),
         started_at=started_at,
         finished_at=finished_at,
         duration_seconds=duration_seconds,
@@ -298,7 +335,7 @@ def download_resource(
 
     print(f"Archivo guardado: {output_path}")
     print(f"Metadata guardada: {metadata_path}")
-    print(f"Tamaño descargado: {format_bytes(file_size)}")
+    print(f"Tamaño descargado: {file_size:,} bytes")
     print(f"Checksum SHA256: {checksum}")
     print(f"Duración descarga: {download_result.duration_seconds} s")
     print(f"Velocidad promedio: {download_result.average_speed_mbps} MB/s")
@@ -337,31 +374,40 @@ def download_resource(
     return metadata
 
 
-def print_available_resources(resources: dict[str, Any]) -> None:
-    """Imprime recursos configurados para la fuente predial."""
-
-    print("=" * 80)
-    print("Recursos predial configurados")
-
-    for resource_key, resource in resources.items():
-        print(
-            f"- {resource_key}: {resource.get('file_name')} | "
-            f"rol={resource.get('role')} | "
-            f"prioridad={resource.get('priority')} | "
-            f"ingesta={resource.get('use_for_ingestion', False)} | "
-            f"documentacion={resource.get('use_for_documentation', False)}"
-        )
-
-
 def parse_args() -> argparse.Namespace:
     """Define argumentos de ejecución."""
 
     parser = argparse.ArgumentParser(
-        description="Descarga recursos de meta predial hacia Landing."
+        description="Descarga recursos MEF de ingresos hacia Landing."
     )
     parser.add_argument(
         "--resource",
-        help="Clave del recurso definido en config/sources.yaml. Ejemplo: estadistica.",
+        action="append",
+        dest="resources",
+        help=(
+            "Clave del recurso definido en config/sources.yaml. "
+            "Puede repetirse. Ejemplo: --resource annual_2024 --resource dictionary."
+        ),
+    )
+    parser.add_argument(
+        "--year",
+        action="append",
+        type=int,
+        dest="years",
+        help=(
+            "Año de recursos MEF a descargar. Puede repetirse. "
+            "Ejemplo: --year 2023 --year 2024."
+        ),
+    )
+    parser.add_argument(
+        "--granularity",
+        action="append",
+        choices=["annual", "monthly", "daily"],
+        dest="granularities",
+        help=(
+            "Granularidad a descargar. Puede repetirse. "
+            "Ejemplo: --granularity annual."
+        ),
     )
     parser.add_argument(
         "--include-documentation",
@@ -369,14 +415,12 @@ def parse_args() -> argparse.Namespace:
         help="Incluye recursos marcados como documentación, por ejemplo diccionarios.",
     )
     parser.add_argument(
-        "--all-enabled",
+        "--all-resources",
         action="store_true",
-        help="Descarga recursos de ingesta y documentación habilitados en la fuente.",
-    )
-    parser.add_argument(
-        "--list-resources",
-        action="store_true",
-        help="Lista los recursos prediales configurados y termina sin descargar.",
+        help=(
+            "Descarga todos los recursos MEF configurados. "
+            "Usar con cuidado porque puede descargar archivos grandes."
+        ),
     )
     parser.add_argument(
         "--timeout",
@@ -388,6 +432,11 @@ def parse_args() -> argparse.Namespace:
         "--overwrite",
         action="store_true",
         help="Sobrescribe archivos existentes en Landing.",
+    )
+    parser.add_argument(
+        "--list-resources",
+        action="store_true",
+        help="Lista los recursos MEF configurados y termina sin descargar.",
     )
     parser.add_argument(
         "--dry-run",
@@ -404,7 +453,7 @@ def main() -> None:
     run_id = create_run_id(SOURCE_NAME)
 
     try:
-        source_config = load_predial_goal_config()
+        source_config = load_siaf_income_config()
         resources = get_candidate_resources(source_config)
 
         if args.list_resources:
@@ -413,16 +462,18 @@ def main() -> None:
 
         selected_resources = select_resources(
             resources=resources,
-            resource_key=args.resource,
+            resource_keys=args.resources,
+            years=args.years,
+            granularities=args.granularities,
             include_documentation=args.include_documentation,
-            all_enabled=args.all_enabled,
+            all_resources=args.all_resources,
         )
 
         landing_subdir = source_config.get("landing_subdir", SOURCE_NAME)
         output_dir = get_source_landing_path(landing_subdir)
 
         print("=" * 80)
-        print("Iniciando ingesta predial hacia Landing")
+        print("Iniciando ingesta SIAF income hacia Landing")
         print(f"Directorio Landing: {output_dir}")
         print(f"Recursos seleccionados: {', '.join(selected_resources)}")
 
@@ -459,7 +510,7 @@ def main() -> None:
         )
 
         print("=" * 80)
-        print("Proceso predial finalizado")
+        print("Proceso SIAF income finalizado")
 
     except (requests.RequestException, RetryError, IngestionError, OSError, ValueError) as exc:
         audit_info(
@@ -474,7 +525,7 @@ def main() -> None:
         )
 
         print("=" * 80)
-        print("Proceso predial fallido")
+        print("Proceso SIAF income fallido")
         print(f"Error: {type(exc).__name__}: {exc}")
         raise SystemExit(1) from exc
 

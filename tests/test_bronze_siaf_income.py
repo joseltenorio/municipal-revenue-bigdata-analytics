@@ -1,13 +1,13 @@
-"""Pruebas para la lógica del builder Bronze de MEF ingresos."""
+"""Pruebas para la lógica del builder Bronze de SIAF ingresos."""
 
 from pathlib import Path
 
 import pytest
 
-from src.bronze.build_bronze_mef_income import (
+from src.bronze.build_bronze_siaf_income import (
     BronzeBuildError,
     DICTIONARY_FILE_NAME,
-    build_bronze_mef_income,
+    build_bronze_siaf_income,
     build_dry_run_summary,
     is_fact_resource,
     normalize_column_name,
@@ -50,8 +50,8 @@ def test_select_bronze_resources_preserves_resource_granularity(tmp_path: Path) 
     """Los recursos seleccionados conservan granularidad y ruta de salida."""
 
     source_config = {
-        "landing_subdir": "mef_income",
-        "bronze_subdir": "mef_income",
+        "landing_subdir": "siaf_income",
+        "bronze_subdir": "siaf_income",
         "candidate_resources": {
             "annual_2024": {
                 "file_name": "2024-Ingreso.csv",
@@ -129,7 +129,7 @@ def test_dry_run_does_not_create_bronze_directory(tmp_path: Path) -> None:
         bronze_dir=bronze_dir,
     )
 
-    summary = build_bronze_mef_income(
+    summary = build_bronze_siaf_income(
         resources=resources,
         dry_run=True,
         overwrite=False,

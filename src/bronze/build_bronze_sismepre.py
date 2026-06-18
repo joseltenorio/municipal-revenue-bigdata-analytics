@@ -1,7 +1,7 @@
-"""Construcción de archivos Parquet Bronze para la fuente de meta predial.
+"""Construcción de archivos Parquet Bronze para la fuente de SISMEPRE.
 
-Este módulo lee los CSV originales de `predial_goal` desde Landing y escribe un
-dataset Parquet por recurso bajo `data/bronze/predial_goal`.
+Este módulo lee los CSV originales de `sismepre` desde Landing y escribe un
+dataset Parquet por recurso bajo `data/bronze/sismepre`.
 
 La capa Bronze conserva cada tabla predial por separado, mantiene los valores
 como texto y aplica únicamente cambios técnicos: normalización de nombres de
@@ -24,11 +24,11 @@ from src.common.logger import get_logger
 from src.common.paths import get_source_bronze_path, get_source_landing_path
 
 
-SOURCE_NAME = "predial_goal"
+SOURCE_NAME = "sismepre"
 
 
 class BronzeBuildError(Exception):
-    """Error controlado durante la construcción Bronze de meta predial."""
+    """Error controlado durante la construcción Bronze de SISMEPRE."""
 
 
 @dataclass(frozen=True)
@@ -92,8 +92,8 @@ def normalize_column_names(column_names: list[str]) -> list[str]:
     return normalized_names
 
 
-def load_predial_goal_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente predial_goal."""
+def load_sismepre_config() -> dict[str, Any]:
+    """Carga la configuración de la fuente sismepre."""
 
     config = load_sources_config()
     source_config = get_config_value(config, f"sources.{SOURCE_NAME}")
@@ -276,7 +276,7 @@ def build_resource_bronze(
     )
 
 
-def build_bronze_predial_goal(
+def build_bronze_sismepre(
     *,
     resources: list[BronzeResource],
     dry_run: bool,
@@ -319,7 +319,7 @@ def parse_args() -> argparse.Namespace:
     """Procesa los argumentos de línea de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Convierte meta predial desde Landing hacia Bronze Parquet."
+        description="Convierte SISMEPRE desde Landing hacia Bronze Parquet."
     )
     parser.add_argument(
         "--resource",
@@ -344,20 +344,20 @@ def main() -> None:
     """Punto de entrada CLI."""
 
     args = parse_args()
-    source_config = load_predial_goal_config()
+    source_config = load_sismepre_config()
     resources = select_bronze_resources(
         source_config=source_config,
         resource_keys=args.resources,
     )
 
-    summary = build_bronze_predial_goal(
+    summary = build_bronze_sismepre(
         resources=resources,
         dry_run=args.dry_run,
         overwrite=args.overwrite,
     )
 
     print("=" * 80)
-    print("Bronze meta predial")
+    print("Bronze SISMEPRE")
     print(f"Modo dry-run: {args.dry_run}")
     print(f"Recursos seleccionados: {len(summary)}")
 

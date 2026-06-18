@@ -19,8 +19,8 @@ from src.hive.generate_external_tables import (
 def test_normalize_hive_identifier() -> None:
     """Los nombres de tabla se normalizan a identificadores seguros."""
 
-    assert normalize_hive_identifier("MEF Income annual-2012") == "mef_income_annual_2012"
-    assert normalize_hive_identifier("mef_income__annual_2012") == "mef_income__annual_2012"
+    assert normalize_hive_identifier("SIAF Income annual-2012") == "siaf_income_annual_2012"
+    assert normalize_hive_identifier("siaf_income__annual_2012") == "siaf_income__annual_2012"
     assert normalize_hive_identifier("123 tabla") == "t_123_tabla"
 
     with pytest.raises(HiveDdlError):

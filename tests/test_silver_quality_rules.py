@@ -45,7 +45,7 @@ def test_silver_quality_config_defines_sources_and_outputs() -> None:
         "data/quality/silver_quality_results.jsonl"
     )
     assert silver_config["output"]["report_html"] == "reports/silver_quality_report.html"
-    assert set(silver_config["sources"]) == {"mef_income", "predial_goal", "renamu"}
+    assert set(silver_config["sources"]) == {"siaf_income", "sismepre", "renamu"}
 
 
 def test_build_expected_datasets_reads_all_silver_resources() -> None:
@@ -56,11 +56,11 @@ def test_build_expected_datasets_reads_all_silver_resources() -> None:
 
     assert len(datasets) == 25
     assert any(
-        dataset.source_name == "mef_income" and dataset.resource_key == "annual_2024"
+        dataset.source_name == "siaf_income" and dataset.resource_key == "annual_2024"
         for dataset in datasets
     )
     assert any(
-        dataset.source_name == "predial_goal" and dataset.resource_key == "respuestas"
+        dataset.source_name == "sismepre" and dataset.resource_key == "respuestas"
         for dataset in datasets
     )
     assert any(
@@ -163,7 +163,7 @@ def test_render_html_report_from_simulated_silver_results() -> None:
     html = render_html_report(
         [
             {
-                "source_name": "mef_income",
+                "source_name": "siaf_income",
                 "resource_key": "annual_2024",
                 "rule_name": "row_count_positive",
                 "status": "PASS",

@@ -3,8 +3,8 @@
 Este runner ejecuta, en orden, los scripts de ingesta de las tres fuentes
 principales del proyecto:
 
-1. MEF ingresos.
-2. Meta predial.
+1. SIAF ingresos.
+2. SISMEPRE.
 3. RENAMU 2022.
 
 No construye Bronze, no ejecuta Spark y no transforma datos de negocio.
@@ -55,8 +55,8 @@ def build_ingestion_steps(
     if include_mef:
         steps.append(
             IngestionStep(
-                name="MEF ingresos",
-                module="src.ingestion.download_mef_income",
+                name="SIAF ingresos",
+                module="src.ingestion.download_siaf_income",
                 args=[
                     "--all-resources",
                     "--include-documentation",
@@ -68,8 +68,8 @@ def build_ingestion_steps(
     if include_predial:
         steps.append(
             IngestionStep(
-                name="Meta predial",
-                module="src.ingestion.download_predial_goal",
+                name="SISMEPRE",
+                module="src.ingestion.download_sismepre",
                 args=[
                     "--all-enabled",
                     *common_args,
@@ -153,12 +153,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--skip-mef",
         action="store_true",
-        help="Omite la ingesta de MEF ingresos.",
+        help="Omite la ingesta de SIAF ingresos.",
     )
     parser.add_argument(
         "--skip-predial",
         action="store_true",
-        help="Omite la ingesta de meta predial.",
+        help="Omite la ingesta de SISMEPRE.",
     )
     parser.add_argument(
         "--skip-renamu",

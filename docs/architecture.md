@@ -91,8 +91,8 @@ Esta organización por `resource_key` no representa todavía un particionamiento
 Rutas Bronze actuales:
 
 ```text
-data/bronze/mef_income/
-data/bronze/predial_goal/
+data/bronze/siaf_income/
+data/bronze/sismepre/
 data/bronze/renamu/
 ```
 
@@ -100,8 +100,8 @@ data/bronze/renamu/
 
 | Fuente       | Ruta Bronze                                             | Criterio de organización                                 | Estado                  |
 | ------------ | ------------------------------------------------------- | -------------------------------------------------------- | ----------------------- |
-| MEF ingresos | `data/bronze/mef_income/resource_key=<resource_key>/`   | Un dataset Parquet por recurso MEF convertido            | Implementado localmente |
-| Meta predial | `data/bronze/predial_goal/resource_key=<resource_key>/` | Un dataset Parquet por tabla fuente predial seleccionada | Implementado localmente |
+| SIAF ingresos | `data/bronze/siaf_income/resource_key=<resource_key>/`   | Un dataset Parquet por recurso MEF convertido            | Implementado localmente |
+| SISMEPRE | `data/bronze/sismepre/resource_key=<resource_key>/` | Un dataset Parquet por tabla fuente predial seleccionada | Implementado localmente |
 | RENAMU 2022  | `data/bronze/renamu/resource_key=base_renamu_2022/`     | Un dataset Parquet para el CSV principal extraído        | Implementado localmente |
 
 ### Transformaciones permitidas en Bronze
@@ -147,14 +147,14 @@ Metadata común:
 | `bronze_source_file_path` | Ruta local del archivo origen en Landing.         |
 | `bronze_processed_at_utc` | Fecha y hora UTC de procesamiento Bronze.         |
 
-Metadata adicional para MEF ingresos:
+Metadata adicional para SIAF ingresos:
 
 | Columna                     | Descripción                                                  |
 | --------------------------- | ------------------------------------------------------------ |
 | `bronze_source_year`        | Año asociado al recurso MEF, cuando aplica.                  |
 | `bronze_source_granularity` | Granularidad declarada del recurso: anual, mensual o diaria. |
 
-Metadata adicional para meta predial:
+Metadata adicional para SISMEPRE:
 
 | Columna                  | Descripción                                                     |
 | ------------------------ | --------------------------------------------------------------- |

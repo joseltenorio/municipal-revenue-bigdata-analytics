@@ -1,12 +1,12 @@
-"""Pruebas para la lógica del builder Bronze de meta predial."""
+"""Pruebas para la lógica del builder Bronze de SISMEPRE."""
 
 from pathlib import Path
 
 import pytest
 
-from src.bronze.build_bronze_predial_goal import (
+from src.bronze.build_bronze_sismepre import (
     BronzeBuildError,
-    build_bronze_predial_goal,
+    build_bronze_sismepre,
     build_dry_run_summary,
     is_bronze_source_table,
     normalize_column_name,
@@ -66,8 +66,8 @@ def test_select_bronze_resources_excludes_dictionaries(tmp_path: Path) -> None:
     """Los diccionarios configurados no se seleccionan como tablas Bronze."""
 
     source_config = {
-        "landing_subdir": "predial_goal",
-        "bronze_subdir": "predial_goal",
+        "landing_subdir": "sismepre",
+        "bronze_subdir": "sismepre",
         "candidate_resources": {
             "respuestas": {
                 "file_name": "rentas_respuestas.csv",
@@ -149,7 +149,7 @@ def test_dry_run_does_not_create_bronze_directory(tmp_path: Path) -> None:
         bronze_dir=bronze_dir,
     )
 
-    summary = build_bronze_predial_goal(
+    summary = build_bronze_sismepre(
         resources=resources,
         dry_run=True,
         overwrite=False,

@@ -2,7 +2,7 @@
 -- Generated from existing Parquet datasets.
 -- Do not edit data files from Hive; these are external lakehouse tables.
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2012` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2012` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -48,9 +48,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2012` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2012';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2012';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2013` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2013` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -96,9 +96,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2013` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2013';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2013';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2014` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2014` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -144,9 +144,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2014` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2014';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2014';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2015` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2015` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -192,9 +192,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2015` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2015';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2015';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2016` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2016` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -240,9 +240,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2016` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2016';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2016';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2017` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2017` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -288,9 +288,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2017` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2017';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2017';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2018` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2018` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -336,9 +336,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2018` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2018';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2018';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2019` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2019` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -384,9 +384,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2019` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2019';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2019';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2020` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2020` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -432,9 +432,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2020` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2020';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2020';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2021` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2021` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -480,9 +480,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2021` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2021';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2021';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2022` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2022` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -528,9 +528,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2022` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2022';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2022';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2023` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2023` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -576,9 +576,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2023` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2023';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2023';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2024` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__annual_2024` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -624,9 +624,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__annual_2024` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=annual_2024';
+LOCATION '/app/data/bronze/siaf_income/resource_key=annual_2024';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__daily_2025` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__daily_2025` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -672,9 +672,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__daily_2025` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=daily_2025';
+LOCATION '/app/data/bronze/siaf_income/resource_key=daily_2025';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__daily_2026` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__daily_2026` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -720,9 +720,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__daily_2026` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=daily_2026';
+LOCATION '/app/data/bronze/siaf_income/resource_key=daily_2026';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__monthly_2025` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__monthly_2025` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -768,9 +768,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__monthly_2025` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=monthly_2025';
+LOCATION '/app/data/bronze/siaf_income/resource_key=monthly_2025';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__monthly_2026` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`siaf_income__monthly_2026` (
   `ano_doc` STRING,
   `mes_doc` STRING,
   `nivel_gobierno` STRING,
@@ -816,9 +816,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`mef_income__monthly_2026` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/mef_income/resource_key=monthly_2026';
+LOCATION '/app/data/bronze/siaf_income/resource_key=monthly_2026';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__ano_aplicacion` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__ano_aplicacion` (
   `ano_aplicacion` STRING,
   `ano_aplicacion_inicio` STRING,
   `ano_aplicacion_fin` STRING,
@@ -837,9 +837,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__ano_aplicacion` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=ano_aplicacion';
+LOCATION '/app/data/bronze/sismepre/resource_key=ano_aplicacion';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__entidad_estado` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__entidad_estado` (
   `sec_ejec` STRING,
   `ano_aplicacion` STRING,
   `usuario_creacion_fecha` STRING,
@@ -862,9 +862,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__entidad_estado` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=entidad_estado';
+LOCATION '/app/data/bronze/sismepre/resource_key=entidad_estado';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__esat_estadistica_atm` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__esat_estadistica_atm` (
   `sec_ejec` STRING,
   `ubigeo` STRING,
   `departamento` STRING,
@@ -916,9 +916,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__esat_estadistica_atm
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=esat_estadistica_atm';
+LOCATION '/app/data/bronze/sismepre/resource_key=esat_estadistica_atm';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__estadistica` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__estadistica` (
   `ano_aplicacion` STRING,
   `periodo` STRING,
   `formulario_id` STRING,
@@ -935,9 +935,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__estadistica` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=estadistica';
+LOCATION '/app/data/bronze/sismepre/resource_key=estadistica';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__formulario` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__formulario` (
   `ano_aplicacion` STRING,
   `periodo` STRING,
   `formulario_id` STRING,
@@ -957,9 +957,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__formulario` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=formulario';
+LOCATION '/app/data/bronze/sismepre/resource_key=formulario';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__preguntas` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__preguntas` (
   `ano_aplicacion` STRING,
   `periodo` STRING,
   `formulario_id` STRING,
@@ -984,9 +984,9 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__preguntas` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=preguntas';
+LOCATION '/app/data/bronze/sismepre/resource_key=preguntas';
 
-CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__respuestas` (
+CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`sismepre__respuestas` (
   `sec_ejec` STRING,
   `ano_aplicacion` STRING,
   `periodo` STRING,
@@ -1007,7 +1007,7 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`predial_goal__respuestas` (
   `bronze_processed_at_utc` STRING
 )
 STORED AS PARQUET
-LOCATION '/app/data/bronze/predial_goal/resource_key=respuestas';
+LOCATION '/app/data/bronze/sismepre/resource_key=respuestas';
 
 CREATE EXTERNAL TABLE IF NOT EXISTS `bronze`.`renamu__base_renamu_2022` (
   `ano` STRING,

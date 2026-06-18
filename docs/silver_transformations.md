@@ -19,24 +19,24 @@ La integración Silver no hace joins crudos fila-a-fila entre MEF, Predial y REN
 
 ## Transformaciones Silver por fuente
 
-### MEF ingresos
+### SIAF ingresos
 
 Script:
 
 ```text
-src/silver/transform_mef_income.py
+src/silver/transform_siaf_income.py
 ```
 
 Entrada:
 
 ```text
-data/bronze/mef_income/resource_key=<resource_key>/
+data/bronze/siaf_income/resource_key=<resource_key>/
 ```
 
 Salida:
 
 ```text
-data/silver/mef_income/resource_key=<resource_key>/
+data/silver/siaf_income/resource_key=<resource_key>/
 ```
 
 Reglas aplicadas:
@@ -79,24 +79,24 @@ MEF se integra mediante `mef_municipal_amounts`, un dataset agregado por recurso
 
 Los montos negativos se mantienen como valores observados y se tratan como `WARNING` de calidad. No se eliminan automáticamente porque pueden representar ajustes, anulaciones o semántica contable que debe validarse antes de Gold.
 
-### Meta predial
+### SISMEPRE
 
 Script:
 
 ```text
-src/silver/transform_predial_goal.py
+src/silver/transform_sismepre.py
 ```
 
 Entrada:
 
 ```text
-data/bronze/predial_goal/resource_key=<resource_key>/
+data/bronze/sismepre/resource_key=<resource_key>/
 ```
 
 Salida:
 
 ```text
-data/silver/predial_goal/resource_key=<resource_key>/
+data/silver/sismepre/resource_key=<resource_key>/
 ```
 
 Reglas aplicadas:

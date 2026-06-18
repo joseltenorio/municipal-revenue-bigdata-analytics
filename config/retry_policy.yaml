@@ -16,13 +16,13 @@ retry_policy:
       - HTTPError
 
   sources:
-    mef_income:
+    siaf_income:
       max_attempts: 3
       timeout_seconds: 90
       backoff_seconds: 5
       backoff_multiplier: 2
 
-    predial_goal:
+    sismepre:
       max_attempts: 4
       timeout_seconds: 90
       backoff_seconds: 5

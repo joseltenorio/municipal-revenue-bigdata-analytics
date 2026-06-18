@@ -61,8 +61,8 @@ def test_get_layer_path_rejects_invalid_layer() -> None:
 def test_source_layer_paths() -> None:
     """Valida rutas específicas por fuente."""
 
-    assert get_source_landing_path("mef_income") == LANDING_DIR / "mef_income"
-    assert get_source_bronze_path("mef_income") == BRONZE_DIR / "mef_income"
+    assert get_source_landing_path("siaf_income") == LANDING_DIR / "siaf_income"
+    assert get_source_bronze_path("siaf_income") == BRONZE_DIR / "siaf_income"
 
 
 def test_paths_are_path_objects() -> None:

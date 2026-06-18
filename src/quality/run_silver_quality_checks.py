@@ -530,7 +530,7 @@ def check_exact_duplicate_rows(
 def candidate_key_columns(dataset: SilverDataset) -> list[str]:
     """Obtiene llave candidata configurada para el recurso."""
 
-    if dataset.source_name == "mef_income":
+    if dataset.source_name == "siaf_income":
         candidate_key = dataset.source_config.get("candidate_key", {})
         return list(candidate_key.get("columns", []))
     return list(dataset.resource_config.get("candidate_key", []))
@@ -1024,7 +1024,7 @@ def run_source_specific_checks(
     )
     results: list[SilverQualityResult] = []
 
-    if dataset.source_name == "mef_income":
+    if dataset.source_name == "siaf_income":
         results.extend(
             [
                 check_negative_amounts(
@@ -1052,7 +1052,7 @@ def run_source_specific_checks(
             ]
         )
 
-    if dataset.source_name == "predial_goal":
+    if dataset.source_name == "sismepre":
         results.extend(
             [
                 check_predial_required_relationship_keys(

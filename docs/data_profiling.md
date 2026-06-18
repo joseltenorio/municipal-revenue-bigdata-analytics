@@ -127,7 +127,7 @@ La cobertura de cruce se mide explícitamente en `integration_coverage`. Estos p
 
 ## Hallazgos por fuente
 
-### MEF ingresos
+### SIAF ingresos
 
 MEF cuenta con 17 recursos Silver. Los hallazgos principales son:
 
@@ -139,7 +139,7 @@ MEF cuenta con 17 recursos Silver. Los hallazgos principales son:
 
 Implicancia: antes de integrar o modelar Gold, se debe validar la semántica de montos negativos y refinar la llave presupuestal con la granularidad real de MEF.
 
-### Meta predial
+### SISMEPRE
 
 Predial cuenta con 7 recursos Silver relacionados entre sí. Los hallazgos principales son:
 

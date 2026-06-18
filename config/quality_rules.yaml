@@ -76,7 +76,7 @@ quality:
         max_value: 100
 
     sources:
-      mef_income:
+      siaf_income:
         expected_resources:
           - annual_2012
           - annual_2013
@@ -98,7 +98,7 @@ quality:
         optional_metadata_columns:
           - bronze_source_year
 
-      predial_goal:
+      sismepre:
         expected_resources:
           - preguntas
           - estadistica
@@ -128,14 +128,14 @@ quality:
       - silver_processed_at_utc
 
     dictionary_references:
-      mef_income:
+      siaf_income:
         required: false
         paths:
-          - data/landing/mef_income/Ingresos_Diccionario.csv
-      predial_goal:
+          - data/landing/siaf_income/Ingresos_Diccionario.csv
+      sismepre:
         required: false
         glob_patterns:
-          - data/landing/predial_goal/rentas_*_diccionario.csv
+          - data/landing/sismepre/rentas_*_diccionario.csv
       renamu:
         required: false
         paths:
@@ -184,7 +184,7 @@ quality:
         description: Advertir si falta una referencia semántica local opcional.
 
     sources:
-      mef_income:
+      siaf_income:
         expected_resources:
           - annual_2012
           - annual_2013
@@ -247,7 +247,7 @@ quality:
             - especifica
             - especifica_det
 
-      predial_goal:
+      sismepre:
         expected_resources:
           ano_aplicacion:
             typed_columns:

@@ -13,7 +13,7 @@ La información sobre columnas, tipos de datos, llaves, granularidad analítica 
 Actualmente, el proyecto cuenta con:
 
 - Inventario de fuentes principales.
-- Recursos directos identificados para MEF, meta predial y RENAMU.
+- Recursos directos identificados para MEF, SISMEPRE y RENAMU.
 - Fuente manual de categorías municipales registrada como insumo local controlado.
 - Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
 - Descarga controlada implementada para la fuente de seguimiento de meta del impuesto predial.
@@ -29,7 +29,7 @@ Este documento no representa todavía el modelo final de datos. Su función es d
 | Fuente                                   | Institución   | Uso principal                                             | Método observado               | Estado actual                                             |
 | ---------------------------------------- | ------------- | --------------------------------------------------------- | ------------------------------ | --------------------------------------------------------- |
 | Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible               |
-| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de meta predial         | CSV directo                    | Ingesta controlada hacia Landing disponible               |
+| Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de SISMEPRE         | CSV directo                    | Ingesta controlada hacia Landing disponible               |
 | RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Descarga y extracción controlada hacia Landing disponible |
 | Categorías de municipalidades            | Docente/local | Segmentación por categoría municipal                       | CSV manual                     | Fuente local versionada en Landing y convertible a Bronze |
 
@@ -86,11 +86,11 @@ Durante la etapa de revisión de fuentes se identificaron archivos CSV directos 
 
 La descarga controlada de esta fuente se implementa mediante:
 
-`src/ingestion/download_mef_income.py`
+`src/ingestion/download_siaf_income.py`
 
 El script consume los recursos configurados en `sources.yaml`, descarga por streaming y guarda los archivos originales en:
 
-`data/landing/mef_income/`
+`data/landing/siaf_income/`
 
 ### Recursos identificados
 
@@ -127,31 +127,31 @@ La descarga no se ejecuta de forma masiva por defecto. Esta decisión evita desc
 Listar recursos configurados:
 
 ```powershell
-python -m src.ingestion.download_mef_income --list-resources
+python -m src.ingestion.download_siaf_income --list-resources
 ```
 
 Validar el diccionario sin descargarlo:
 
 ```powershell
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
+python -m src.ingestion.download_siaf_income --resource dictionary --dry-run
 ```
 
 Descargar el diccionario:
 
 ```powershell
-python -m src.ingestion.download_mef_income --resource dictionary
+python -m src.ingestion.download_siaf_income --resource dictionary
 ```
 
 Validar un año específico:
 
 ```powershell
-python -m src.ingestion.download_mef_income --year 2024 --dry-run
+python -m src.ingestion.download_siaf_income --year 2024 --dry-run
 ```
 
 Descargar todos los recursos MEF configurados, incluyendo documentación:
 
 ```powershell
-python -m src.ingestion.download_mef_income --all-resources --include-documentation
+python -m src.ingestion.download_siaf_income --all-resources --include-documentation
 ```
 
 ### Riesgos identificados
@@ -177,9 +177,9 @@ La granularidad analítica final se decidirá después de observar los datos rea
 
 ### Descripción
 
-Fuente pública orientada al seguimiento de la meta vinculada al impuesto predial. Permitirá analizar avance, cumplimiento, brechas y desempeño de municipalidades respecto a la meta predial.
+Fuente pública orientada al seguimiento de la meta vinculada al impuesto predial. Permitirá analizar avance, cumplimiento, brechas y desempeño de municipalidades respecto a la SISMEPRE.
 
-Esta fuente complementará el análisis de ingresos municipales al permitir comparar ejecución presupuestal con desempeño de gestión y cumplimiento de la meta predial.
+Esta fuente complementará el análisis de ingresos municipales al permitir comparar ejecución presupuestal con desempeño de gestión y cumplimiento de la SISMEPRE.
 
 ### Institución responsable
 
@@ -197,7 +197,7 @@ Esta fuente será usada para responder preguntas como:
 - ¿Cuáles presentan mayor brecha de cumplimiento?
 - ¿Cómo se distribuye el avance predial por territorio?
 - ¿Existe relación entre ejecución de ingresos y cumplimiento predial?
-- ¿Qué variables o tablas de la fuente explican mejor el avance de la meta predial?
+- ¿Qué variables o tablas de la fuente explican mejor el avance de la SISMEPRE?
 
 ### Campos esperados
 
@@ -227,11 +227,11 @@ La configuración de estos recursos se centraliza en:
 
 La descarga controlada de esta fuente se implementa mediante:
 
-`src/ingestion/download_predial_goal.py`
+`src/ingestion/download_sismepre.py`
 
 El script consume los recursos configurados en `sources.yaml`, descarga por streaming y guarda los archivos originales en:
 
-`data/landing/predial_goal/`
+`data/landing/sismepre/`
 
 ### Recursos identificados
 
@@ -274,25 +274,25 @@ Los recursos que no respondan correctamente durante validación quedan registrad
 Listar recursos configurados:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --list-resources
+python -m src.ingestion.download_sismepre --list-resources
 ```
 
 Validar un recurso principal:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+python -m src.ingestion.download_sismepre --resource estadistica --dry-run
 ```
 
 Validar recursos habilitados sin descargar:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --all-enabled --dry-run
+python -m src.ingestion.download_sismepre --all-enabled --dry-run
 ```
 
 Descargar recursos habilitados:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --all-enabled
+python -m src.ingestion.download_sismepre --all-enabled
 ```
 
 ### Riesgos identificados
@@ -432,13 +432,13 @@ Decisiones pendientes:
 - Definir qué rango temporal MEF se usará para profiling completo.
 - Definir si el análisis final trabajará solo granularidad anual o también granularidad mensual/diaria reciente.
 - Confirmar la disponibilidad final de los diccionarios prediales que no respondan correctamente durante validación.
-- Definir qué tablas de meta predial se conservarán completas en Bronze.
-- Definir qué tablas de meta predial serán necesarias para Silver y Gold.
+- Definir qué tablas de SISMEPRE se conservarán completas en Bronze.
+- Definir qué tablas de SISMEPRE serán necesarias para Silver y Gold.
 - Implementar descarga y extracción de RENAMU.
 - Confirmar la estructura interna del ZIP completo de RENAMU 2022.
 - Seleccionar variables RENAMU relevantes para contexto municipal.
 - Confirmar columnas reales, tipos de datos y llaves candidatas mediante profiling.
-- Evaluar cobertura de cruce entre MEF, meta predial y RENAMU.
+- Evaluar cobertura de cruce entre MEF, SISMEPRE y RENAMU.
 - Definir modelo Gold final y modelo Power BI después de Silver.
 
 ## Actualización por identificación de recursos directos
@@ -447,8 +447,8 @@ Se identificaron recursos descargables directos para las fuentes principales del
 
 Hallazgos principales:
 
-- MEF ingresos dispone de CSV directos para el periodo 2012-2026 y un diccionario CSV.
-- Meta predial dispone de múltiples CSV temáticos y diccionarios.
+- SIAF ingresos dispone de CSV directos para el periodo 2012-2026 y un diccionario CSV.
+- SISMEPRE dispone de múltiples CSV temáticos y diccionarios.
 - RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde recursos directos.
 - Algunas páginas o muestras pueden presentar comportamientos especiales frente a solicitudes automáticas.
 - Los archivos principales de MEF pueden ser grandes y requieren estrategia de descarga controlada.
@@ -459,11 +459,11 @@ Existe una descarga controlada para la fuente MEF de presupuesto y ejecución de
 
 Estado técnico actual:
 
-- Fuente: MEF ingresos.
+- Fuente: SIAF ingresos.
 - Método implementado: CSV directo.
 - Configuración de recursos: `config/sources.yaml`.
-- Script de ingesta: `src/ingestion/download_mef_income.py`.
-- Destino local: `data/landing/mef_income/`.
+- Script de ingesta: `src/ingestion/download_siaf_income.py`.
+- Destino local: `data/landing/siaf_income/`.
 - Transformación de negocio: no aplica en Landing.
 - Conversión a Parquet: pendiente para Bronze.
 - Auditoría completa y reintentos: pendiente para una etapa posterior.
@@ -478,11 +478,11 @@ Existe una descarga controlada para la fuente de seguimiento de meta del impuest
 
 Estado técnico actual:
 
-- Fuente: meta predial.
+- Fuente: SISMEPRE.
 - Método implementado: CSV directo.
 - Configuración de recursos: `config/sources.yaml`.
-- Script de ingesta: `src/ingestion/download_predial_goal.py`.
-- Destino local: `data/landing/predial_goal/`.
+- Script de ingesta: `src/ingestion/download_sismepre.py`.
+- Destino local: `data/landing/sismepre/`.
 - Transformación de negocio: no aplica en Landing.
 - Conversión a Parquet: pendiente para Bronze.
 - Integración de tablas: pendiente para Silver.
@@ -521,15 +521,15 @@ Los archivos descargados, extraídos y su metadata local no deben subirse al rep
 
 En el estado actual, el proyecto cuenta con tres fuentes preparadas para descargarse hacia Landing de forma controlada:
 
-- MEF ingresos, mediante `src/ingestion/download_mef_income.py`.
-- Meta predial, mediante `src/ingestion/download_predial_goal.py`.
+- SIAF ingresos, mediante `src/ingestion/download_siaf_income.py`.
+- SISMEPRE, mediante `src/ingestion/download_sismepre.py`.
 - RENAMU 2022, mediante `src/ingestion/download_renamu.py`.
 
 Las tres fuentes tienen sus recursos centralizados en `config/sources.yaml`, se descargan como archivos originales hacia Landing, no se transforman en esta etapa y no deben versionarse en GitHub.
 
 Los procesos de ingesta incorporan validación de disponibilidad, descarga por streaming, metadata local por archivo, checksum, auditoría básica, reintentos HTTP y fallback de validación cuando corresponde.
 
-La fuente MEF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita, debido al tamaño de sus archivos históricos y recientes.
+La fuente SIAF ingresos queda preparada para descarga explícita por recurso, año, granularidad o descarga completa solicitada de forma explícita, debido al tamaño de sus archivos históricos y recientes.
 
 La fuente predial queda preparada para descarga de sus tablas temáticas y diccionarios habilitados, conservando como observados los recursos que no respondan correctamente durante validación.
 

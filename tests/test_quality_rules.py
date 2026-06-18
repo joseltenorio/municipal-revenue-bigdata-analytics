@@ -41,9 +41,9 @@ def test_quality_rules_config_defines_bronze_sources() -> None:
     quality_config = load_quality_config()
     sources = quality_config["bronze"]["sources"]
 
-    assert set(sources) == {"mef_income", "predial_goal", "renamu"}
-    assert "annual_2012" in sources["mef_income"]["expected_resources"]
-    assert "respuestas" in sources["predial_goal"]["expected_resources"]
+    assert set(sources) == {"siaf_income", "sismepre", "renamu"}
+    assert "annual_2012" in sources["siaf_income"]["expected_resources"]
+    assert "respuestas" in sources["sismepre"]["expected_resources"]
     assert sources["renamu"]["expected_resources"] == ["base_renamu_2022"]
 
 
@@ -197,7 +197,7 @@ def test_render_html_report_from_simulated_results() -> None:
     html = render_html_report(
         [
             {
-                "source_name": "mef_income",
+                "source_name": "siaf_income",
                 "resource_key": "annual_2024",
                 "rule_id": "row_count_positive",
                 "status": "PASS",
@@ -216,7 +216,7 @@ def test_render_html_report_from_simulated_results() -> None:
     )
 
     assert "Reporte de calidad Bronze" in html
-    assert "mef_income" in html
+    assert "siaf_income" in html
     assert "WARNING" in html
 
 

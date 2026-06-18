@@ -3,8 +3,8 @@ project:
   display_name: Municipal Revenue Big Data Analytics
 
 sources:
-  mef_income:
-    name: mef_income
+  siaf_income:
+    name: siaf_income
     display_name: Presupuesto y ejecucion de ingresos
     institution: MEF
     source_system: MEF_SIAF
@@ -13,9 +13,9 @@ sources:
     access_method: csv
     expected_formats:
       - csv
-    landing_subdir: mef_income
-    bronze_subdir: mef_income
-    silver_subdir: mef_income
+    landing_subdir: siaf_income
+    bronze_subdir: siaf_income
+    silver_subdir: siaf_income
     gold_subject_area: municipal_revenue
     enabled: true
     candidate_resources:
@@ -253,19 +253,19 @@ sources:
       - "Es la unica fuente real versionada bajo data/landing porque no se descarga desde web."
       - "Bronze conserva el CSV como Parquet con metadata tecnica; Silver definira normalizacion y llaves de cruce."
 
-  predial_goal:
-    name: predial_goal
+  sismepre:
+    name: sismepre
     display_name: Seguimiento de meta del impuesto predial
     institution: MEF
     source_system: SISMERE_MEF
-    description: Fuente publica para analizar avance, cumplimiento y brechas de la meta predial.
+    description: Fuente publica para analizar avance, cumplimiento y brechas de la SISMEPRE.
     dataset_url: "https://datosabiertos.mef.gob.pe/dataset/seguimiento-de-la-meta-del-impuesto-predial"
     access_method: csv
     expected_formats:
       - csv
-    landing_subdir: predial_goal
-    bronze_subdir: predial_goal
-    silver_subdir: predial_goal
+    landing_subdir: sismepre
+    bronze_subdir: sismepre
+    silver_subdir: sismepre
     gold_subject_area: predial_compliance
     enabled: true
     candidate_resources:

@@ -300,8 +300,8 @@ python -m src.ingestion.run_all_ingestion --dry-run
 Validar fuentes individuales:
 
 ```powershell
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
+python -m src.ingestion.download_siaf_income --resource dictionary --dry-run
+python -m src.ingestion.download_sismepre --resource estadistica --dry-run
 python -m src.ingestion.download_renamu --all-enabled --dry-run
 ```
 
@@ -318,16 +318,16 @@ La ingesta real descarga archivos locales. Esos archivos no deben versionarse.
 Primero validar planes sin escribir:
 
 ```powershell
-python -m src.bronze.build_bronze_mef_income --dry-run
-python -m src.bronze.build_bronze_predial_goal --dry-run
+python -m src.bronze.build_bronze_siaf_income --dry-run
+python -m src.bronze.build_bronze_sismepre --dry-run
 python -m src.bronze.build_bronze_renamu --dry-run
 ```
 
 Ejecutar construcción real, si los datos Landing ya existen:
 
 ```powershell
-python -m src.bronze.build_bronze_mef_income
-python -m src.bronze.build_bronze_predial_goal
+python -m src.bronze.build_bronze_siaf_income
+python -m src.bronze.build_bronze_sismepre
 python -m src.bronze.build_bronze_renamu
 ```
 
@@ -371,16 +371,16 @@ Estas salidas no deben versionarse.
 Validar planes:
 
 ```powershell
-python -m src.silver.transform_mef_income --dry-run
-python -m src.silver.transform_predial_goal --dry-run
+python -m src.silver.transform_siaf_income --dry-run
+python -m src.silver.transform_sismepre --dry-run
 python -m src.silver.transform_renamu --dry-run
 ```
 
 Ejecutar transformaciones reales:
 
 ```powershell
-python -m src.silver.transform_mef_income --overwrite
-python -m src.silver.transform_predial_goal --overwrite
+python -m src.silver.transform_siaf_income --overwrite
+python -m src.silver.transform_sismepre --overwrite
 python -m src.silver.transform_renamu --overwrite
 ```
 

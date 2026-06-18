@@ -118,14 +118,14 @@ La carpeta `resource_key=<valor>` identifica el recurso lógico convertido desde
 | `bronze_source_file_path` | string           | Ruta local del archivo fuente en Landing.      |
 | `bronze_processed_at_utc` | string/timestamp | Fecha y hora UTC de procesamiento Bronze.      |
 
-### Metadata específica de MEF ingresos
+### Metadata específica de SIAF ingresos
 
 | Campo                       | Tipo esperado | Descripción                                                    |
 | --------------------------- | ------------- | -------------------------------------------------------------- |
 | `bronze_source_year`        | string/int    | Año asociado al recurso MEF, cuando aplica.                    |
 | `bronze_source_granularity` | string        | Granularidad configurada del recurso: anual, mensual o diaria. |
 
-### Metadata específica de meta predial
+### Metadata específica de SISMEPRE
 
 | Campo                    | Tipo esperado | Descripción                                                     |
 | ------------------------ | ------------- | --------------------------------------------------------------- |
@@ -142,7 +142,7 @@ La columna `run_id` pertenece a la auditoría de ingesta. No se documenta como c
 
 ## Datasets Bronze por fuente
 
-## 1. MEF ingresos
+## 1. SIAF ingresos
 
 ### Descripción
 
@@ -153,7 +153,7 @@ En Bronze, cada recurso MEF seleccionado desde Landing se convierte a un dataset
 ### Ruta Bronze
 
 ```text
-data/bronze/mef_income/resource_key=<resource_key>/
+data/bronze/siaf_income/resource_key=<resource_key>/
 ```
 
 ### Recursos Bronze convertidos
@@ -181,7 +181,7 @@ data/bronze/mef_income/resource_key=<resource_key>/
 ### Origen Landing
 
 ```text
-data/landing/mef_income/
+data/landing/siaf_income/
 ```
 
 ### Recurso excluido
@@ -194,7 +194,7 @@ data/landing/mef_income/
 
 | Campo                       | Descripción                                  |
 | --------------------------- | -------------------------------------------- |
-| `bronze_source_name`        | Valor esperado: `mef_income`.                |
+| `bronze_source_name`        | Valor esperado: `siaf_income`.                |
 | `bronze_resource_key`       | Identificador del recurso MEF convertido.    |
 | `bronze_source_file_name`   | Nombre del CSV fuente.                       |
 | `bronze_source_file_path`   | Ruta local del CSV en Landing.               |
@@ -204,7 +204,7 @@ data/landing/mef_income/
 
 ### Rol en el lakehouse
 
-MEF ingresos es la fuente principal para el análisis presupuestal y de ejecución de ingresos. En Bronze se conserva como datasets separados por recurso temporal, sin integración ni limpieza semántica definitiva.
+SIAF ingresos es la fuente principal para el análisis presupuestal y de ejecución de ingresos. En Bronze se conserva como datasets separados por recurso temporal, sin integración ni limpieza semántica definitiva.
 
 ### Decisiones pendientes
 
@@ -217,18 +217,18 @@ Quedan para profiling, calidad y Silver:
 - Normalizar municipalidades o códigos administrativos.
 - Definir qué granularidad alimentará Gold.
 
-## 2. Meta predial
+## 2. SISMEPRE
 
 ### Descripción
 
-Fuente orientada al seguimiento de la meta del impuesto predial. A diferencia de MEF ingresos, esta fuente no se trata como una única tabla plana; está compuesta por varias tablas fuente relacionadas.
+Fuente orientada al seguimiento de la meta del impuesto predial. A diferencia de SIAF ingresos, esta fuente no se trata como una única tabla plana; está compuesta por varias tablas fuente relacionadas.
 
 En Bronze, cada tabla fuente se conserva por separado bajo su propio `resource_key`. No se integran tablas, no se definen hechos ni dimensiones y no se decide todavía el modelo analítico.
 
 ### Ruta Bronze
 
 ```text
-data/bronze/predial_goal/resource_key=<resource_key>/
+data/bronze/sismepre/resource_key=<resource_key>/
 ```
 
 ### Recursos Bronze convertidos
@@ -246,7 +246,7 @@ data/bronze/predial_goal/resource_key=<resource_key>/
 ### Origen Landing
 
 ```text
-data/landing/predial_goal/
+data/landing/sismepre/
 ```
 
 ### Recursos excluidos
@@ -267,7 +267,7 @@ Los recursos con rol `dictionary` se conservan como documentación de fuente, pe
 
 | Campo                     | Descripción                                   |
 | ------------------------- | --------------------------------------------- |
-| `bronze_source_name`      | Valor esperado: `predial_goal`.               |
+| `bronze_source_name`      | Valor esperado: `sismepre`.               |
 | `bronze_resource_key`     | Identificador del recurso predial convertido. |
 | `bronze_source_file_name` | Nombre del CSV fuente.                        |
 | `bronze_source_file_path` | Ruta local del CSV en Landing.                |
@@ -510,7 +510,7 @@ La capa Gold contiene los marts, dimensiones y hechos finales del lakehouse loca
 
 * **`gold.dim_predial_period` (Periodo operativo predial):**
   * `predial_period_key` (string): Llave compuesta `ano_aplicacion_periodo_ano_estadistica_mes_estadistica`.
-  * `ano_aplicacion` (string): Año de aplicación de la meta predial.
+  * `ano_aplicacion` (string): Año de aplicación de la SISMEPRE.
   * `periodo` (string): Periodo predial declarado.
   * `predial_period_label` (string): Etiqueta descriptiva del periodo predial.
 
@@ -600,8 +600,8 @@ Estado actual:
 
 | Fuente | Bronze Parquet | Contrato documentado | Observación |
 | --- | --- | --- | --- |
-| MEF ingresos | Sí | Sí | Recursos anuales 2012-2024 y recursos 2025-2026 mensual/diario. |
-| Meta predial | Sí | Sí | Siete tablas fuente convertidas de forma separada. |
+| SIAF ingresos | Sí | Sí | Recursos anuales 2012-2024 y recursos 2025-2026 mensual/diario. |
+| SISMEPRE | Sí | Sí | Siete tablas fuente convertidas de forma separada. |
 | RENAMU 2022 | Sí | Sí | CSV principal convertido como tabla ancha contextual. |
 
 La capa Bronze queda documentada como una capa técnica, trazable y preparada para profiling, calidad y transformaciones Silver.

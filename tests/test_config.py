@@ -21,7 +21,7 @@ def test_load_sources_config() -> None:
 
     assert "project" in config
     assert "sources" in config
-    assert "mef_income" in config["sources"]
+    assert "siaf_income" in config["sources"]
     assert "municipal_categories" in config["sources"]
 
 

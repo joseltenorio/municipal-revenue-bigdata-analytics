@@ -41,8 +41,8 @@ Durante la etapa inicial se agregaron scripts de validación y descarga para las
 
 | Script                                   | Fuente                                  | Estado actual                                             |
 | ---------------------------------------- | --------------------------------------- | --------------------------------------------------------- |
-| `src/ingestion/download_mef_income.py`   | Presupuesto y ejecución de ingresos MEF | Ingesta controlada hacia Landing disponible               |
-| `src/ingestion/download_predial_goal.py` | Meta del impuesto predial               | Ingesta controlada hacia Landing disponible               |
+| `src/ingestion/download_siaf_income.py`   | Presupuesto y ejecución de ingresos MEF | Ingesta controlada hacia Landing disponible               |
+| `src/ingestion/download_sismepre.py` | Meta del impuesto predial               | Ingesta controlada hacia Landing disponible               |
 | `src/ingestion/download_renamu.py`       | RENAMU 2022                             | Descarga y extracción controlada hacia Landing disponible |
 
 Estos scripts permiten validar conectividad, estado HTTP, tipo de contenido y tamaño declarado de recursos candidatos.
@@ -75,20 +75,20 @@ Las pruebas de discovery se guiaron por los siguientes criterios:
 Ejemplos de ejecución local durante la etapa de discovery:
 
 ```powershell
-python -m src.ingestion.download_mef_income
-python -m src.ingestion.download_predial_goal
+python -m src.ingestion.download_siaf_income
+python -m src.ingestion.download_sismepre
 python -m src.ingestion.download_renamu
 ```
 
 Ejemplos de evaluación de URLs específicas durante discovery:
 
 ```powershell
-python -m src.ingestion.download_mef_income --url "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv"
-python -m src.ingestion.download_predial_goal --url "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica.csv"
+python -m src.ingestion.download_siaf_income --url "https://fs.datosabiertos.mef.gob.pe/datastorefiles/2012-Ingreso.csv"
+python -m src.ingestion.download_sismepre --url "https://fs.datosabiertos.mef.gob.pe/datastorefiles/rentas_estadistica.csv"
 python -m src.ingestion.download_renamu --url "https://www.inei.gob.pe/media/DATOS_ABIERTOS/RENAMU/DATA/2022.zip"
 ```
 
-Estos comandos pertenecen a la etapa de discovery inicial. En el estado actual, los scripts de MEF ingresos y meta predial ya no se usan únicamente como probadores de URLs, sino como procesos de descarga controlada hacia Landing.
+Estos comandos pertenecen a la etapa de discovery inicial. En el estado actual, los scripts de SIAF ingresos y SISMEPRE ya no se usan únicamente como probadores de URLs, sino como procesos de descarga controlada hacia Landing.
 
 ## Fuente MEF: Presupuesto y ejecución de ingresos
 
@@ -147,7 +147,7 @@ Estos recursos no son los únicos disponibles. El inventario completo de recurso
 
 ### Decisión derivada del discovery
 
-Usar los recursos CSV como fuente principal de MEF ingresos.
+Usar los recursos CSV como fuente principal de SIAF ingresos.
 
 La descarga se implementa de forma controlada. Se puede descargar un recurso, un año, una granularidad o todos los recursos configurados de forma explícita, pero la descarga masiva no debe ocurrir por accidente.
 
@@ -157,7 +157,7 @@ La fuente MEF de presupuesto y ejecución de ingresos cuenta con ingesta control
 
 Script principal:
 
-`src/ingestion/download_mef_income.py`
+`src/ingestion/download_siaf_income.py`
 
 Configuración usada:
 
@@ -165,7 +165,7 @@ Configuración usada:
 
 Destino local:
 
-`data/landing/mef_income/`
+`data/landing/siaf_income/`
 
 Capacidades implementadas:
 
@@ -184,12 +184,12 @@ Capacidades implementadas:
 Ejemplos:
 
 ```powershell
-python -m src.ingestion.download_mef_income --list-resources
-python -m src.ingestion.download_mef_income --resource dictionary --dry-run
-python -m src.ingestion.download_mef_income --resource dictionary
-python -m src.ingestion.download_mef_income --year 2024 --dry-run
-python -m src.ingestion.download_mef_income --granularity annual --dry-run
-python -m src.ingestion.download_mef_income --all-resources --include-documentation
+python -m src.ingestion.download_siaf_income --list-resources
+python -m src.ingestion.download_siaf_income --resource dictionary --dry-run
+python -m src.ingestion.download_siaf_income --resource dictionary
+python -m src.ingestion.download_siaf_income --year 2024 --dry-run
+python -m src.ingestion.download_siaf_income --granularity annual --dry-run
+python -m src.ingestion.download_siaf_income --all-resources --include-documentation
 ```
 
 Criterios aplicados:
@@ -273,7 +273,7 @@ La fuente de seguimiento de meta del impuesto predial cuenta con ingesta control
 
 Script principal:
 
-`src/ingestion/download_predial_goal.py`
+`src/ingestion/download_sismepre.py`
 
 Configuración usada:
 
@@ -281,7 +281,7 @@ Configuración usada:
 
 Destino local:
 
-`data/landing/predial_goal/`
+`data/landing/sismepre/`
 
 Capacidades implementadas:
 
@@ -298,10 +298,10 @@ Capacidades implementadas:
 Ejemplos:
 
 ```powershell
-python -m src.ingestion.download_predial_goal --list-resources
-python -m src.ingestion.download_predial_goal --resource estadistica --dry-run
-python -m src.ingestion.download_predial_goal --all-enabled --dry-run
-python -m src.ingestion.download_predial_goal --all-enabled
+python -m src.ingestion.download_sismepre --list-resources
+python -m src.ingestion.download_sismepre --resource estadistica --dry-run
+python -m src.ingestion.download_sismepre --all-enabled --dry-run
+python -m src.ingestion.download_sismepre --all-enabled
 ```
 
 Criterios aplicados:
@@ -425,16 +425,16 @@ Criterios aplicados:
 
 | Fuente       | Resultado observado                        | Implicancia para la ingesta                                                   |
 | ------------ | ------------------------------------------ | ----------------------------------------------------------------------------- |
-| MEF ingresos | CSV directos 2012-2026 y diccionario CSV   | Ingesta controlada disponible; no transformar en Landing                      |
-| Meta predial | Múltiples CSV temáticos y diccionarios     | Ingesta controlada disponible; preservar como conjunto de tablas relacionadas |
+| SIAF ingresos | CSV directos 2012-2026 y diccionario CSV   | Ingesta controlada disponible; no transformar en Landing                      |
+| SISMEPRE | Múltiples CSV temáticos y diccionarios     | Ingesta controlada disponible; preservar como conjunto de tablas relacionadas |
 | RENAMU 2022  | ZIP completo y diccionario PDF disponibles | Implementar descarga y extracción controlada                                  |
 
 ## Estado actualizado por fuente
 
 | Fuente       | Estado actualizado                           | Próxima acción                                                    |
 | ------------ | -------------------------------------------- | ----------------------------------------------------------------- |
-| MEF ingresos | Ingesta controlada hacia Landing disponible  | Descargar recursos necesarios localmente y luego construir Bronze |
-| Meta predial | Ingesta controlada hacia Landing disponible  | Validar recursos habilitados y luego construir Bronze             |
+| SIAF ingresos | Ingesta controlada hacia Landing disponible  | Descargar recursos necesarios localmente y luego construir Bronze |
+| SISMEPRE | Ingesta controlada hacia Landing disponible  | Validar recursos habilitados y luego construir Bronze             |
 | RENAMU 2022  | ZIP completo y diccionario PDF identificados | Implementar descarga, preservación y extracción controlada        |
 
 ## Criterio de no versionamiento
@@ -458,9 +458,9 @@ Los archivos descargados deben permanecer en `data/landing/` de forma local y fu
 
 Las pruebas realizadas confirman que:
 
-- MEF ingresos dispone de recursos CSV directos para el periodo 2012-2026.
-- MEF ingresos combina archivos anuales, mensuales y diarios.
-- Meta predial dispone de múltiples CSV temáticos y diccionarios.
+- SIAF ingresos dispone de recursos CSV directos para el periodo 2012-2026.
+- SIAF ingresos combina archivos anuales, mensuales y diarios.
+- SISMEPRE dispone de múltiples CSV temáticos y diccionarios.
 - La mayoría de recursos prediales principales responde correctamente desde URLs directas.
 - El recurso candidato `rentas_entidad_estado_diccionario.csv` respondió con HTTP 404 y queda no habilitado hasta confirmar una URL válida.
 - RENAMU 2022 dispone de ZIP completo y diccionario PDF accesibles desde recursos directos.

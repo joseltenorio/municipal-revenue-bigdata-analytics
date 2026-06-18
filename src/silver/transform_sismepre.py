@@ -1,7 +1,7 @@
-"""Limpieza y estandarización Silver para meta predial.
+"""Limpieza y estandarización Silver para SISMEPRE.
 
-Este módulo lee datasets Bronze Parquet de `predial_goal` y escribe un dataset
-Silver por recurso bajo ``data/silver/predial_goal``. La transformación aplica
+Este módulo lee datasets Bronze Parquet de `sismepre` y escribe un dataset
+Silver por recurso bajo ``data/silver/sismepre``. La transformación aplica
 limpieza técnica ligera, tipado progresivo y flags de validez por fila.
 
 No integra tablas, no elimina filas y no decide todavía hechos, dimensiones ni
@@ -21,7 +21,7 @@ from src.common.logger import get_logger
 from src.common.paths import get_source_bronze_path, get_source_silver_path
 
 
-SOURCE_NAME = "predial_goal"
+SOURCE_NAME = "sismepre"
 
 COMMON_BRONZE_COLUMNS = [
     "bronze_source_name",
@@ -75,7 +75,7 @@ RELATIONSHIP_KEYS_BY_RESOURCE = {
 
 
 class SilverTransformError(Exception):
-    """Error controlado durante la transformación Silver de meta predial."""
+    """Error controlado durante la transformación Silver de SISMEPRE."""
 
 
 @dataclass(frozen=True)
@@ -95,8 +95,8 @@ def utc_now_iso() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
-def load_predial_goal_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente predial_goal."""
+def load_sismepre_config() -> dict[str, Any]:
+    """Carga la configuración de la fuente sismepre."""
 
     config = load_sources_config()
     source_config = get_config_value(config, f"sources.{SOURCE_NAME}")
@@ -550,14 +550,14 @@ def write_resource_silver(
     )
 
 
-def transform_predial_goal(
+def transform_sismepre(
     *,
     resources: list[SilverResource],
     dry_run: bool,
     overwrite: bool,
     limit: int | None,
 ) -> list[dict[str, Any]]:
-    """Transforma meta predial hacia Silver o retorna resumen de dry-run."""
+    """Transforma SISMEPRE hacia Silver o retorna resumen de dry-run."""
 
     validate_bronze_inputs(resources)
 
@@ -604,7 +604,7 @@ def parse_args() -> argparse.Namespace:
     """Procesa los argumentos de línea de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Limpia y estandariza meta predial desde Bronze hacia Silver."
+        description="Limpia y estandariza SISMEPRE desde Bronze hacia Silver."
     )
     parser.add_argument(
         "--resource",
@@ -639,13 +639,13 @@ def main() -> None:
     if args.limit is not None and args.limit <= 0:
         raise SilverTransformError("--limit debe ser un entero positivo.")
 
-    source_config = load_predial_goal_config()
+    source_config = load_sismepre_config()
     resources = select_silver_resources(
         source_config=source_config,
         resource_keys=args.resources,
     )
 
-    summary = transform_predial_goal(
+    summary = transform_sismepre(
         resources=resources,
         dry_run=args.dry_run,
         overwrite=args.overwrite,
@@ -653,7 +653,7 @@ def main() -> None:
     )
 
     print("=" * 80)
-    print("Silver meta predial")
+    print("Silver SISMEPRE")
     print(f"Modo dry-run: {args.dry_run}")
     print(f"Recursos seleccionados: {len(summary)}")
 

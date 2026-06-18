@@ -21,8 +21,8 @@ Fuentes evaluadas:
 
 | Fuente | Descripción | Recursos |
 | --- | --- | ---: |
-| `mef_income` | Presupuesto y ejecución de ingresos MEF. | 17 |
-| `predial_goal` | Seguimiento de la meta del impuesto predial. | 7 |
+| `siaf_income` | Presupuesto y ejecución de ingresos MEF. | 17 |
+| `sismepre` | Seguimiento de la meta del impuesto predial. | 7 |
 | `renamu` | Registro Nacional de Municipalidades 2022. | 1 |
 | `municipal_categories` | Categorías municipales manuales. | 1 |
 
@@ -171,8 +171,8 @@ Resultados por fuente:
 
 | Fuente | Resultados |
 | --- | ---: |
-| `mef_income` | 272 |
-| `predial_goal` | 112 |
+| `siaf_income` | 272 |
+| `sismepre` | 112 |
 | `renamu` | 19 |
 
 Warnings Silver principales:
