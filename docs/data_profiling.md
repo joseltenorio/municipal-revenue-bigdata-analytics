@@ -181,3 +181,34 @@ El proyecto está preparado para analizar integración de fuentes, usando como i
 - Warnings sobre montos, duplicados candidatos y parseos.
 - Diccionarios locales como referencia semántica.
 - Notebook de apoyo para revisar resultados agregados sin versionar outputs reales.
+## Profiling Bronze para rediseño Silver
+
+Antes de rediseñar Silver, dimensiones y Gold, el proyecto genera perfiles locales de Bronze para observar la data real sin modificarla.
+
+Script principal:
+
+```powershell
+python -m src.quality.profile_bronze_datasets --existing-only
+```
+
+Salidas locales no versionables:
+
+```text
+data/quality/profiling/bronze_dataset_summary.csv
+data/quality/profiling/bronze_column_profile.csv
+data/quality/profiling/bronze_type_candidates.csv
+data/quality/profiling/bronze_candidate_keys.csv
+data/quality/profiling/bronze_text_quality.csv
+data/quality/profiling/bronze_join_key_profile.csv
+reports/bronze_profile_report.html
+```
+
+Este profiling ayuda a decidir:
+
+- columnas con nulos reales, strings vacíos, espacios en blanco y literales tipo `NULL`, `N/A`, `S/N` o `-`;
+- columnas candidatas a entero, decimal, fecha, identificador, categoría o texto libre;
+- llaves candidatas por fuente, como `sec_ejec`, `ubigeo`, `idmunici`, año/periodo/formulario y combinaciones SIAF/SISMEPRE;
+- columnas de texto con problemas de tildes, espacios, caracteres raros, alias y nombres municipales difíciles de homologar;
+- riesgos antes de definir `dim_municipality`, `fact_siaf_income`, `fact_sismepre_predial_statistics` y `renamu_municipal_context`.
+
+El profiling no reemplaza los quality gates: profiling describe la data para tomar decisiones; quality evalúa reglas PASS/WARNING/FAIL del pipeline.
