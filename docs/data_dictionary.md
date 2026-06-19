@@ -518,6 +518,7 @@ La capa Gold contiene dimensiones, hechos, marts y auditoría separados.
 
 - `gold.audit_quality_results`
 - `gold.audit_dataset_summary`
+- `gold.audit_municipality_name_comparison`
 
 ## Legacy explícito
 

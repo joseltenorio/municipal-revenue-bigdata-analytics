@@ -21,6 +21,7 @@ Power BI debe consumir preferentemente:
 - `dim_renamu_context`
 - `audit_quality_results`
 - `audit_dataset_summary`
+- `audit_municipality_name_comparison`
 
 No debe depender de:
 
@@ -57,6 +58,7 @@ No debe depender de:
 
 1. `audit_quality_results`
 2. `audit_dataset_summary`
+3. `audit_municipality_name_comparison`
 
 ## Relaciones recomendadas
 
@@ -191,6 +193,7 @@ Fuentes:
 
 - `audit_quality_results`
 - `audit_dataset_summary`
+- `audit_municipality_name_comparison`
 
 ## Medidas DAX
 

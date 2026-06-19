@@ -96,13 +96,14 @@ Propósito:
 - conectar SIAF con clasificación municipal
 - conectar SIAF con geografía
 
+No debe resolver:
+- `sec_ejec -> nombre SIAF -> nombre SISMEPRE -> fuzzy match` (no se usa matching manual ni fuzzy matching por nombre como base del modelo final).
+
 Campos documentados:
 
 - `sec_ejec`
 - `ubigeo6`
 - `municipality_key`
-- `municipalidad_sismepre_nombre`
-- `municipalidad_siaf_nombre`
 - `has_siaf_match`
 - `has_sismepre_match`
 - `has_renamu_match`

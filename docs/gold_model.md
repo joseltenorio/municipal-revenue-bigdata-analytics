@@ -52,6 +52,7 @@ Campos objetivo:
 - `ubigeo6`
 - `geography_key`
 - `idmunici`
+- `municipalidad_nombre`
 - `tipomuni_codigo`
 - `tipomuni_nombre`
 - `tipo_clasificacion_municipal`
@@ -63,6 +64,10 @@ Reglas:
 - `geography_key` puede ser igual a `ubigeo6` para mantener simplicidad.
 - No debe repetir departamento, provincia y distrito como atributos principales.
 - No debe mezclar contexto territorial con contexto institucional.
+- `dim_municipality` tendrá un único campo `municipalidad_nombre` como el nombre estándar usado por Power BI.
+- RENAMU será la fuente preferente para construir ese nombre. Si RENAMU no trae un campo explícito de nombre institucional, el nombre puede derivarse de forma controlada usando `tipomuni_codigo`, `tipomuni_nombre`, `provincia_nombre` y/o `distrito_nombre`.
+- SIAF y SISMEPRE no definen el nombre oficial de municipalidad en Gold; aportan llaves y hechos, no nombres maestros.
+- Los nombres observados por fuente, si se conservan, deben ir a auditoría técnica (`audit_municipality_name_comparison`), no al modelo analítico principal.
 
 ### `dim_geography`
 
@@ -141,8 +146,6 @@ Campos objetivo:
 - `sec_ejec`
 - `ubigeo6`
 - `municipality_key`
-- `municipalidad_sismepre_nombre`
-- `municipalidad_siaf_nombre`
 - `has_siaf_match`
 - `has_sismepre_match`
 - `has_renamu_match`
@@ -155,6 +158,7 @@ Reglas:
 
 - Se documenta como Silver técnico.
 - Sirve para resolver `sec_ejec -> ubigeo6 -> municipality_key`.
+- No debe resolver `sec_ejec -> nombre SIAF -> nombre SISMEPRE -> fuzzy match`. No se realiza matching manual ni fuzzy matching por nombre como base del modelo final.
 - No debe usarse como tabla principal de Power BI.
 - No debe exponerse como dimensión de negocio.
 
@@ -286,6 +290,38 @@ Campos mínimos:
 - `fail_count`
 - `processed_at_utc`
 
+### `audit_municipality_name_comparison`
+
+Esta tabla NO forma parte del modelo analítico principal. Es opcional para dashboard de auditoría/calidad y permite comparar nombres observados por fuente.
+
+Campos objetivo:
+
+- `sec_ejec`
+- `ubigeo6`
+- `municipality_key`
+- `nombre_estandar`
+- `nombre_siaf_observado`
+- `nombre_sismepre_observado`
+- `nombre_renamu_observado`
+- `siaf_vs_estandar_match`
+- `sismepre_vs_estandar_match`
+- `siaf_vs_sismepre_match`
+- `similarity_score_siaf`
+- `similarity_score_sismepre`
+- `issue_type`
+- `issue_reason`
+- `processed_at_utc`
+
+Ejemplos de `issue_type`:
+
+- `exact_match`
+- `minor_text_difference`
+- `missing_siaf_name`
+- `missing_sismepre_name`
+- `missing_standard_name`
+- `possible_mismatch`
+- `manual_review_required`
+
 ## Legacy y reemplazos
 
 Las siguientes referencias deben considerarse legacy o transición anterior:
@@ -323,4 +359,4 @@ El modelo objetivo queda cerrado así:
 - SISMEPRE inicial sale por `fact_predial_statistics`.
 - RENAMU queda en `dim_renamu_context`.
 - La clasificación municipal oficial vive en `dim_municipality`.
-- La auditoría vive aparte en `audit_quality_results` y `audit_dataset_summary`.
+- La auditoría vive aparte en `audit_quality_results`, `audit_dataset_summary` y `audit_municipality_name_comparison`.
