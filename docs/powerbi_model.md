@@ -150,6 +150,7 @@ Debe resumir contexto territorial sin exponer tablas tecnicas ni joins transitor
 Tablas de control técnico.
 
 No deben mezclarse con la navegación del análisis de negocio.
+Pueden alimentar una página técnica separada de monitoreo junto con `audit_integration_coverage`.
 
 ## Modelo semántico recomendado
 

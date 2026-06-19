@@ -331,21 +331,23 @@ Resultado detallado por regla.
 
 Campos mínimos:
 
-- `dataset`
+- `quality_result_key`
+- `layer_name`
+- `dataset_name`
+- `resource_key`
+- `check_name`
 - `rule_name`
+- `rule_category`
 - `status`
 - `severity`
 - `message`
-- `pass_count`
-- `warning_count`
-- `fail_count`
-- `completeness_score`
-- `validity_score`
-- `conformity_score`
-- `duplicate_rows`
-- `null_percentage`
-- `row_count`
-- `processed_at_utc`
+- `metric_name`
+- `metric_value`
+- `expected_value`
+- `actual_value`
+- `checked_at_utc`
+- `source_file_path`
+- `gold_processed_at_utc`
 
 ### `audit_dataset_summary`
 
@@ -353,15 +355,42 @@ Resumen por dataset evaluado.
 
 Campos mínimos:
 
-- `dataset`
-- `datasets_evaluados`
-- `row_count`
-- `duplicate_rows`
-- `null_percentage`
+- `dataset_summary_key`
+- `layer_name`
+- `dataset_name`
+- `resource_key`
+- `total_checks`
 - `pass_count`
 - `warning_count`
 - `fail_count`
-- `processed_at_utc`
+- `error_count`
+- `completeness_score`
+- `validity_score`
+- `conformity_score`
+- `quality_score`
+- `row_count`
+- `duplicate_rows`
+- `null_percentage`
+- `last_checked_at_utc`
+- `gold_processed_at_utc`
+
+### `audit_integration_coverage`
+
+Resumen tecnico Gold derivado de `silver/integrated/integration_coverage`.
+
+Campos mínimos:
+
+- `coverage_scope`
+- `source_name`
+- `metric_name`
+- `metric_value`
+- `total_records`
+- `matched_records`
+- `unmatched_records`
+- `match_rate`
+- `issue_count`
+- `issue_rate`
+- `gold_processed_at_utc`
 
 ## Legacy y reemplazos
 

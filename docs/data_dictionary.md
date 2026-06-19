@@ -562,6 +562,22 @@ Reglas clave:
 
 - `gold.audit_quality_results`
 - `gold.audit_dataset_summary`
+- `gold.audit_integration_coverage`
+
+Salidas fisicas implementadas para el bloque de auditoria:
+
+| Dataset | Ruta local | Fuente vigente | Uso |
+| --- | --- | --- | --- |
+| `audit_quality_results` | `data/gold/audit_quality_results/` | `data/quality/bronze_quality_results.jsonl` y `data/quality/silver_quality_results.jsonl` | Detalle por regla, capa, dataset y recurso. |
+| `audit_dataset_summary` | `data/gold/audit_dataset_summary/` | `audit_quality_results` | Resumen por capa, dataset y recurso con scores simples. |
+| `audit_integration_coverage` | `data/gold/audit_integration_coverage/` | `data/silver/integrated/integration_coverage/` | Cobertura tecnica lista para dashboard separado. |
+
+Reglas clave:
+
+- La auditoria vive separada de dimensiones, facts y marts analiticos.
+- `audit_quality_results` conserva trazabilidad de regla, severidad, estado y mensaje.
+- `audit_dataset_summary` agrega `PASS`, `WARNING`, `FAIL` y `ERROR` sin inventar metricas ausentes.
+- `audit_integration_coverage` no es tabla analitica principal de Power BI.
 
 ## Legacy explícito
 

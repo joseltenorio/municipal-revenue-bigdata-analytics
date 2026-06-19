@@ -74,21 +74,23 @@ Resultado detallado por regla y dataset.
 
 Campos mínimos:
 
-- `dataset`
+- `quality_result_key`
+- `layer_name`
+- `dataset_name`
+- `resource_key`
+- `check_name`
 - `rule_name`
+- `rule_category`
 - `status`
 - `severity`
 - `message`
-- `pass_count`
-- `warning_count`
-- `fail_count`
-- `completeness_score`
-- `validity_score`
-- `conformity_score`
-- `duplicate_rows`
-- `null_percentage`
-- `row_count`
-- `processed_at_utc`
+- `metric_name`
+- `metric_value`
+- `expected_value`
+- `actual_value`
+- `checked_at_utc`
+- `source_file_path`
+- `gold_processed_at_utc`
 
 ### `audit_dataset_summary`
 
@@ -96,26 +98,56 @@ Resumen por dataset evaluado.
 
 Campos mínimos:
 
-- `dataset`
-- `datasets_evaluados`
-- `row_count`
-- `duplicate_rows`
-- `null_percentage`
+- `dataset_summary_key`
+- `layer_name`
+- `dataset_name`
+- `resource_key`
+- `total_checks`
 - `pass_count`
 - `warning_count`
 - `fail_count`
-- `processed_at_utc`
+- `error_count`
+- `completeness_score`
+- `validity_score`
+- `conformity_score`
+- `quality_score`
+- `row_count`
+- `duplicate_rows`
+- `null_percentage`
+- `last_checked_at_utc`
+- `gold_processed_at_utc`
+
+### `audit_integration_coverage`
+
+Resumen técnico Gold derivado de `data/silver/integrated/integration_coverage/`.
+
+Campos mínimos:
+
+- `coverage_scope`
+- `source_name`
+- `metric_name`
+- `metric_value`
+- `total_records`
+- `matched_records`
+- `unmatched_records`
+- `match_rate`
+- `issue_count`
+- `issue_rate`
+- `gold_processed_at_utc`
 
 ## Interpretación esperada
 
 - `pass_count`, `warning_count` y `fail_count` resumen el estado de validación.
+- `error_count` captura errores de lectura, parsing o reglas no interpretables.
 - `completeness_score`, `validity_score` y `conformity_score` ayudan a comparar calidad entre datasets.
 - `duplicate_rows` y `null_percentage` permiten rastrear problemas estructurales.
-- `row_count` y `datasets_evaluados` hacen explícito el universo revisado.
-- `processed_at_utc` permite auditoría temporal.
+- `row_count` y `total_checks` hacen explícito el universo revisado.
+- `checked_at_utc`, `last_checked_at_utc` y `gold_processed_at_utc` permiten auditoría temporal.
 
 ## Criterio de uso
 
 Las métricas de auditoría no deben usarse como KPIs de negocio.
 
 El dashboard final puede incluir una página de calidad, pero esa página debe consumir las tablas de auditoría, no los hechos de negocio.
+
+`audit_integration_coverage` puede alimentar una vista técnica separada de cobertura de integración municipal.
