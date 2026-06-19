@@ -157,6 +157,17 @@ def load_expected_bronze_resources() -> list[BronzeResource]:
 
         source_root = get_source_bronze_path(source_name)
         candidate_resources = source_config.get("candidate_resources", {})
+        dataset_layout = str(source_config.get("bronze_dataset_layout") or "").lower()
+
+        if dataset_layout == "direct":
+            resources.append(
+                BronzeResource(
+                    source_name=source_name,
+                    resource_key=str(source_config.get("name") or source_name),
+                    dataset_path=source_root,
+                )
+            )
+            continue
 
         if candidate_resources:
             for resource_key in sorted(candidate_resources):
@@ -188,6 +199,15 @@ def list_existing_bronze_resources() -> list[BronzeResource]:
         return resources
 
     for source_dir in sorted(path for path in BRONZE_DIR.iterdir() if path.is_dir()):
+        if parquet_file_count(source_dir) > 0:
+            resources.append(
+                BronzeResource(
+                    source_name=source_dir.name,
+                    resource_key=source_dir.name,
+                    dataset_path=source_dir,
+                )
+            )
+            continue
         for resource_dir in sorted(source_dir.glob("resource_key=*")):
             if resource_dir.is_dir():
                 resources.append(
@@ -446,8 +466,8 @@ def candidate_keys_for_resource(source_name: str, resource_key: str) -> list[lis
         return [["sec_ejec"], ["ano_aplicacion", "periodo"]]
     if source == "renamu":
         return [["ubigeo"], ["idmunici"], ["anio", "ubigeo"], ["ano", "ubigeo"], ["año", "ubigeo"]]
-    if source == "municipal_categories":
-        return [["municipalidad"], ["municipalidad", "categoria"]]
+    if source == "municipal_classification":
+        return [["ubigeo"], ["anio", "ubigeo"], ["tipo_clasificacion", "ubigeo"]]
     return []
 
 

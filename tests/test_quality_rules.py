@@ -45,15 +45,17 @@ def test_quality_rules_config_defines_bronze_sources() -> None:
         "siaf_income",
         "sismepre",
         "renamu",
-        "municipal_categories",
+        "municipal_classification",
     }
 
     assert "annual_2012" in sources["siaf_income"]["expected_resources"]
     assert "respuestas" in sources["sismepre"]["expected_resources"]
     assert sources["renamu"]["expected_resources"] == ["base_renamu_2022"]
-    assert sources["municipal_categories"]["expected_resources"] == [
-        "categorias_municipalidades"
+    assert sources["municipal_classification"]["expected_resources"] == [
+        "municipal_classification"
     ]
+    assert sources["municipal_classification"]["dataset_layout"] == "direct"
+    assert sources["municipal_classification"]["expected_total_rows"] == 1874
 
 def test_build_expected_datasets_uses_resource_key_paths() -> None:
     """Los recursos esperados apuntan a carpetas resource_key."""
@@ -74,6 +76,29 @@ def test_build_expected_datasets_uses_resource_key_paths() -> None:
     assert str(datasets[0].dataset_path).endswith("data\\bronze\\sample\\resource_key=one") or str(
         datasets[0].dataset_path
     ).endswith("data/bronze/sample/resource_key=one")
+
+
+def test_build_expected_datasets_supports_direct_bronze_datasets() -> None:
+    """Las fuentes directas Bronze apuntan a la carpeta raiz del dataset."""
+
+    quality_config = {
+        "bronze": {
+            "sources": {
+                "sample_direct": {
+                    "dataset_layout": "direct",
+                    "expected_resources": ["sample_direct"],
+                }
+            }
+        }
+    }
+
+    datasets = build_expected_datasets(quality_config)
+
+    assert len(datasets) == 1
+    assert datasets[0].resource_key == "sample_direct"
+    assert str(datasets[0].dataset_path).endswith("data\\bronze\\sample_direct") or str(
+        datasets[0].dataset_path
+    ).endswith("data/bronze/sample_direct")
 
 
 def test_build_quality_result_serializes_supported_statuses(tmp_path: Path) -> None:

@@ -175,6 +175,7 @@ def build_expected_datasets(quality_config: dict[str, Any]) -> list[BronzeDatase
 
     for source_name, source_config in sources_config.items():
         expected_resources = source_config.get("expected_resources", [])
+        dataset_layout = str(source_config.get("dataset_layout") or "").lower()
 
         if not expected_resources:
             raise QualityCheckError(
@@ -184,11 +185,16 @@ def build_expected_datasets(quality_config: dict[str, Any]) -> list[BronzeDatase
         source_bronze_path = get_source_bronze_path(source_name)
 
         for resource_key in expected_resources:
+            dataset_path = (
+                source_bronze_path
+                if dataset_layout == "direct"
+                else source_bronze_path / f"resource_key={resource_key}"
+            )
             datasets.append(
                 BronzeDataset(
                     source_name=source_name,
                     resource_key=str(resource_key),
-                    dataset_path=source_bronze_path / f"resource_key={resource_key}",
+                    dataset_path=dataset_path,
                 )
             )
 
@@ -692,6 +698,230 @@ def check_invalid_percentage(
     )
 
 
+def source_rule_config(quality_config: dict[str, Any], dataset: BronzeDataset) -> dict[str, Any]:
+    """Obtiene la configuracion especifica de una fuente Bronze."""
+
+    return get_config_value(quality_config, f"bronze.sources.{dataset.source_name}", {}) or {}
+
+
+def check_expected_columns_present(
+    *,
+    run_id: str,
+    dataset: BronzeDataset,
+    dataframe: Any,
+    quality_config: dict[str, Any],
+    processed_at_utc: str,
+) -> QualityResult:
+    """Valida columnas esperadas cuando la fuente define un contrato Bronze."""
+
+    expected_columns = source_rule_config(quality_config, dataset).get("expected_columns", [])
+    if not expected_columns:
+        return not_evaluated_warning(
+            run_id=run_id,
+            dataset=dataset,
+            rule_id="expected_columns_present",
+            rule_type="contract",
+            expected_value="columnas esperadas configuradas",
+            message="Regla no evaluada porque la fuente no define expected_columns.",
+            processed_at_utc=processed_at_utc,
+        )
+
+    passed, missing = evaluate_required_columns(dataframe.columns, expected_columns)
+    return build_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_id="expected_columns_present",
+        rule_type="contract",
+        severity="FAIL",
+        status="PASS" if passed else "FAIL",
+        evaluated=True,
+        observed_value=f"faltantes={missing}",
+        expected_value=expected_columns,
+        message=(
+            "Todas las columnas esperadas estan presentes."
+            if passed
+            else "Faltan columnas esperadas del contrato Bronze."
+        ),
+        processed_at_utc=processed_at_utc,
+    )
+
+
+def check_valid_tipo_clasificacion(
+    *,
+    run_id: str,
+    dataset: BronzeDataset,
+    dataframe: Any,
+    quality_config: dict[str, Any],
+    processed_at_utc: str,
+) -> QualityResult:
+    """Valida el dominio permitido de tipo_clasificacion."""
+
+    valid_values = source_rule_config(quality_config, dataset).get("valid_tipo_clasificacion", [])
+    if not valid_values or "tipo_clasificacion" not in dataframe.columns:
+        return not_evaluated_warning(
+            run_id=run_id,
+            dataset=dataset,
+            rule_id="valid_tipo_clasificacion",
+            rule_type="validity",
+            expected_value=valid_values or "columna tipo_clasificacion",
+            message="Regla no evaluada porque falta configuracion o la columna tipo_clasificacion.",
+            processed_at_utc=processed_at_utc,
+        )
+
+    from pyspark.sql import functions as spark_functions
+
+    invalid_count = dataframe.filter(
+        spark_functions.col("tipo_clasificacion").isNull()
+        | ~spark_functions.trim(spark_functions.col("tipo_clasificacion")).isin(valid_values)
+    ).count()
+    return build_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_id="valid_tipo_clasificacion",
+        rule_type="validity",
+        severity="FAIL",
+        status="PASS" if invalid_count == 0 else "FAIL",
+        evaluated=True,
+        observed_value=invalid_count,
+        expected_value=valid_values,
+        message=(
+            "Todos los valores de tipo_clasificacion pertenecen al dominio esperado."
+            if invalid_count == 0
+            else "Se detectaron valores invalidos de tipo_clasificacion."
+        ),
+        processed_at_utc=processed_at_utc,
+    )
+
+
+def check_expected_total_rows(
+    *,
+    run_id: str,
+    dataset: BronzeDataset,
+    row_count: int,
+    quality_config: dict[str, Any],
+    processed_at_utc: str,
+) -> QualityResult:
+    """Valida un conteo total esperado cuando existe referencia oficial."""
+
+    expected_total_rows = source_rule_config(quality_config, dataset).get("expected_total_rows")
+    if expected_total_rows is None:
+        return not_evaluated_warning(
+            run_id=run_id,
+            dataset=dataset,
+            rule_id="expected_total_rows",
+            rule_type="contract",
+            expected_value="conteo esperado configurado",
+            message="Regla no evaluada porque la fuente no define expected_total_rows.",
+            processed_at_utc=processed_at_utc,
+        )
+
+    expected_total = int(expected_total_rows)
+    return build_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_id="expected_total_rows",
+        rule_type="contract",
+        severity="FAIL",
+        status="PASS" if row_count == expected_total else "FAIL",
+        evaluated=True,
+        observed_value=row_count,
+        expected_value=expected_total,
+        message=(
+            "El conteo total coincide con la referencia oficial."
+            if row_count == expected_total
+            else "El conteo total no coincide con la referencia oficial."
+        ),
+        processed_at_utc=processed_at_utc,
+    )
+
+
+def check_expected_rows_by_tipo(
+    *,
+    run_id: str,
+    dataset: BronzeDataset,
+    dataframe: Any,
+    quality_config: dict[str, Any],
+    processed_at_utc: str,
+) -> QualityResult:
+    """Valida conteos por tipo_clasificacion."""
+
+    expected_counts = source_rule_config(quality_config, dataset).get("expected_rows_by_tipo", {})
+    if not expected_counts or "tipo_clasificacion" not in dataframe.columns:
+        return not_evaluated_warning(
+            run_id=run_id,
+            dataset=dataset,
+            rule_id="expected_rows_by_tipo",
+            rule_type="contract",
+            expected_value=expected_counts or "conteos por tipo configurados",
+            message="Regla no evaluada porque falta configuracion o la columna tipo_clasificacion.",
+            processed_at_utc=processed_at_utc,
+        )
+
+    actual_counts = {
+        str(row["tipo_clasificacion"]): int(row["count"])
+        for row in dataframe.groupBy("tipo_clasificacion").count().collect()
+    }
+    normalized_expected = {str(key): int(value) for key, value in expected_counts.items()}
+    passed = actual_counts == normalized_expected
+    return build_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_id="expected_rows_by_tipo",
+        rule_type="contract",
+        severity="FAIL",
+        status="PASS" if passed else "FAIL",
+        evaluated=True,
+        observed_value=actual_counts,
+        expected_value=normalized_expected,
+        message=(
+            "Los conteos por tipo coinciden con la referencia oficial."
+            if passed
+            else "Los conteos por tipo no coinciden con la referencia oficial."
+        ),
+        processed_at_utc=processed_at_utc,
+    )
+
+
+def check_duplicate_key_check_anio_ubigeo(
+    *,
+    run_id: str,
+    dataset: BronzeDataset,
+    dataframe: Any,
+    processed_at_utc: str,
+) -> QualityResult:
+    """Valida ausencia de duplicados por anio y ubigeo."""
+
+    if not {"anio", "ubigeo"}.issubset(set(dataframe.columns)):
+        return not_evaluated_warning(
+            run_id=run_id,
+            dataset=dataset,
+            rule_id="duplicate_key_check_anio_ubigeo",
+            rule_type="uniqueness",
+            expected_value="columnas anio y ubigeo presentes",
+            message="Regla no evaluada porque faltan anio o ubigeo en Bronze.",
+            processed_at_utc=processed_at_utc,
+        )
+
+    duplicate_count = dataframe.count() - dataframe.dropDuplicates(["anio", "ubigeo"]).count()
+    return build_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_id="duplicate_key_check_anio_ubigeo",
+        rule_type="uniqueness",
+        severity="FAIL",
+        status="PASS" if duplicate_count == 0 else "FAIL",
+        evaluated=True,
+        observed_value=duplicate_count,
+        expected_value=0,
+        message=(
+            "No se detectaron duplicados por anio y ubigeo."
+            if duplicate_count == 0
+            else "Se detectaron duplicados por anio y ubigeo."
+        ),
+        processed_at_utc=processed_at_utc,
+    )
+
+
 def run_checks_for_dataset(
     *,
     spark: Any,
@@ -767,6 +997,13 @@ def run_checks_for_dataset(
                 required_columns=common_metadata,
                 processed_at_utc=processed_at_utc,
             ),
+            check_expected_columns_present(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                quality_config=quality_config,
+                processed_at_utc=processed_at_utc,
+            ),
             check_fully_null_columns(
                 run_id=run_id,
                 dataset=dataset,
@@ -789,6 +1026,33 @@ def run_checks_for_dataset(
                 processed_at_utc=processed_at_utc,
             ),
             check_invalid_ubigeo(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                processed_at_utc=processed_at_utc,
+            ),
+            check_valid_tipo_clasificacion(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                quality_config=quality_config,
+                processed_at_utc=processed_at_utc,
+            ),
+            check_expected_total_rows(
+                run_id=run_id,
+                dataset=dataset,
+                row_count=row_count,
+                quality_config=quality_config,
+                processed_at_utc=processed_at_utc,
+            ),
+            check_expected_rows_by_tipo(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                quality_config=quality_config,
+                processed_at_utc=processed_at_utc,
+            ),
+            check_duplicate_key_check_anio_ubigeo(
                 run_id=run_id,
                 dataset=dataset,
                 dataframe=dataframe,

@@ -59,6 +59,21 @@ quality:
         candidate_columns:
         - ubigeo
         pattern: ^[0-9]{6}$
+      expected_columns_present:
+        severity: FAIL
+        description: Validar columnas esperadas para recursos Bronze con contrato definido.
+      valid_tipo_clasificacion:
+        severity: FAIL
+        description: Validar que tipo_clasificacion solo contenga A-G cuando aplique.
+      expected_total_rows:
+        severity: FAIL
+        description: Validar conteo total esperado para fuentes Bronze con referencia oficial.
+      expected_rows_by_tipo:
+        severity: FAIL
+        description: Validar conteos esperados por tipo_clasificacion cuando aplique.
+      duplicate_key_check_anio_ubigeo:
+        severity: FAIL
+        description: Validar ausencia de duplicados por anio y ubigeo.
       invalid_percentage:
         severity: WARNING
         description: Validar columnas que sugieren porcentajes o tasas cuando existan en Bronze.
@@ -110,10 +125,45 @@ quality:
         - base_renamu_2022
         optional_metadata_columns:
         - bronze_source_year
-      municipal_categories:
+      municipal_classification:
+        dataset_layout: direct
         expected_resources:
-        - categorias_municipalidades
+        - municipal_classification
         optional_metadata_columns: []
+        expected_columns:
+        - anio
+        - tipo_clasificacion
+        - ambito_municipal
+        - descripcion_tipo
+        - nro
+        - ubigeo
+        - departamento_nombre
+        - provincia_nombre
+        - distrito_nombre
+        - bronze_source_name
+        - bronze_resource_key
+        - bronze_source_file_name
+        - bronze_source_file_path
+        - bronze_source_url
+        - bronze_source_page_url
+        - bronze_processed_at_utc
+        expected_total_rows: 1874
+        expected_rows_by_tipo:
+          A: 74
+          B: 122
+          C: 42
+          D: 129
+          E: 378
+          F: 509
+          G: 620
+        valid_tipo_clasificacion:
+        - A
+        - B
+        - C
+        - D
+        - E
+        - F
+        - G
   silver:
     output:
       results_jsonl: data/quality/silver_quality_results.jsonl
@@ -136,12 +186,12 @@ quality:
         paths:
         - data/landing/renamu/Diccionario.pdf
         - data/landing/renamu/extracted/783-Modulo1726/2.Diccionario de Datos - RENAMU 2022.pdf
-      municipal_categories:
+      municipal_classification:
         required: false
         paths:
-        - data/landing/category/CategoriasMunicipalidades.csv
+        - data/landing/municipal_classification/manifest.json
         notes:
-        - Fuente manual sin diccionario externo; la semantica se valida por profiling y revision del CSV.
+        - La referencia semantica local proviene del manifest y de los PDFs/CSV regenerables de Landing.
     rules:
       dataset_path_exists:
         severity: FAIL
@@ -369,59 +419,57 @@ quality:
         - silver_source_priority
       renamu:
         expected_resources:
-          base_renamu_2022:
+          municipal_context:
             expected_row_count: 1874
             typed_columns:
             - anio
-            - tipomuni_int
-            - departamento_normalizado
-            - provincia_normalizada
-            - distrito_normalizado
-            expected_flags:
-            - is_valid_anio
-            - is_valid_ubigeo
-            - is_valid_ccdd
-            - is_valid_ccpp
-            - is_valid_ccdi
-            - has_complete_territory
-            - has_municipal_identifier
-            - is_valid_tipomuni
+            - ubigeo6
+            - tipomuni_codigo
+            - tipomuni_nombre
+            - total_computadoras_operativas
+            - total_personal_dic_2021
+            - total_personal_mar_2022
+            expected_flags: []
             critical_null_columns:
             - anio
-            - ubigeo
+            - ubigeo6
             - idmunici
-            - departamento_normalizado
-            - provincia_normalizada
-            - distrito_normalizado
+            - departamento_nombre
+            - provincia_nombre
+            - distrito_nombre
             duplicate_keys:
-            - ubigeo
+            - ubigeo6
             - idmunici
             valid_tipomuni_values:
             - '1'
             - '2'
             - '3'
-            financial_prefixes:
-            - c96
-            - c97
-        metadata_columns:
-        - silver_source_year
-      municipal_categories:
+        metadata_columns: []
+      municipal_classification:
         expected_resources:
-          categorias_municipalidades:
+          municipal_classification:
             typed_columns:
-            - municipalidad_original
-            - municipalidad_normalizada
-            - categoria_municipal
-            expected_flags:
-            - is_valid_categoria_municipal
-            - has_municipalidad_normalizada
+            - anio
+            - ubigeo6
+            - tipo_clasificacion
+            - ambito_municipal
+            - descripcion_tipo
+            - departamento_nombre
+            - provincia_nombre
+            - distrito_nombre
+            expected_flags: []
             critical_null_columns:
-            - municipalidad_original
-            - municipalidad_normalizada
-            - categoria_municipal
+            - anio
+            - ubigeo6
+            - tipo_clasificacion
+            - ambito_municipal
+            - departamento_nombre
+            - provincia_nombre
+            - distrito_nombre
             candidate_key:
-            - municipalidad_normalizada
-            valid_categoria_values:
+            - anio
+            - ubigeo6
+            valid_tipo_clasificacion:
             - A
             - B
             - C
@@ -430,8 +478,7 @@ quality:
             - F
             - G
             notes:
-            - La llave candidata por nombre normalizado no implica match perfecto con SIAF/SISMEPRE/RENAMU.
-            - El cruce definitivo debe registrar metodo, distancia y ambiguedad del matching.
+            - La futura integracion de esta fuente debe realizarse por ubigeo6, no por nombre municipal.
         metadata_columns: []
   notes:
   - Estas reglas aplican a Bronze y son progresivas.

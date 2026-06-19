@@ -49,7 +49,7 @@ def test_silver_quality_config_defines_sources_and_outputs() -> None:
         "siaf_income",
         "sismepre",
         "renamu",
-        "municipal_categories",
+        "municipal_classification",
     }
 
 
@@ -70,7 +70,12 @@ def test_build_expected_datasets_reads_all_silver_resources() -> None:
     )
     assert any(
         dataset.source_name == "renamu"
-        and dataset.resource_key == "base_renamu_2022"
+        and dataset.resource_key == "municipal_context"
+        for dataset in datasets
+    )
+    assert any(
+        dataset.source_name == "municipal_classification"
+        and dataset.resource_key == "municipal_classification"
         for dataset in datasets
     )
 
@@ -82,12 +87,12 @@ def test_build_expected_datasets_filters_source_and_resource() -> None:
     datasets = build_expected_datasets(
         quality_config,
         selected_sources=["renamu"],
-        selected_resources=["base_renamu_2022"],
+        selected_resources=["municipal_context"],
     )
 
     assert len(datasets) == 1
     assert datasets[0].source_name == "renamu"
-    assert datasets[0].resource_key == "base_renamu_2022"
+    assert datasets[0].resource_key == "municipal_context"
 
 
 def test_build_silver_quality_result_is_json_serializable(tmp_path: Path) -> None:
@@ -177,7 +182,7 @@ def test_render_html_report_from_simulated_silver_results() -> None:
             },
             {
                 "source_name": "renamu",
-                "resource_key": "base_renamu_2022",
+                "resource_key": "municipal_context",
                 "rule_name": "renamu_tipomuni_invalid_values",
                 "status": "WARNING",
                 "evaluated": True,
@@ -212,38 +217,44 @@ def test_silver_quality_rules_config_defines_four_source_families() -> None:
         "siaf_income",
         "sismepre",
         "renamu",
-        "municipal_categories",
+        "municipal_classification",
     }
 
 
-def test_silver_quality_rules_config_declares_municipal_categories_resource() -> None:
-    """Silver quality reconoce la fuente manual de categorias municipales."""
+def test_silver_quality_rules_config_declares_municipal_classification_resource() -> None:
+    """Silver quality reconoce la futura fuente oficial de clasificacion municipal."""
 
     config = load_quality_rules_config()
     sources = config["quality"]["silver"]["sources"]
 
-    expected_resources = sources["municipal_categories"]["expected_resources"]
-    category_resource = expected_resources["categorias_municipalidades"]
+    expected_resources = sources["municipal_classification"]["expected_resources"]
+    category_resource = expected_resources["municipal_classification"]
 
-    assert set(expected_resources) == {"categorias_municipalidades"}
+    assert set(expected_resources) == {"municipal_classification"}
     assert isinstance(category_resource, dict)
 
     assert category_resource["typed_columns"] == [
-        "municipalidad_original",
-        "municipalidad_normalizada",
-        "categoria_municipal",
+        "anio",
+        "ubigeo6",
+        "tipo_clasificacion",
+        "ambito_municipal",
+        "descripcion_tipo",
+        "departamento_nombre",
+        "provincia_nombre",
+        "distrito_nombre",
     ]
-    assert category_resource["expected_flags"] == [
-        "is_valid_categoria_municipal",
-        "has_municipalidad_normalizada",
-    ]
+    assert category_resource["expected_flags"] == []
     assert category_resource["critical_null_columns"] == [
-        "municipalidad_original",
-        "municipalidad_normalizada",
-        "categoria_municipal",
+        "anio",
+        "ubigeo6",
+        "tipo_clasificacion",
+        "ambito_municipal",
+        "departamento_nombre",
+        "provincia_nombre",
+        "distrito_nombre",
     ]
-    assert category_resource["candidate_key"] == ["municipalidad_normalizada"]
-    assert category_resource["valid_categoria_values"] == [
+    assert category_resource["candidate_key"] == ["anio", "ubigeo6"]
+    assert category_resource["valid_tipo_clasificacion"] == [
         "A",
         "B",
         "C",

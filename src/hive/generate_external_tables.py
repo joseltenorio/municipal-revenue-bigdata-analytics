@@ -139,6 +139,16 @@ def discover_bronze_tables() -> list[ExternalTableSpec]:
     specs: list[ExternalTableSpec] = []
     for source_path in sorted(path for path in BRONZE_DIR.iterdir() if path.is_dir()):
         source_name = normalize_hive_identifier(source_path.name)
+        if parquet_files_exist(source_path):
+            specs.append(
+                ExternalTableSpec(
+                    database="bronze",
+                    table_name=source_name,
+                    dataset_path=source_path,
+                    hive_location=project_path_to_hive_location(source_path),
+                )
+            )
+            continue
         for resource_path in list_resource_paths(source_path):
             resource_key = normalize_hive_identifier(
                 resource_path.name.replace("resource_key=", "")

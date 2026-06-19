@@ -7,6 +7,7 @@ import pytest
 from src.hive.generate_external_tables import (
     ExternalTableSpec,
     HiveDdlError,
+    discover_bronze_tables,
     normalize_hive_identifier,
     project_path_to_hive_location,
     quote_identifier,
@@ -150,4 +151,27 @@ def test_render_create_external_table_gold() -> None:
     assert "`monto_recaudado_total` DECIMAL(30,4)" in sql
     assert "STORED AS PARQUET" in sql
     assert "LOCATION '/app/data/gold/municipal_revenue/fact_municipal_income_execution'" in sql
+
+
+def test_discover_bronze_tables_supports_direct_datasets(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """La deteccion Bronze reconoce datasets directos sin resource_key."""
+
+    bronze_mock = tmp_path / "data" / "bronze"
+    dataset_mock = bronze_mock / "municipal_classification"
+    dataset_mock.mkdir(parents=True)
+    (dataset_mock / "data.parquet").write_text("dummy content")
+
+    import src.hive.generate_external_tables as gen
+
+    monkeypatch.setattr(gen, "BRONZE_DIR", bronze_mock)
+    monkeypatch.setattr(gen, "PROJECT_ROOT", tmp_path)
+
+    specs = discover_bronze_tables()
+
+    assert len(specs) == 1
+    assert specs[0].database == "bronze"
+    assert specs[0].table_name == "municipal_classification"
+    assert specs[0].hive_location == "/app/data/bronze/municipal_classification"
 
