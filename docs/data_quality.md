@@ -4,7 +4,7 @@
 
 Este documento describe la estrategia de calidad de datos aplicada al proyecto **Municipal Revenue Big Data Analytics**.
 
-La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar MEF, Predial, RENAMU y la fuente manual de categorías municipales.
+La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar SIAF, SISMEPRE, RENAMU y la fuente manual de categorías municipales.
 
 El objetivo no es corregir datos dentro del motor de calidad ni construir el modelo analítico final. El objetivo es medir riesgos, dejar evidencia reproducible y separar problemas técnicos bloqueantes de hallazgos de datos que requieren interpretación.
 
@@ -21,7 +21,7 @@ Fuentes evaluadas:
 
 | Fuente | Descripción | Recursos |
 | --- | --- | ---: |
-| `siaf_income` | Presupuesto y ejecución de ingresos MEF. | 17 |
+| `siaf_income` | Presupuesto y ejecución de ingresos SIAF. | 17 |
 | `sismepre` | Seguimiento de la meta del impuesto predial. | 7 |
 | `renamu` | Registro Nacional de Municipalidades 2022. | 1 |
 | `municipal_categories` | Categorías municipales manuales. | 1 |
@@ -179,11 +179,11 @@ Warnings Silver principales:
 
 | Regla | `WARNING` | Interpretación |
 | --- | ---: | --- |
-| `negative_amounts` | 17 | Hay montos negativos en recursos MEF. Requieren interpretación presupuestal o contable; no deben bloquearse automáticamente. |
+| `negative_amounts` | 17 | Hay montos negativos en recursos SIAF. Requieren interpretación presupuestal o contable; no deben bloquearse automáticamente. |
 | `candidate_key_duplicates` | 19 | Las llaves candidatas preliminares todavía no identifican unicidad completa. Esto sugiere granularidad más fina o llaves incompletas. |
-| `mef_candidate_key_duplicates` | 16 | La llave presupuestal MEF propuesta es hipótesis funcional y debe revisarse antes de integrar o modelar Gold. |
+| `mef_candidate_key_duplicates` | 16 | La llave presupuestal SIAF propuesta es hipótesis funcional y debe revisarse antes de integrar o modelar Gold. |
 | `predial_candidate_key_duplicates` | 3 | Algunas tablas prediales requieren revisar llaves relacionales o granularidad. |
-| `predial_parse_failures` | 1 | Existe un hallazgo puntual de parseo en Predial que debe revisarse antes de usar el campo en Gold. |
+| `predial_parse_failures` | 1 | Existe un hallazgo puntual de parseo en SISMEPRE que debe revisarse antes de usar el campo en Gold. |
 
 No hubo `FAIL`. Por tanto, Silver queda técnicamente validada para avanzar hacia análisis de integración, manteniendo los `WARNING` como riesgos explícitos.
 
@@ -191,7 +191,7 @@ No hubo `FAIL`. Por tanto, Silver queda técnicamente validada para avanzar haci
 
 Los `WARNING` no bloquean automáticamente el avance. En esta etapa representan señales de revisión:
 
-- Los montos negativos de MEF pueden ser válidos según semántica presupuestal, ajustes o anulaciones. Deben revisarse con criterio contable antes de convertirlos en errores.
+- Los montos negativos de SIAF pueden ser válidos según semántica presupuestal, ajustes o anulaciones. Deben revisarse con criterio contable antes de convertirlos en errores.
 - Los duplicados por llave candidata no implican necesariamente filas incorrectas. Pueden indicar que la llave propuesta todavía no incluye todos los campos de granularidad.
 - Los duplicados funcionales deben analizarse antes de integrar fuentes o construir hechos Gold.
 - Los parseos fallidos puntuales deben revisarse antes de usar los campos tipados en métricas finales.
@@ -205,12 +205,12 @@ La siguiente fase debe usar estos hallazgos para:
 
 - Refinar llaves candidatas.
 - Definir reglas de nulos críticos por dataset integrado.
-- Confirmar granularidad real de MEF y Predial.
+- Confirmar granularidad real de SIAF y SISMEPRE.
 - Revisar montos negativos antes de métricas finales.
-- Revisar parseos puntuales de Predial.
+- Revisar parseos puntuales de SISMEPRE.
 - Validar consistencia territorial entre fuentes.
 
-La integración Silver ya trata estos warnings de forma conservadora: MEF se agrega en `mef_municipal_amounts`, Predial conserva granularidad de entidad/formulario/tiempo estadístico en `predial_entity_period`, y el cruce territorial se apoya en `municipal_entity_bridge` sin asumir que `sec_ejec` equivale a `ubigeo`. Los detalles y coberturas observadas se documentan en `docs/silver_transformations.md`.
+La integración Silver ya trata estos warnings de forma conservadora: SIAF se agrega en `mef_municipal_amounts`, SISMEPRE conserva granularidad de entidad/formulario/tiempo estadístico en `predial_entity_period`, y el cruce territorial se apoya en `municipal_entity_bridge` sin asumir que `sec_ejec` equivale a `ubigeo`. Los detalles y coberturas observadas se documentan en `docs/silver_transformations.md`.
 
 ## Criterio de versionamiento
 
@@ -239,6 +239,6 @@ Resumen:
 
 - Bronze: 275 resultados, 220 `PASS`, 55 `WARNING`, 0 `FAIL`.
 - Silver: 403 resultados, 347 `PASS`, 56 `WARNING`, 0 `FAIL`.
-- Los 25 recursos esperados fueron evaluados en ambas capas.
+- Los 26 recursos esperados fueron evaluados en ambas capas.
 - No hubo errores técnicos bloqueantes.
-- Los riesgos pendientes se concentran en llaves candidatas, montos negativos MEF y un parseo puntual Predial.
+- Los riesgos pendientes se concentran en llaves candidatas, montos negativos SIAF y un parseo puntual SISMEPRE.

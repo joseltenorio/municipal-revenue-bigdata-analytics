@@ -45,16 +45,21 @@ def test_silver_quality_config_defines_sources_and_outputs() -> None:
         "data/quality/silver_quality_results.jsonl"
     )
     assert silver_config["output"]["report_html"] == "reports/silver_quality_report.html"
-    assert set(silver_config["sources"]) == {"siaf_income", "sismepre", "renamu"}
+    assert set(silver_config["sources"]) == {
+        "siaf_income",
+        "sismepre",
+        "renamu",
+        "municipal_categories",
+    }
 
 
 def test_build_expected_datasets_reads_all_silver_resources() -> None:
-    """La configuración Silver declara los 25 recursos esperados."""
+    """La configuración Silver declara los 26 recursos esperados."""
 
     quality_config = load_silver_quality_config()
     datasets = build_expected_datasets(quality_config)
 
-    assert len(datasets) == 25
+    assert len(datasets) == 26
     assert any(
         dataset.source_name == "siaf_income" and dataset.resource_key == "annual_2024"
         for dataset in datasets
@@ -195,3 +200,56 @@ def test_dry_run_does_not_create_silver_quality_outputs(tmp_path: Path) -> None:
 
     assert results == []
     assert not output_path.exists()
+
+
+def test_silver_quality_rules_config_defines_four_source_families() -> None:
+    """La configuración declara las cuatro familias Silver vigentes."""
+
+    config = load_quality_rules_config()
+    sources = config["quality"]["silver"]["sources"]
+
+    assert set(sources) == {
+        "siaf_income",
+        "sismepre",
+        "renamu",
+        "municipal_categories",
+    }
+
+
+def test_silver_quality_rules_config_declares_municipal_categories_resource() -> None:
+    """Silver quality reconoce la fuente manual de categorias municipales."""
+
+    config = load_quality_rules_config()
+    sources = config["quality"]["silver"]["sources"]
+
+    expected_resources = sources["municipal_categories"]["expected_resources"]
+    category_resource = expected_resources["categorias_municipalidades"]
+
+    assert set(expected_resources) == {"categorias_municipalidades"}
+    assert isinstance(category_resource, dict)
+
+    assert category_resource["typed_columns"] == [
+        "municipalidad_original",
+        "municipalidad_normalizada",
+        "categoria_municipal",
+    ]
+    assert category_resource["expected_flags"] == [
+        "is_valid_categoria_municipal",
+        "has_municipalidad_normalizada",
+    ]
+    assert category_resource["critical_null_columns"] == [
+        "municipalidad_original",
+        "municipalidad_normalizada",
+        "categoria_municipal",
+    ]
+    assert category_resource["candidate_key"] == ["municipalidad_normalizada"]
+    assert category_resource["valid_categoria_values"] == [
+        "A",
+        "B",
+        "C",
+        "D",
+        "E",
+        "F",
+        "G",
+    ]
+

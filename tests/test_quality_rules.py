@@ -36,16 +36,24 @@ def test_quality_rules_config_has_valid_statuses() -> None:
 
 
 def test_quality_rules_config_defines_bronze_sources() -> None:
-    """La configuración declara las tres fuentes Bronze esperadas."""
+    """La configuración declara las cuatro familias Bronze vigentes."""
 
     quality_config = load_quality_config()
     sources = quality_config["bronze"]["sources"]
 
-    assert set(sources) == {"siaf_income", "sismepre", "renamu"}
+    assert set(sources) == {
+        "siaf_income",
+        "sismepre",
+        "renamu",
+        "municipal_categories",
+    }
+
     assert "annual_2012" in sources["siaf_income"]["expected_resources"]
     assert "respuestas" in sources["sismepre"]["expected_resources"]
     assert sources["renamu"]["expected_resources"] == ["base_renamu_2022"]
-
+    assert sources["municipal_categories"]["expected_resources"] == [
+        "categorias_municipalidades"
+    ]
 
 def test_build_expected_datasets_uses_resource_key_paths() -> None:
     """Los recursos esperados apuntan a carpetas resource_key."""
