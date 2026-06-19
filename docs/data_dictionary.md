@@ -542,6 +542,22 @@ Reglas clave:
 - `gold.mart_municipal_context`
 - `gold.mart_territorial_summary`
 
+Salidas fisicas implementadas para el bloque inicial de marts:
+
+| Dataset | Ruta local | Fuente Gold vigente | Grano inicial |
+| --- | --- | --- | --- |
+| `mart_municipal_revenue_overview` | `data/gold/mart_municipal_revenue_overview/` | `fact_siaf_income`, `dim_municipality`, `dim_geography`, `dim_time` | Registro fact SIAF enriquecido con dimensiones. |
+| `mart_predial_statistics_overview` | `data/gold/mart_predial_statistics_overview/` | `fact_predial_statistics`, `dim_municipality`, `dim_geography`, `dim_sismepre_period` | Registro fact predial enriquecido con dimensiones. |
+| `mart_municipal_context` | `data/gold/mart_municipal_context/` | `dim_municipality`, `dim_geography`, `dim_renamu_context` | Una fila por municipalidad. |
+| `mart_territorial_summary` | `data/gold/mart_territorial_summary/` | `mart_municipal_context` | Resumen territorial por geografia/clasificacion. |
+
+Reglas clave:
+
+- Los marts se construyen desde Gold facts/dims, no desde Silver directo.
+- `mart_municipal_revenue_overview` y `mart_predial_statistics_overview` quedan listos para consumo analitico plano.
+- `mart_municipal_context` concentra geografia, clasificacion y variables RENAMU seleccionadas.
+- `mart_territorial_summary` evita duplicar municipalidades y no expone tablas tecnicas Silver.
+
 ### Auditoría
 
 - `gold.audit_quality_results`

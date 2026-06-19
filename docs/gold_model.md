@@ -46,10 +46,12 @@ Estado fisico de este commit:
 
 - Se materializan dimensiones base bajo `data/gold/dim_*`.
 - Se materializan facts base bajo `data/gold/fact_*`.
-- No se construyen marts, auditoria Gold ni registros Hive.
+- Se materializan marts analiticos bajo `data/gold/mart_*`.
+- No se construyen auditoria Gold ni registros Hive.
 - Las dimensiones usan solo Silver curado: `renamu/resource_key=municipal_context`, `municipal_classification/resource_key=classification_2019`, `siaf_income/*` y `sismepre/resource_key=esat_estadistica_atm`.
 - `fact_siaf_income` usa `siaf_income/*` y `map_sec_ejec_ubigeo`.
 - `fact_predial_statistics` usa solo `sismepre/resource_key=esat_estadistica_atm`.
+- Los marts Power BI se construyen solo desde dimensions y facts Gold.
 
 ### `dim_municipality`
 
@@ -268,6 +270,12 @@ Uso:
 - Tendencias.
 - Comparativos por municipio y periodo.
 
+Reglas:
+
+- Ruta fisica: `data/gold/mart_municipal_revenue_overview/`.
+- Se construye desde `fact_siaf_income`, `dim_municipality`, `dim_geography` y `dim_time`.
+- No expone nombres observados por fuente ni variables extensas de RENAMU.
+
 ### `mart_predial_statistics_overview`
 
 Vista ejecutiva de SISMEPRE.
@@ -276,6 +284,12 @@ Uso:
 
 - Emisión, recaudación, saldo y ratios.
 - Análisis por periodo y entidad municipal.
+
+Reglas:
+
+- Ruta fisica: `data/gold/mart_predial_statistics_overview/`.
+- Se construye desde `fact_predial_statistics`, `dim_municipality`, `dim_geography` y `dim_sismepre_period`.
+- No usa otros recursos SISMEPRE en el Gold inicial.
 
 ### `mart_municipal_context`
 
@@ -286,6 +300,12 @@ Uso:
 - Lectura rápida de clasificación municipal.
 - Variables seleccionadas de RENAMU.
 
+Reglas:
+
+- Ruta fisica: `data/gold/mart_municipal_context/`.
+- Se construye desde `dim_municipality`, `dim_geography` y `dim_renamu_context`.
+- Mantiene una fila por municipalidad.
+
 ### `mart_territorial_summary`
 
 Vista de resumen territorial.
@@ -294,6 +314,12 @@ Uso:
 
 - Jerarquía geográfica.
 - Agregaciones por departamento, provincia y distrito.
+
+Reglas:
+
+- Ruta fisica: `data/gold/mart_territorial_summary/`.
+- Se construye desde `mart_municipal_context`.
+- En este bloque inicial resume contexto territorial e institucional sin mezclar agregaciones monetarias SIAF/predial.
 
 ## Auditoría y calidad
 

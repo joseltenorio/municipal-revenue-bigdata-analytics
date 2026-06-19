@@ -119,21 +119,31 @@ Hecho principal para estadísticas prediales iniciales.
 
 Debe consumir únicamente el recurso objetivo de SISMEPRE definido para el Gold inicial.
 
+Debe llegar con `sismepre_period_key` resuelto para relacionarse directamente con `dim_sismepre_period`.
+
 ### `mart_municipal_revenue_overview`
 
 Tabla ejecutiva para KPI, tendencia y comparativos.
+
+Debe salir desde Gold facts/dims ya enriquecidos, no desde Silver ni desde tablas tecnicas.
 
 ### `mart_predial_statistics_overview`
 
 Tabla ejecutiva para emisión, recaudación y saldo predial.
 
+Debe salir desde `fact_predial_statistics` y dimensiones Gold relacionadas.
+
 ### `mart_municipal_context`
 
 Tabla de contexto institucional para clasificación y variables RENAMU seleccionadas.
 
+Debe mantener una fila por municipalidad y no incluir metricas fact de ingresos o predial.
+
 ### `mart_territorial_summary`
 
 Tabla de síntesis geográfica.
+
+Debe resumir contexto territorial sin exponer tablas tecnicas ni joins transitorios.
 
 ### `audit_quality_results` y `audit_dataset_summary`
 
