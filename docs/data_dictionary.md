@@ -605,3 +605,14 @@ Estado actual:
 | RENAMU 2022 | Sí | Sí | CSV principal convertido como tabla ancha contextual. |
 
 La capa Bronze queda documentada como una capa técnica, trazable y preparada para profiling, calidad y transformaciones Silver.
+
+
+## Documentos específicos por capa
+
+El diccionario maestro se complementa con documentos específicos por capa:
+
+- [`docs/bronze_data_dictionary.md`](bronze_data_dictionary.md): contrato técnico de datasets Bronze por fuente y recurso.
+- `docs/silver_transformations.md`: decisiones de limpieza, tipado semántico e integración Silver.
+- `docs/gold_model.md`: dimensiones, hechos, marts y KPIs finales.
+- `docs/data_profiling.md`: resultados de profiling, nulos, duplicados, tipos inferidos y llaves candidatas.
+- `docs/data_quality.md`: reglas, severidades y resultados de calidad.
