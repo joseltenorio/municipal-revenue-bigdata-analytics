@@ -42,6 +42,12 @@ erDiagram
 
 ## Dimensiones y contexto
 
+Estado fisico de este commit:
+
+- Se materializan las dimensiones base bajo `data/gold/dim_*`.
+- No se construyen hechos, marts, auditoria Gold ni registros Hive.
+- Las dimensiones usan solo Silver curado: `renamu/resource_key=municipal_context`, `municipal_classification/resource_key=classification_2019`, `siaf_income/*` y `sismepre/resource_key=esat_estadistica_atm`.
+
 ### `dim_municipality`
 
 Representa la entidad municipal/institucional.
@@ -58,10 +64,14 @@ Campos objetivo:
 - `tipo_clasificacion_municipal`
 - `ambito_municipal`
 - `descripcion_tipo`
+- `gold_processed_at_utc`
 
 Reglas:
 
+- Ruta fisica: `data/gold/dim_municipality/`.
+- `municipality_key = ubigeo6`.
 - `geography_key` puede ser igual a `ubigeo6` para mantener simplicidad.
+- La granularidad es una fila por `ubigeo6`.
 - No debe repetir departamento, provincia y distrito como atributos principales.
 - No debe mezclar contexto territorial con contexto institucional.
 - `dim_municipality` tendrá un único campo `municipalidad_nombre` como el nombre estándar usado por Power BI.
@@ -82,9 +92,11 @@ Campos objetivo:
 - `departamento_nombre`
 - `provincia_nombre`
 - `distrito_nombre`
+- `gold_processed_at_utc`
 
 Reglas:
 
+- Ruta fisica: `data/gold/dim_geography/`.
 - `geography_key` puede ser igual a `ubigeo6`.
 - Su granularidad es una fila por unidad territorial.
 - No debe incorporar atributos institucionales municipales.
@@ -98,12 +110,16 @@ Campos objetivo:
 - `municipality_key`
 - `ubigeo6`
 - variables RENAMU seleccionadas
+- `gold_processed_at_utc`
 
 Reglas:
 
 - Se limita a variables útiles para interpretación de contexto.
 - No replica toda la tabla RENAMU.
 - No debe insertarse dentro de `dim_municipality`.
+- Ruta fisica: `data/gold/dim_renamu_context/`.
+- No duplica la jerarquia territorial principal de `dim_geography`.
+- No incorpora clasificacion MEF ni metricas SIAF/SISMEPRE.
 
 ### `dim_time`
 
@@ -118,6 +134,13 @@ Campos objetivo:
 - `anio_mes`
 - `trimestre`
 - `semestre`
+- `gold_processed_at_utc`
+
+Reglas:
+
+- Ruta fisica: `data/gold/dim_time/`.
+- Se construye con periodos observados en `data/silver/siaf_income/*`.
+- Grano mensual; no crea un calendario amplio innecesario.
 
 ### `dim_sismepre_period`
 
@@ -133,6 +156,14 @@ Campos objetivo:
 - `periodo_estadistica_tipo`
 - `is_annual_stat_period`
 - `periodo_label`
+
+- `gold_processed_at_utc`
+
+Reglas:
+
+- Ruta fisica: `data/gold/dim_sismepre_period/`.
+- Usa solo `data/silver/sismepre/resource_key=esat_estadistica_atm/`.
+- No usa los otros recursos SISMEPRE en el Gold inicial.
 
 ## Mapa técnico Silver
 

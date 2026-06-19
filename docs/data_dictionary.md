@@ -498,6 +498,24 @@ La capa Gold contiene dimensiones, hechos, marts y auditoría separados.
 - `gold.dim_time`
 - `gold.dim_sismepre_period`
 
+Salidas fisicas implementadas para el primer bloque dimensional:
+
+| Dataset | Ruta local | Fuente Silver vigente | Grano |
+| --- | --- | --- | --- |
+| `dim_municipality` | `data/gold/dim_municipality/` | `renamu/resource_key=municipal_context` y `municipal_classification/resource_key=classification_2019` | Una fila por `ubigeo6`. |
+| `dim_geography` | `data/gold/dim_geography/` | `renamu/resource_key=municipal_context` | Una fila por `ubigeo6`. |
+| `dim_renamu_context` | `data/gold/dim_renamu_context/` | `renamu/resource_key=municipal_context` | Una fila por `municipality_key`. |
+| `dim_time` | `data/gold/dim_time/` | `siaf_income/*` | Un mes observado en SIAF. |
+| `dim_sismepre_period` | `data/gold/dim_sismepre_period/` | `sismepre/resource_key=esat_estadistica_atm` | Un periodo operativo SISMEPRE. |
+
+Reglas clave:
+
+- `dim_municipality` contiene `municipalidad_nombre` como unico nombre estandar.
+- `dim_municipality` no usa nombres de SIAF/SISMEPRE como fuente maestra.
+- `dim_geography` concentra departamento, provincia y distrito.
+- `dim_renamu_context` mantiene separadas las variables institucionales seleccionadas.
+- Este bloque no construye hechos, marts, Power BI ni tablas Hive.
+
 ### Hechos
 
 - `gold.fact_siaf_income`
