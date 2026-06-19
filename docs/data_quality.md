@@ -23,20 +23,36 @@ La auditoría debe mantenerse separada del modelo de negocio Gold.
 Los resultados observados siguen siendo útiles como base de control, pero el contrato final de negocio cambió. En particular:
 
 - `municipal_categories` es legacy.
-- La clasificación vigente es `municipal_classification`.
-- El mapa técnico Silver es `map_sec_ejec_ubigeo`.
-- El Gold inicial usa `fact_siaf_income` y `fact_predial_statistics`.
+- La clasificación vigente es `silver/municipal_classification/resource_key=classification_2019`.
+- El mapa técnico Silver es `data/silver/integrated/map_sec_ejec_ubigeo/`.
+- El resumen de cobertura Silver es `data/silver/integrated/integration_coverage/`.
+- El Gold inicial no debe depender de `municipal_categories`, `renamu_full` ni `base_renamu_2022`.
 
 ## Calidad Silver y Silver integrado
 
-Silver conserva reglas para:
+La calidad Silver prioriza estos datasets curados:
 
-- tipos
-- nulos
-- duplicados
-- montos negativos
-- validez territorial
-- flags técnicos
+- `data/silver/siaf_income/*`
+- `data/silver/sismepre/resource_key=esat_estadistica_atm/`
+- `data/silver/renamu/resource_key=municipal_context/`
+- `data/silver/municipal_classification/resource_key=classification_2019/`
+- `data/silver/integrated/map_sec_ejec_ubigeo/`
+- `data/silver/integrated/integration_coverage/`
+
+En SISMEPRE, los recursos `respuestas`, `preguntas`, `formulario`, `estadistica`, `ano_aplicacion` y `entidad_estado` pueden existir por trazabilidad, pero no son críticos para el Gold inicial.
+
+La calidad Silver conserva reglas para:
+
+- existencia de ruta y Parquet
+- lectura por Spark
+- row count positivo
+- columnas obligatorias
+- tipos y formatos de llaves técnicas
+- duplicados por grano
+- valores permitidos en `match_status` y `confidence_level`
+- llaves integradas como `municipality_key = ubigeo6`
+- rangos de `match_rate` e `issue_rate`
+- métricas técnicas requeridas en `integration_coverage`
 
 El objetivo no es forzar joins de negocio, sino detectar riesgos antes del Gold dimensional.
 
@@ -46,6 +62,7 @@ El objetivo no es forzar joins de negocio, sino detectar riesgos antes del Gold 
 - no usar matching manual por nombre como criterio principal
 - no mezclar RENAMU completo dentro de `dim_municipality`
 - no exponer `map_sec_ejec_ubigeo` como tabla de negocio
+- no promover `municipal_categories` como fuente vigente
 
 ## Modelo separado de auditoría
 

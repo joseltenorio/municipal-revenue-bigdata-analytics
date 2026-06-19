@@ -25,6 +25,78 @@ from src.common.paths import PROJECT_ROOT, QUALITY_DIR, get_source_silver_path
 VALID_STATUSES = {"PASS", "WARNING", "FAIL"}
 DEFAULT_OUTPUT_PATH = QUALITY_DIR / "silver_quality_results.jsonl"
 BOOLEAN_TRUE_FALSE = {"true", "false"}
+NUMERIC_TYPE_PREFIXES = (
+    "byte",
+    "short",
+    "int",
+    "bigint",
+    "long",
+    "float",
+    "double",
+    "decimal",
+)
+SILVER_COMMON_METADATA_COLUMNS = [
+    "silver_source_name",
+    "silver_resource_key",
+    "silver_processed_at_utc",
+]
+VALID_MATCH_STATUSES = {
+    "matched",
+    "missing_siaf",
+    "missing_sismepre",
+    "missing_renamu",
+    "missing_classification",
+    "invalid_ubigeo",
+    "ambiguous_sec_ejec",
+    "ambiguous_sec_ejec_ubigeo",
+    "unmatched",
+}
+VALID_CONFIDENCE_LEVELS = {"high", "medium", "low"}
+MAP_FORBIDDEN_COLUMNS = [
+    "municipalidad_siaf_nombre",
+    "municipalidad_sismepre_nombre",
+    "nombre_siaf",
+    "nombre_sismepre",
+]
+MAP_REQUIRED_COLUMNS = [
+    "sec_ejec",
+    "ubigeo6",
+    "municipality_key",
+    "has_siaf_match",
+    "has_sismepre_match",
+    "has_renamu_match",
+    "has_classification_match",
+    "match_status",
+    "confidence_level",
+    "issue_reason",
+    *SILVER_COMMON_METADATA_COLUMNS,
+]
+INTEGRATION_COVERAGE_REQUIRED_COLUMNS = [
+    "coverage_scope",
+    "source_name",
+    "metric_name",
+    "metric_value",
+    "total_records",
+    "matched_records",
+    "unmatched_records",
+    "match_rate",
+    "issue_count",
+    "issue_rate",
+    *SILVER_COMMON_METADATA_COLUMNS,
+]
+INTEGRATION_COVERAGE_REQUIRED_METRICS = [
+    "total_map_records",
+    "matched_records",
+    "unmatched_records",
+    "match_rate",
+    "missing_siaf",
+    "missing_renamu",
+    "missing_classification",
+    "invalid_ubigeo",
+    "high_confidence_records",
+    "medium_confidence_records",
+    "low_confidence_records",
+]
 
 
 class SilverQualityCheckError(Exception):
@@ -412,6 +484,563 @@ def source_metadata_columns(dataset: SilverDataset, quality_config: dict[str, An
     )
     source_metadata = dataset.source_config.get("metadata_columns", [])
     return list(dict.fromkeys([*common_metadata, *source_metadata]))
+
+
+def merged_contract_config(dataset: SilverDataset) -> dict[str, Any]:
+    """Fusiona reglas contractuales heredadas y específicas del recurso."""
+
+    source_contract = dataset.source_config.get("contract_defaults", {})
+    resource_contract = dataset.resource_config
+    if not isinstance(source_contract, dict):
+        source_contract = {}
+    if not isinstance(resource_contract, dict):
+        resource_contract = {}
+
+    merged: dict[str, Any] = {}
+    list_keys = {
+        "required_columns",
+        "forbidden_columns",
+        "expected_string_columns",
+        "expected_numeric_columns",
+        "expected_boolean_columns",
+        "required_metric_names",
+        "nonnegative_columns",
+    }
+    dict_keys = {
+        "regex_columns",
+        "allowed_values",
+        "value_bounds",
+    }
+    pair_keys = {
+        "equality_pairs",
+    }
+
+    for key in list_keys:
+        merged_list: list[Any] = []
+        for contract in (source_contract, resource_contract):
+            values = contract.get(key, [])
+            if isinstance(values, list):
+                for value in values:
+                    if value not in merged_list:
+                        merged_list.append(value)
+        if merged_list:
+            merged[key] = merged_list
+
+    for key in dict_keys:
+        merged_dict: dict[str, Any] = {}
+        for contract in (source_contract, resource_contract):
+            values = contract.get(key, {})
+            if isinstance(values, dict):
+                merged_dict.update(values)
+        if merged_dict:
+            merged[key] = merged_dict
+
+    for key in pair_keys:
+        merged_pairs: list[list[str]] = []
+        for contract in (source_contract, resource_contract):
+            values = contract.get(key, [])
+            if isinstance(values, list):
+                for pair in values:
+                    normalized_pair = [str(part) for part in pair]
+                    if normalized_pair not in merged_pairs:
+                        merged_pairs.append(normalized_pair)
+        if merged_pairs:
+            merged[key] = merged_pairs
+
+    return merged
+
+
+def is_numeric_dtype(dtype_name: str) -> bool:
+    """Indica si un tipo Spark representa un valor numerico."""
+
+    normalized = dtype_name.lower()
+    return normalized.startswith(NUMERIC_TYPE_PREFIXES)
+
+
+def check_column_types_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    checked_at_utc: str,
+    expected_string_columns: list[str] | None = None,
+    expected_numeric_columns: list[str] | None = None,
+    expected_boolean_columns: list[str] | None = None,
+    rule_name: str = "expected_column_types",
+) -> SilverQualityResult:
+    """Valida tipos Spark esperados por contrato Silver."""
+
+    dtype_by_column = dict(dataframe.dtypes)
+    invalid_columns: dict[str, str] = {}
+
+    for column in expected_string_columns or []:
+        dtype = dtype_by_column.get(column, "").lower()
+        if dtype != "string":
+            invalid_columns[column] = dtype or "missing"
+
+    for column in expected_numeric_columns or []:
+        dtype = dtype_by_column.get(column, "").lower()
+        if not is_numeric_dtype(dtype):
+            invalid_columns[column] = dtype or "missing"
+
+    for column in expected_boolean_columns or []:
+        dtype = dtype_by_column.get(column, "").lower()
+        if dtype != "boolean":
+            invalid_columns[column] = dtype or "missing"
+
+    passed = len(invalid_columns) == 0
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if passed else "FAIL",
+        severity="FAIL",
+        evaluated=True,
+        message=(
+            "Los tipos de columna esperados coinciden con el contrato."
+            if passed
+            else "Se detectaron tipos de columna que no cumplen el contrato."
+        ),
+        details={
+            "expected_string_columns": expected_string_columns or [],
+            "expected_numeric_columns": expected_numeric_columns or [],
+            "expected_boolean_columns": expected_boolean_columns or [],
+            "invalid_columns": invalid_columns,
+        },
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_forbidden_columns_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    columns: list[str],
+    forbidden_columns: list[str],
+    rule_name: str,
+    checked_at_utc: str,
+) -> SilverQualityResult:
+    """Valida que no aparezcan columnas prohibidas por contrato."""
+
+    present = [column for column in forbidden_columns if column in columns]
+    passed = len(present) == 0
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if passed else "FAIL",
+        severity="FAIL",
+        evaluated=True,
+        message=(
+            "No se detectaron columnas prohibidas."
+            if passed
+            else "Se detectaron columnas prohibidas en el recurso Silver."
+        ),
+        details={"forbidden_columns": forbidden_columns, "present_columns": present},
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_regex_column_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    column_name: str,
+    pattern: str,
+    checked_at_utc: str,
+    rule_name: str,
+    severity: str = "FAIL",
+) -> SilverQualityResult:
+    """Valida que una columna de texto cumpla un patron regular."""
+
+    violation_status = "WARNING" if severity == "WARNING" else "FAIL"
+    if column_name not in dataframe.columns:
+        return build_silver_quality_result(
+            run_id=run_id,
+            dataset=dataset,
+            rule_name=rule_name,
+            status="FAIL" if severity == "FAIL" else "WARNING",
+            severity=severity,
+            evaluated=False,
+            message=f"No se pudo evaluar {column_name} porque la columna no existe.",
+            details={"column_name": column_name, "pattern": pattern},
+            checked_at_utc=checked_at_utc,
+        )
+
+    invalid_count = count_condition(
+        dataframe,
+        nonblank_condition(dataframe, column_name)
+        & ~F.trim(F.col(column_name).cast("string")).rlike(pattern),
+    )
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if invalid_count == 0 else violation_status,
+        severity=severity,
+        evaluated=True,
+        message=(
+            f"La columna {column_name} cumple el patron esperado."
+            if invalid_count == 0
+            else f"Se detectaron valores invalidos en {column_name}."
+        ),
+        details={"column_name": column_name, "pattern": pattern, "invalid_count": invalid_count},
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_allowed_values_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    column_name: str,
+    allowed_values: list[str],
+    checked_at_utc: str,
+    rule_name: str,
+    severity: str = "FAIL",
+) -> SilverQualityResult:
+    """Valida que una columna solo use valores permitidos."""
+
+    violation_status = "WARNING" if severity == "WARNING" else "FAIL"
+    if column_name not in dataframe.columns:
+        return build_silver_quality_result(
+            run_id=run_id,
+            dataset=dataset,
+            rule_name=rule_name,
+            status="FAIL" if severity == "FAIL" else "WARNING",
+            severity=severity,
+            evaluated=False,
+            message=f"No se pudo evaluar {column_name} porque la columna no existe.",
+            details={"column_name": column_name, "allowed_values": allowed_values},
+            checked_at_utc=checked_at_utc,
+        )
+
+    invalid_count = count_condition(
+        dataframe,
+        nonblank_condition(dataframe, column_name)
+        & ~F.trim(F.col(column_name).cast("string")).isin(sorted(allowed_values)),
+    )
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if invalid_count == 0 else violation_status,
+        severity=severity,
+        evaluated=True,
+        message=(
+            f"La columna {column_name} solo contiene valores permitidos."
+            if invalid_count == 0
+            else f"Se detectaron valores fuera de contrato en {column_name}."
+        ),
+        details={
+            "column_name": column_name,
+            "allowed_values": sorted(allowed_values),
+            "invalid_count": invalid_count,
+        },
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_column_pair_equality_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    left_column: str,
+    right_column: str,
+    checked_at_utc: str,
+    rule_name: str,
+    severity: str = "FAIL",
+) -> SilverQualityResult:
+    """Valida que dos columnas tengan el mismo valor fila a fila."""
+
+    violation_status = "WARNING" if severity == "WARNING" else "FAIL"
+    if left_column not in dataframe.columns or right_column not in dataframe.columns:
+        missing = [column for column in [left_column, right_column] if column not in dataframe.columns]
+        return build_silver_quality_result(
+            run_id=run_id,
+            dataset=dataset,
+            rule_name=rule_name,
+            status="FAIL" if severity == "FAIL" else "WARNING",
+            severity=severity,
+            evaluated=False,
+            message="No se pudo evaluar la igualdad porque faltan columnas.",
+            details={"missing_columns": missing},
+            checked_at_utc=checked_at_utc,
+        )
+
+    invalid_count = count_condition(
+        dataframe,
+        F.col(left_column).isNull()
+        | F.col(right_column).isNull()
+        | (F.col(left_column) != F.col(right_column)),
+    )
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if invalid_count == 0 else violation_status,
+        severity=severity,
+        evaluated=True,
+        message=(
+            f"Las columnas {left_column} y {right_column} coinciden."
+            if invalid_count == 0
+            else f"Se detectaron diferencias entre {left_column} y {right_column}."
+        ),
+        details={
+            "left_column": left_column,
+            "right_column": right_column,
+            "invalid_count": invalid_count,
+        },
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_value_bounds_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    column_name: str,
+    minimum: float | None = None,
+    maximum: float | None = None,
+    checked_at_utc: str,
+    rule_name: str,
+    severity: str = "FAIL",
+) -> SilverQualityResult:
+    """Valida que una columna numerica quede dentro de un rango."""
+
+    violation_status = "WARNING" if severity == "WARNING" else "FAIL"
+    if column_name not in dataframe.columns:
+        return build_silver_quality_result(
+            run_id=run_id,
+            dataset=dataset,
+            rule_name=rule_name,
+            status="FAIL" if severity == "FAIL" else "WARNING",
+            severity=severity,
+            evaluated=False,
+            message=f"No se pudo evaluar {column_name} porque la columna no existe.",
+            details={"column_name": column_name},
+            checked_at_utc=checked_at_utc,
+        )
+
+    column = F.col(column_name)
+    invalid_condition = F.lit(False)
+    if minimum is not None:
+        invalid_condition = invalid_condition | (column < F.lit(minimum))
+    if maximum is not None:
+        invalid_condition = invalid_condition | (column > F.lit(maximum))
+
+    invalid_count = count_condition(dataframe, column.isNotNull() & invalid_condition)
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if invalid_count == 0 else violation_status,
+        severity=severity,
+        evaluated=True,
+        message=(
+            f"La columna {column_name} queda dentro del rango esperado."
+            if invalid_count == 0
+            else f"Se detectaron valores fuera del rango esperado en {column_name}."
+        ),
+        details={
+            "column_name": column_name,
+            "minimum": minimum,
+            "maximum": maximum,
+            "invalid_count": invalid_count,
+        },
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_required_metric_names_rule(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    required_metric_names: list[str],
+    checked_at_utc: str,
+    rule_name: str,
+) -> SilverQualityResult:
+    """Valida la presencia de metricas tecnicas requeridas."""
+
+    if "metric_name" not in dataframe.columns:
+        return build_silver_quality_result(
+            run_id=run_id,
+            dataset=dataset,
+            rule_name=rule_name,
+            status="FAIL",
+            severity="FAIL",
+            evaluated=False,
+            message="No se pudo evaluar metric_name porque la columna no existe.",
+            details={"required_metric_names": required_metric_names},
+            checked_at_utc=checked_at_utc,
+        )
+
+    metric_names = {
+        str(row["metric_name"])
+        for row in dataframe.select("metric_name").distinct().collect()
+    }
+    missing = [metric for metric in required_metric_names if metric not in metric_names]
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name=rule_name,
+        status="PASS" if not missing else "FAIL",
+        severity="FAIL",
+        evaluated=True,
+        message=(
+            "Todas las metricas tecnicas requeridas estan presentes."
+            if not missing
+            else "Faltan metricas tecnicas requeridas en la cobertura integrada."
+        ),
+        details={
+            "required_metric_names": required_metric_names,
+            "missing_metric_names": missing,
+        },
+        checked_at_utc=checked_at_utc,
+    )
+
+
+def check_dataset_contract_rules(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    checked_at_utc: str,
+) -> list[SilverQualityResult]:
+    """Ejecuta las reglas contractuales especificas del recurso Silver."""
+
+    contract = merged_contract_config(dataset)
+    results: list[SilverQualityResult] = []
+
+    required_columns = list(contract.get("required_columns", []))
+    if required_columns:
+        results.append(
+            check_required_column_rule(
+                run_id=run_id,
+                dataset=dataset,
+                columns=dataframe.columns,
+                required_columns=required_columns,
+                rule_name="contract_required_columns_present",
+                checked_at_utc=checked_at_utc,
+            )
+        )
+
+    forbidden_columns = list(contract.get("forbidden_columns", []))
+    if forbidden_columns:
+        results.append(
+            check_forbidden_columns_rule(
+                run_id=run_id,
+                dataset=dataset,
+                columns=dataframe.columns,
+                forbidden_columns=forbidden_columns,
+                rule_name="contract_forbidden_columns_absent",
+                checked_at_utc=checked_at_utc,
+            )
+        )
+
+    results.append(
+        check_column_types_rule(
+            run_id=run_id,
+            dataset=dataset,
+            dataframe=dataframe,
+            checked_at_utc=checked_at_utc,
+            expected_string_columns=list(contract.get("expected_string_columns", [])),
+            expected_numeric_columns=list(contract.get("expected_numeric_columns", [])),
+            expected_boolean_columns=list(contract.get("expected_boolean_columns", [])),
+        )
+    )
+
+    for column_name, pattern in dict(contract.get("regex_columns", {})).items():
+        results.append(
+            check_regex_column_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                column_name=column_name,
+                pattern=str(pattern),
+                checked_at_utc=checked_at_utc,
+                rule_name=f"{column_name}_format",
+            )
+        )
+
+    for column_name, allowed_values in dict(contract.get("allowed_values", {})).items():
+        results.append(
+            check_allowed_values_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                column_name=column_name,
+                allowed_values=[str(value) for value in allowed_values],
+                checked_at_utc=checked_at_utc,
+                rule_name=f"{column_name}_allowed_values",
+            )
+        )
+
+    for left_column, right_column in list(contract.get("equality_pairs", [])):
+        results.append(
+            check_column_pair_equality_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                left_column=str(left_column),
+                right_column=str(right_column),
+                checked_at_utc=checked_at_utc,
+                rule_name=f"{left_column}_equals_{right_column}",
+            )
+        )
+
+    for column_name in list(contract.get("nonnegative_columns", [])):
+        results.append(
+            check_value_bounds_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                column_name=str(column_name),
+                minimum=0,
+                maximum=None,
+                checked_at_utc=checked_at_utc,
+                rule_name=f"{column_name}_nonnegative",
+            )
+        )
+
+    value_bounds = dict(contract.get("value_bounds", {}))
+    for column_name, bounds in value_bounds.items():
+        minimum = bounds.get("min") if isinstance(bounds, dict) else None
+        maximum = bounds.get("max") if isinstance(bounds, dict) else None
+        severity = str(bounds.get("severity", "FAIL")) if isinstance(bounds, dict) else "FAIL"
+        results.append(
+            check_value_bounds_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                column_name=str(column_name),
+                minimum=minimum,
+                maximum=maximum,
+                checked_at_utc=checked_at_utc,
+                rule_name=f"{column_name}_within_bounds",
+                severity=severity,
+            )
+        )
+
+    required_metric_names = list(contract.get("required_metric_names", []))
+    if required_metric_names:
+        results.append(
+            check_required_metric_names_rule(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
+                required_metric_names=required_metric_names,
+                checked_at_utc=checked_at_utc,
+                rule_name="required_metric_names_present",
+            )
+        )
+
+    return results
 
 
 def check_required_column_rule(
@@ -860,9 +1489,9 @@ def check_renamu_territory_nulls(
     """Detecta nulos territoriales en RENAMU."""
 
     territory_columns = [
-        "departamento_normalizado",
-        "provincia_normalizada",
-        "distrito_normalizado",
+        "departamento_nombre",
+        "provincia_nombre",
+        "distrito_nombre",
     ]
     null_counts = {
         column: count_condition(dataframe, blank_or_null_condition(dataframe, column))
@@ -937,7 +1566,7 @@ def check_renamu_tipomuni_invalid_values(
     """Valida valores permitidos de tipomuni."""
 
     valid_values = set(dataset.resource_config.get("valid_tipomuni_values", []))
-    if "tipomuni" not in dataframe.columns:
+    if "tipomuni_codigo" not in dataframe.columns:
         return build_silver_quality_result(
             run_id=run_id,
             dataset=dataset,
@@ -945,15 +1574,15 @@ def check_renamu_tipomuni_invalid_values(
             status="WARNING",
             severity="WARNING",
             evaluated=False,
-            message="No se evaluó tipomuni porque falta la columna original.",
+            message="No se evaluo tipomuni porque falta la columna tipomuni_codigo.",
             details={"valid_values": sorted(valid_values)},
             checked_at_utc=checked_at_utc,
         )
 
     invalid_count = count_condition(
         dataframe,
-        nonblank_condition(dataframe, "tipomuni")
-        & ~F.trim(F.col("tipomuni").cast("string")).isin(sorted(valid_values)),
+        nonblank_condition(dataframe, "tipomuni_codigo")
+        & ~F.trim(F.col("tipomuni_codigo").cast("string")).isin(sorted(valid_values)),
     )
     return build_silver_quality_result(
         run_id=run_id,
@@ -1092,7 +1721,7 @@ def run_source_specific_checks(
                     dataset=dataset,
                     dataframe=dataframe,
                     row_count=row_count,
-                    column_name="ubigeo",
+                    column_name="ubigeo6",
                     rule_name="renamu_ubigeo_duplicates",
                     checked_at_utc=checked_at_utc,
                 ),
@@ -1240,6 +1869,12 @@ def run_checks_for_dataset(
                 run_id=run_id,
                 dataset=dataset,
                 quality_config=quality_config,
+                checked_at_utc=checked_at_utc,
+            ),
+            *check_dataset_contract_rules(
+                run_id=run_id,
+                dataset=dataset,
+                dataframe=dataframe,
                 checked_at_utc=checked_at_utc,
             ),
             *run_source_specific_checks(

@@ -6,7 +6,7 @@ import sys
 
 from pyspark.sql import SparkSession
 from pyspark.sql import functions as F
-from pyspark.sql.types import StringType, IntegerType, BooleanType
+from pyspark.sql.types import StringType, IntegerType
 
 logging.basicConfig(level=logging.INFO, format='%(levelname)s: %(message)s')
 logger = logging.getLogger(__name__)
@@ -93,7 +93,7 @@ def validate_hard_quality_rules(df):
         "is_valid_tipo_ambito_consistency"
     ]
     for flag in flags:
-        invalid_count = df.filter(F.col(flag) == False).count()
+        invalid_count = df.filter(~F.col(flag)).count()
         if invalid_count > 0:
             raise ValueError(f"Found {invalid_count} rows with {flag} = False")
 

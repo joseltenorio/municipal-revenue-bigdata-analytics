@@ -88,6 +88,33 @@ quality:
         max_value: 100
     sources:
       siaf_income:
+        contract_defaults:
+          required_columns:
+          - anio
+          - mes
+          - sec_ejec
+          - monto_pia
+          - monto_pim
+          - monto_recaudado
+          expected_string_columns:
+          - sec_ejec
+          expected_numeric_columns:
+          - anio
+          - mes
+          - monto_pia
+          - monto_pim
+          - monto_recaudado
+          regex_columns:
+            sec_ejec: ^[0-9]{5,6}$
+          value_bounds:
+            anio:
+              min: 2010
+              max: 2030
+              severity: WARNING
+            mes:
+              min: 1
+              max: 12
+              severity: WARNING
         expected_resources:
         - annual_2012
         - annual_2013
@@ -297,122 +324,61 @@ quality:
           - especifica_det
       sismepre:
         expected_resources:
-          ano_aplicacion:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-          entidad_estado:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            candidate_key:
-            - ano_aplicacion
-            - periodo
-            - sec_ejec
           esat_estadistica_atm:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            - ano_estadistica_int
-            - mes_estadistica_int
-            dynamic_typed_patterns:
-            - mon_*_decimal
-            - num_*_decimal
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - is_valid_mes_estadistica
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            candidate_key:
-            - ano_aplicacion
-            - periodo
+            required_columns:
             - sec_ejec
-          estadistica:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            - ano_estadistica_int
-            - mes_estadistica_int
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - is_valid_mes_estadistica
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
+            - ubigeo6
+            - departamento_codigo
+            - departamento_nombre
+            - provincia_codigo
+            - provincia_nombre
+            - distrito_codigo
+            - distrito_nombre
+            - municipalidad_nombre
+            - anio_aplicacion
+            - periodo
+            - anio_estadistica
+            - mes_estadistica
+            - periodo_estadistica_tipo
+            - formulario_id
+            - monto_emision_predial_afecto
+            - monto_emision_predial_exonerado
+            - monto_emision_predial_insoluto
+            - monto_base_imponible_afecto
+            - monto_base_imponible_exonerado
+            - monto_autoavaluo_inafecto
+            - numero_emision_predial_afecto
+            - numero_emision_predial_exonerado
+            - numero_emision_predial_casa_habitacion
+            - numero_emision_predial_otros
+            - monto_recaudacion_actual_ordinaria
+            - monto_recaudacion_actual_coactiva
+            - monto_recaudacion_anterior_ordinaria
+            - monto_recaudacion_anterior_coactiva
+            - monto_saldo_predial_ordinario
+            - monto_saldo_predial_coactivo
+            - numero_inafectos
+            - numero_contribuyentes_predio
+            - numero_predios_uso_casa_habitacion
+            - numero_predios_otro_uso
+            - numero_predios_total
+            - monto_inicial_adulto_mayor
+            - monto_predial_adulto_mayor
+            - numero_contribuyentes_adulto_mayor
+            - monto_recaudacion_adulto_mayor
+            - tipo_meta
+            - flag_emision_liquidacion
+            - flag_emision_inicial
+            expected_string_columns:
+            - sec_ejec
+            - ubigeo6
+            - periodo_estadistica_tipo
+            regex_columns:
+              sec_ejec: ^[0-9]{5,6}$
+              ubigeo6: ^[0-9]{6}$
             candidate_key:
             - ano_aplicacion
             - periodo
-            - formulario_id
-          formulario:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            candidate_key:
-            - ano_aplicacion
-            - periodo
-            - formulario_id
-          preguntas:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            candidate_key:
-            - ano_aplicacion
-            - periodo
-            - formulario_id
-            - pregunta_id
-          respuestas:
-            typed_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            - respuesta_decimal_value
-            - respuesta_entero_value
-            - respuesta_fecha_value
-            expected_flags:
-            - is_valid_ano_aplicacion
-            - is_valid_periodo
-            - is_valid_respuesta_decimal
-            - is_valid_respuesta_entero
-            - has_required_relationship_keys
-            critical_null_columns:
-            - ano_aplicacion_int
-            - periodo_int
-            candidate_key:
-            - ano_aplicacion
-            - periodo
-            - formulario_id
-            - pregunta_id
             - sec_ejec
         metadata_columns:
         - silver_source_role
@@ -420,65 +386,183 @@ quality:
       renamu:
         expected_resources:
           municipal_context:
-            expected_row_count: 1874
-            typed_columns:
-            - anio
+            required_columns:
             - ubigeo6
+            - idmunici
+            - ccdd
+            - ccpp
+            - ccdi
+            - departamento_nombre
+            - provincia_nombre
+            - distrito_nombre
             - tipomuni_codigo
             - tipomuni_nombre
             - total_computadoras_operativas
             - total_personal_dic_2021
             - total_personal_mar_2022
-            expected_flags: []
-            critical_null_columns:
-            - anio
+            expected_string_columns:
             - ubigeo6
             - idmunici
-            - departamento_nombre
-            - provincia_nombre
-            - distrito_nombre
-            duplicate_keys:
-            - ubigeo6
-            - idmunici
+            - ccdd
+            - ccpp
+            - ccdi
+            - tipomuni_codigo
+            - tipomuni_nombre
+            regex_columns:
+              ubigeo6: ^[0-9]{6}$
+            allowed_values:
+              tipomuni_codigo:
+              - '1'
+              - '2'
+              - '3'
             valid_tipomuni_values:
             - '1'
             - '2'
             - '3'
+            candidate_key:
+            - ubigeo6
+            - idmunici
         metadata_columns: []
       municipal_classification:
         expected_resources:
-          municipal_classification:
-            typed_columns:
-            - anio
+          classification_2019:
+            required_columns:
             - ubigeo6
-            - tipo_clasificacion
+            - tipo_clasificacion_municipal
             - ambito_municipal
             - descripcion_tipo
             - departamento_nombre
             - provincia_nombre
             - distrito_nombre
-            expected_flags: []
-            critical_null_columns:
-            - anio
+            - source_row_number
+            expected_string_columns:
             - ubigeo6
-            - tipo_clasificacion
+            - tipo_clasificacion_municipal
             - ambito_municipal
+            - descripcion_tipo
             - departamento_nombre
             - provincia_nombre
             - distrito_nombre
-            candidate_key:
+            regex_columns:
+              ubigeo6: ^[0-9]{6}$
+            allowed_values:
+              tipo_clasificacion_municipal:
+              - A
+              - B
+              - C
+              - D
+              - E
+              - F
+              - G
+              ambito_municipal:
+              - provincial
+              - distrital
+            forbidden_columns:
             - anio
+            candidate_key:
             - ubigeo6
-            valid_tipo_clasificacion:
-            - A
-            - B
-            - C
-            - D
-            - E
-            - F
-            - G
-            notes:
-            - La futura integracion de esta fuente debe realizarse por ubigeo6, no por nombre municipal.
+        metadata_columns: []
+      integrated:
+        expected_resources:
+          map_sec_ejec_ubigeo:
+            required_columns:
+            - sec_ejec
+            - ubigeo6
+            - municipality_key
+            - has_siaf_match
+            - has_sismepre_match
+            - has_renamu_match
+            - has_classification_match
+            - match_status
+            - confidence_level
+            - issue_reason
+            expected_string_columns:
+            - sec_ejec
+            - ubigeo6
+            - municipality_key
+            - match_status
+            - confidence_level
+            - issue_reason
+            expected_boolean_columns:
+            - has_siaf_match
+            - has_sismepre_match
+            - has_renamu_match
+            - has_classification_match
+            regex_columns:
+              sec_ejec: ^[0-9]{5,6}$
+              ubigeo6: ^[0-9]{6}$
+              municipality_key: ^[0-9]{6}$
+            allowed_values:
+              match_status:
+              - matched
+              - missing_siaf
+              - missing_sismepre
+              - missing_renamu
+              - missing_classification
+              - invalid_ubigeo
+              - ambiguous_sec_ejec
+              - ambiguous_sec_ejec_ubigeo
+              - unmatched
+              confidence_level:
+              - high
+              - medium
+              - low
+            equality_pairs:
+            - - municipality_key
+              - ubigeo6
+            forbidden_columns:
+            - municipalidad_siaf_nombre
+            - municipalidad_sismepre_nombre
+            - nombre_siaf
+            - nombre_sismepre
+          integration_coverage:
+            required_columns:
+            - coverage_scope
+            - source_name
+            - metric_name
+            - metric_value
+            - total_records
+            - matched_records
+            - unmatched_records
+            - match_rate
+            - issue_count
+            - issue_rate
+            expected_string_columns:
+            - coverage_scope
+            - source_name
+            - metric_name
+            expected_numeric_columns:
+            - metric_value
+            - total_records
+            - matched_records
+            - unmatched_records
+            - match_rate
+            - issue_count
+            - issue_rate
+            required_metric_names:
+            - total_map_records
+            - matched_records
+            - unmatched_records
+            - match_rate
+            - missing_siaf
+            - missing_renamu
+            - missing_classification
+            - invalid_ubigeo
+            - high_confidence_records
+            - medium_confidence_records
+            - low_confidence_records
+            nonnegative_columns:
+            - total_records
+            - matched_records
+            - unmatched_records
+            - issue_count
+            value_bounds:
+              match_rate:
+                min: 0
+                max: 1
+              issue_rate:
+                min: 0
+                max: 1
         metadata_columns: []
   notes:
   - Estas reglas aplican a Bronze y son progresivas.

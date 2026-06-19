@@ -8,7 +8,7 @@ from pyspark.sql.types import StructType, StructField, StringType, IntegerType
 project_root = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(project_root))
 
-from src.silver.transform_municipal_classification import (
+from src.silver.transform_municipal_classification import (  # noqa: E402
     transform_municipal_classification_dataframe,
     validate_required_columns,
     validate_expected_row_count,
