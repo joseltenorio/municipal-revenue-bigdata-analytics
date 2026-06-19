@@ -110,7 +110,7 @@ Sirve para el calendario operativo de SISMEPRE.
 
 Hecho principal para ingresos municipales.
 
-Debe llegar con `municipality_key` resuelto para evitar cruces manuales en Power BI.
+Debe llegar con `municipality_key` resuelto (priorizando `ubigeo6_ejecutora`) para evitar cruces manuales en Power BI.
 Debe exponer `date_key` y `match_status` ya resueltos desde Gold, sin obligar al reporte a usar `map_sec_ejec_ubigeo`.
 **Blindaje Municipal**: Solo contiene registros de municipalidades con emparejamiento exitoso (`has_municipality_match = true` y `municipality_key IS NOT NULL`). All other non-municipal entities (regional, national, mancomunidades) are filtered out at the source.
 

@@ -525,12 +525,12 @@ Salidas fisicas implementadas para el bloque inicial de hechos:
 
 | Dataset | Ruta local | Fuente Silver vigente | Llaves principales |
 | --- | --- | --- | --- |
-| `fact_siaf_income` | `data/gold/fact_siaf_income/` | `siaf_income/*` y `integrated/map_sec_ejec_ubigeo` | `municipality_key`, `sec_ejec`, `date_key` |
+| `fact_siaf_income` | `data/gold/fact_siaf_income/` | `siaf_income/*`, `dim_municipality` y `integrated/map_sec_ejec_ubigeo` | `municipality_key`, `sec_ejec`, `date_key` |
 | `fact_predial_statistics` | `data/gold/fact_predial_statistics/` | `sismepre/resource_key=esat_estadistica_atm` | `municipality_key`, `sismepre_period_key`, `sec_ejec` |
 
 Reglas clave:
 
-- `fact_siaf_income` resuelve `municipality_key` desde el mapa tecnico Silver.
+- `fact_siaf_income` resuelve `municipality_key` priorizando `ubigeo6_ejecutora` (validado contra `dim_municipality` libre de duplicados) y usando el mapa técnico `map_sec_ejec_ubigeo` como fallback.
 - **Blindaje Municipal**: `fact_siaf_income` conserva únicamente registros del universo municipal con match exitoso (`has_municipality_match = true` y `municipality_key IS NOT NULL`), filtrando mancomunidades, asociaciones, y gobiernos regionales/nacionales.
 - `fact_siaf_income` conserva `source_resource_key` y `source_granularity`.
 - `fact_predial_statistics` usa solo el recurso principal SISMEPRE del Gold inicial.

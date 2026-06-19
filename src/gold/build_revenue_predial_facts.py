@@ -30,6 +30,7 @@ FACT_SIAF_REQUIRED_COLUMNS = [
     "anio",
     "mes",
     "sec_ejec",
+    "ubigeo6_ejecutora",
     "source_resource_key",
     "source_granularity",
     "monto_pia",
@@ -75,6 +76,7 @@ class GoldFactPaths:
     siaf_income_root: Path
     map_sec_ejec_ubigeo_path: Path
     sismepre_esat_path: Path
+    dim_municipality_path: Path
 
 
 def default_paths() -> GoldFactPaths:
@@ -85,6 +87,7 @@ def default_paths() -> GoldFactPaths:
         siaf_income_root=get_source_silver_path("siaf_income"),
         map_sec_ejec_ubigeo_path=SILVER_DIR / "integrated" / "map_sec_ejec_ubigeo",
         sismepre_esat_path=get_source_silver_path("sismepre") / "resource_key=esat_estadistica_atm",
+        dim_municipality_path=GOLD_DIR / "dim_municipality",
     )
 
 
@@ -255,7 +258,7 @@ def required_input_paths(paths: GoldFactPaths, datasets: list[str]) -> list[Path
 
     required: list[Path] = []
     if "fact_siaf_income" in datasets:
-        required.extend([paths.siaf_income_root, paths.map_sec_ejec_ubigeo_path])
+        required.extend([paths.siaf_income_root, paths.map_sec_ejec_ubigeo_path, paths.dim_municipality_path])
     if "fact_predial_statistics" in datasets:
         required.append(paths.sismepre_esat_path)
     return sorted(set(required))
@@ -350,6 +353,7 @@ def build_siaf_resolution_map(map_sec_ejec_ubigeo: DataFrame) -> DataFrame:
 def build_fact_siaf_income(
     siaf_frames: list[DataFrame],
     map_sec_ejec_ubigeo: DataFrame,
+    dim_municipality: DataFrame,
     *,
     processed_at_utc: str | None = None,
 ) -> DataFrame:
@@ -367,6 +371,7 @@ def build_fact_siaf_income(
                 F.col("anio").cast("int").alias("anio"),
                 F.col("mes").cast("int").alias("mes"),
                 normalize_sec_ejec("sec_ejec").alias("sec_ejec"),
+                normalize_ubigeo6("ubigeo6_ejecutora").alias("ubigeo6_ejecutora"),
                 F.col("source_resource_key").cast("string").alias("source_resource_key"),
                 F.col("source_granularity").cast("string").alias("source_granularity"),
                 normalize_decimal_column("monto_pia").alias("monto_pia"),
@@ -379,19 +384,45 @@ def build_fact_siaf_income(
     for dataframe in normalized_frames[1:]:
         fact_base = fact_base.unionByName(dataframe)
 
-    resolution_map = build_siaf_resolution_map(map_sec_ejec_ubigeo)
-    resolved = derive_date_key(fact_base).join(resolution_map, on="sec_ejec", how="left")
+    # 1. Preparar la dimension municipal libre de duplicados para evitar cartesianos o montos inflados
+    muni_lookup = dim_municipality.select(F.col("ubigeo6").alias("dim_ubigeo6")).dropDuplicates(["dim_ubigeo6"])
 
-    return (
+    # 2. Join inicial de validacion contra la dimension municipal por ubigeo6_ejecutora
+    joined_dim = fact_base.join(muni_lookup, fact_base.ubigeo6_ejecutora == muni_lookup.dim_ubigeo6, how="left")
+
+    # 3. Definir condicion principal de resolucion por ubigeo6 de la ejecutora
+    is_primary_resolved = (
+        F.col("ubigeo6_ejecutora").isNotNull()
+        & is_valid_ubigeo6("ubigeo6_ejecutora")
+        & F.col("dim_ubigeo6").isNotNull()
+    )
+
+    # 4. Join con el mapa tecnico de resolucion para fallback por sec_ejec
+    resolution_map = build_siaf_resolution_map(map_sec_ejec_ubigeo)
+    resolved = derive_date_key(joined_dim).join(resolution_map.alias("fallback"), on="sec_ejec", how="left")
+
+    # 5. Resolver columnas de emparejamiento con prioridad en la ejecutora
+    final_df = (
         resolved.withColumn(
+            "municipality_key",
+            F.when(is_primary_resolved, F.col("ubigeo6_ejecutora")).otherwise(F.col("fallback.municipality_key")),
+        )
+        .withColumn(
             "has_municipality_match",
-            F.coalesce(F.col("has_municipality_match"), F.lit(False)),
+            F.when(is_primary_resolved, F.lit(True)).otherwise(
+                F.coalesce(F.col("fallback.has_municipality_match"), F.lit(False))
+            ),
         )
         .withColumn(
             "match_status",
-            F.coalesce(F.col("match_status"), F.lit("missing_map")),
+            F.when(is_primary_resolved, F.lit("matched")).otherwise(
+                F.coalesce(F.col("fallback.match_status"), F.lit("missing_map"))
+            ),
         )
-        .filter(
+    )
+
+    return (
+        final_df.filter(
             (F.col("has_municipality_match") == F.lit(True))
             & F.col("municipality_key").isNotNull()
             & (~F.col("match_status").isin(
@@ -516,8 +547,11 @@ def build_gold_revenue_predial_facts(
             map_dataframe = read_parquet_dataset(
                 spark, resolved_paths.map_sec_ejec_ubigeo_path, limit
             )
+            dim_municipality = read_parquet_dataset(
+                spark, resolved_paths.dim_municipality_path, limit
+            )
             outputs["fact_siaf_income"] = build_fact_siaf_income(
-                siaf_frames, map_dataframe
+                siaf_frames, map_dataframe, dim_municipality
             )
 
         if "fact_predial_statistics" in datasets:

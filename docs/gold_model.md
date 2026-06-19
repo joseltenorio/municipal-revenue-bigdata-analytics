@@ -219,9 +219,9 @@ Campos objetivo:
 
 Reglas:
 
-- Debe salir con `municipality_key` ya resuelto usando `map_sec_ejec_ubigeo`.
+- Debe salir con `municipality_key` ya resuelto priorizando `ubigeo6_ejecutora` (validado contra `dim_municipality` libre de duplicados) y usando el mapa técnico `map_sec_ejec_ubigeo` únicamente como fallback.
 - Ruta fisica: `data/gold/fact_siaf_income/`.
-- `municipality_key` debe ser el `ubigeo6` resuelto desde el mapa tecnico.
+- `municipality_key` debe ser `ubigeo6_ejecutora` si es válido y existe en `dim_municipality`, o en su defecto el `ubigeo6` resuelto desde el mapa técnico. `sec_ejec` se mantiene como código presupuestal.
 - **Blindaje Municipal**: Solo conserva registros exitosamente emparejados (`has_municipality_match = true` y `municipality_key IS NOT NULL`), descartando cualquier fila con `match_status` en: `'missing_map'`, `'ambiguous_sec_ejec'`, `'unmatched'`, `'invalid_ubigeo'`.
 - Debe conservar `source_resource_key` y `source_granularity` para trazabilidad.
 - No debe incluir nombres observados por fuente ni atributos geograficos, de clasificacion o RENAMU.

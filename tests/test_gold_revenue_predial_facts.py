@@ -110,12 +110,31 @@ def map_sec_ejec_ubigeo(spark: SparkSession):
 
 
 @pytest.fixture()
+def dim_municipality(spark: SparkSession):
+    schema = StructType(
+        [
+            StructField("ubigeo6", StringType(), True),
+            StructField("municipality_key", StringType(), True),
+        ]
+    )
+    rows = [
+        ("150111", "150111"),
+        ("150112", "150112"),
+        ("150113", "150113"),
+        ("150114", "150114"),
+        ("020504", "020504"),
+    ]
+    return spark.createDataFrame(rows, schema)
+
+
+@pytest.fixture()
 def siaf_frames(spark: SparkSession):
     schema = StructType(
         [
             StructField("anio", IntegerType(), True),
             StructField("mes", IntegerType(), True),
             StructField("sec_ejec", StringType(), True),
+            StructField("ubigeo6_ejecutora", StringType(), True),
             StructField("source_resource_key", StringType(), True),
             StructField("source_granularity", StringType(), True),
             StructField("monto_pia", DecimalType(18, 4), True),
@@ -125,10 +144,11 @@ def siaf_frames(spark: SparkSession):
         ]
     )
     rows = [
-        (2024, 4, "301260", "monthly_2024", "monthly", Decimal("100.0000"), Decimal("110.0000"), Decimal("95.0000"), "LIMA"),
-        (2024, None, "301261", "annual_2024", "annual", Decimal("200.0000"), Decimal("220.0000"), Decimal("210.0000"), "LIMA"),
-        (2025, 6, "301270", "monthly_2025", "monthly", Decimal("300.0000"), Decimal("330.0000"), Decimal("310.0000"), "CUSCO"),
-        (2025, 13, "999999", "daily_2025", "daily", Decimal("400.0000"), Decimal("440.0000"), Decimal("410.0000"), "AREQUIPA"),
+        (2024, 4, "301260", None, "monthly_2024", "monthly", Decimal("100.0000"), Decimal("110.0000"), Decimal("95.0000"), "LIMA"),
+        (2024, None, "301261", "150112", "annual_2024", "annual", Decimal("200.0000"), Decimal("220.0000"), Decimal("210.0000"), "LIMA"),
+        (2025, 6, "301270", "150113", "monthly_2025", "monthly", Decimal("300.0000"), Decimal("330.0000"), Decimal("310.0000"), "CUSCO"),
+        (2025, 13, "999999", None, "daily_2025", "daily", Decimal("400.0000"), Decimal("440.0000"), Decimal("410.0000"), "AREQUIPA"),
+        (2024, 5, "300113", "020504", "monthly_2024", "monthly", Decimal("150.0000"), Decimal("150.0000"), Decimal("150.0000"), "ANCASH"),
     ]
     return [spark.createDataFrame(rows, schema)]
 
@@ -226,10 +246,12 @@ def test_build_siaf_resolution_map_resuelve_y_bloquea_ambiguedades(map_sec_ejec_
 def test_fact_siaf_income_tiene_contrato_y_resuelve_municipality_key(
     siaf_frames,
     map_sec_ejec_ubigeo,
+    dim_municipality,
 ):
     fact = build_fact_siaf_income(
         siaf_frames,
         map_sec_ejec_ubigeo,
+        dim_municipality,
         processed_at_utc="2026-06-19T00:00:00+00:00",
     )
 
@@ -261,9 +283,11 @@ def test_fact_siaf_income_tiene_contrato_y_resuelve_municipality_key(
     rows = {row["sec_ejec"]: row.asDict() for row in fact.collect()}
     assert "301260" in rows
     assert "301261" in rows
-    assert "301270" not in rows
-    assert "999999" not in rows
+    assert "301270" in rows  # Caso B: resuelto por ejecutora ubigeo
+    assert "300113" in rows  # Caso A: resuelto por ejecutora ubigeo
+    assert "999999" not in rows  # Caso D: excluido por no tener ubigeo ni fallback
 
+    # Caso C: Fallback unico por sec_ejec
     assert rows["301260"]["municipality_key"] == "150111"
     assert rows["301260"]["has_municipality_match"] is True
     assert rows["301260"]["match_status"] == "matched"
@@ -274,10 +298,21 @@ def test_fact_siaf_income_tiene_contrato_y_resuelve_municipality_key(
     assert rows["301260"]["monto_pim"] == Decimal("110.0000")
     assert rows["301260"]["monto_recaudado"] == Decimal("95.0000")
 
+    # Caso normal: ubigeo6_ejecutora en dim
     assert rows["301261"]["municipality_key"] == "150112"
     assert rows["301261"]["has_municipality_match"] is True
-    assert rows["301261"]["match_status"] == "missing_renamu"
+    assert rows["301261"]["match_status"] == "matched"  # resuelto directamente por ubigeo6_ejecutora
     assert rows["301261"]["date_key"] == 20240101
+
+    # Caso B: sec_ejec 301270 resuelto por ubigeo6_ejecutora (150113) directamente, evitando la ambigüedad
+    assert rows["301270"]["municipality_key"] == "150113"
+    assert rows["301270"]["has_municipality_match"] is True
+    assert rows["301270"]["match_status"] == "matched"
+
+    # Caso A: sec_ejec 300113 resuelto por ubigeo6_ejecutora (020504) directamente
+    assert rows["300113"]["municipality_key"] == "020504"
+    assert rows["300113"]["has_municipality_match"] is True
+    assert rows["300113"]["match_status"] == "matched"
 
     # Validar explícitamente las condiciones contractuadas
     for row in fact.collect():
