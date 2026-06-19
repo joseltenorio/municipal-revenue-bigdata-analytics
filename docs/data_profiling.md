@@ -23,7 +23,7 @@ El profiling inicial estuvo orientado a Landing y Bronze. Después de generar Si
 
 El alcance actual cubre:
 
-- Archivos locales de Landing para MEF, Predial y RENAMU.
+- Archivos locales de Landing para SIAF, SISMEPRE y RENAMU.
 - Recursos Bronze Parquet generados para las tres fuentes.
 - Recursos Silver Parquet ya limpiados y tipados por fuente.
 - Resultados locales de calidad Bronze y Silver.
@@ -104,9 +104,9 @@ Warnings Silver principales:
 | --- | ---: | --- |
 | `negative_amounts` | 17 | Montos negativos MEF requieren interpretación presupuestal o contable. |
 | `candidate_key_duplicates` | 19 | Las llaves candidatas todavía son hipótesis. |
-| `mef_candidate_key_duplicates` | 16 | La llave presupuestal MEF debe revisarse antes de integración. |
-| `predial_candidate_key_duplicates` | 3 | Algunas llaves prediales requieren ajuste o más granularidad. |
-| `predial_parse_failures` | 1 | Hay un parseo puntual que debe revisarse antes de Gold. |
+| `siaf_candidate_key_duplicates` | 16 | La llave presupuestal SIAF debe revisarse antes de integración. |
+| `sismepre_candidate_key_duplicates` | 3 | Algunas llaves sismeprees requieren ajuste o más granularidad. |
+| `sismepre_parse_failures` | 1 | Hay un parseo puntual que debe revisarse antes de Gold. |
 
 No hubo `FAIL` en Silver. Esto indica que los datasets Silver son técnicamente utilizables para análisis de integración, aunque conservan riesgos que deben tratarse antes del modelo final.
 
@@ -116,12 +116,12 @@ El profiling y la calidad ayudan a decidir:
 
 - **Llaves candidatas:** los duplicados por llaves preliminares muestran que las llaves actuales no deben asumirse definitivas.
 - **Campos críticos:** los nulos críticos y flags indican qué columnas requieren revisión antes de integrarse.
-- **Riesgos territoriales:** las reglas de ubigeo, territorio y `tipomuni` orientan cruces entre MEF, Predial y RENAMU.
+- **Riesgos territoriales:** las reglas de ubigeo, territorio y `tipomuni` orientan cruces entre SIAF, SISMEPRE y RENAMU.
 - **Riesgos numéricos:** montos negativos y parseos fallidos deben interpretarse antes de construir métricas Gold.
 - **Granularidad:** los duplicados funcionales pueden indicar que falta incluir periodo, clasificador, entidad, pregunta u otra dimensión en la llave.
 - **Modelo Gold posterior:** las reglas actuales ayudan a separar hechos, dimensiones y catálogos, pero todavía no los definen.
 
-Los hallazgos de duplicados por llaves candidatas motivaron una integración Silver controlada, documentada en `docs/silver_transformations.md`. Esa integración evita joins crudos fila-a-fila, agrega MEF por granularidad presupuestal, conserva la granularidad predial por entidad/formulario/tiempo estadístico y usa RENAMU como contexto territorial por `ubigeo`.
+Los hallazgos de duplicados por llaves candidatas motivaron una integración Silver controlada, documentada en `docs/silver_transformations.md`. Esa integración evita joins crudos fila-a-fila, agrega MEF por granularidad presupuestal, conserva la granularidad sismepre por entidad/formulario/tiempo estadístico y usa RENAMU como contexto territorial por `ubigeo`.
 
 La cobertura de cruce se mide explícitamente en `integration_coverage`. Estos porcentajes deben interpretarse como calidad de integración y no como KPIs de negocio.
 
@@ -141,14 +141,14 @@ Implicancia: antes de integrar o modelar Gold, se debe validar la semántica de 
 
 ### SISMEPRE
 
-Predial cuenta con 7 recursos Silver relacionados entre sí. Los hallazgos principales son:
+SISMEPRE cuenta con 7 recursos Silver relacionados entre sí. Los hallazgos principales son:
 
 - Los recursos pasan validaciones técnicas.
 - Las tablas se mantienen separadas y no integradas.
 - Hay duplicados por llaves candidatas en algunos recursos.
 - Existe un hallazgo puntual de parseo.
 
-Implicancia: la integración predial debe revisar relaciones entre formularios, preguntas, respuestas, entidades y estadísticas antes de definir hechos o dimensiones.
+Implicancia: la integración sismepre debe revisar relaciones entre formularios, preguntas, respuestas, entidades y estadísticas antes de definir hechos o dimensiones.
 
 ### RENAMU
 
@@ -209,6 +209,6 @@ Este profiling ayuda a decidir:
 - columnas candidatas a entero, decimal, fecha, identificador, categoría o texto libre;
 - llaves candidatas por fuente, como `sec_ejec`, `ubigeo`, `idmunici`, año/periodo/formulario y combinaciones SIAF/SISMEPRE;
 - columnas de texto con problemas de tildes, espacios, caracteres raros, alias y nombres municipales difíciles de homologar;
-- riesgos antes de definir `dim_municipality`, `fact_siaf_income`, `fact_sismepre_predial_statistics` y `renamu_municipal_context`.
+- riesgos antes de definir `dim_municipality`, `fact_siaf_income`, `fact_sismepre_sismepre_statistics` y `renamu_municipal_context`.
 
 El profiling no reemplaza los quality gates: profiling describe la data para tomar decisiones; quality evalúa reglas PASS/WARNING/FAIL del pipeline.

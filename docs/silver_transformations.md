@@ -15,7 +15,7 @@ Silver no construye KPIs finales. Esa responsabilidad corresponde a Gold. Silver
 | Integración Silver | Construir datasets preparatorios y medir cobertura de cruce entre fuentes. |
 | Gold | Definir hechos, dimensiones, KPIs finales y modelo analítico para consumo. |
 
-La integración Silver no hace joins crudos fila-a-fila entre MEF, Predial y RENAMU. Las fuentes tienen granularidades diferentes y varias llaves candidatas no son únicas. Por eso, la integración usa agregación controlada, contexto territorial y medición explícita de cobertura.
+La integración Silver no hace joins crudos fila-a-fila entre SIAF, SISMEPRE y RENAMU. Las fuentes tienen granularidades diferentes y varias llaves candidatas no son únicas. Por eso, la integración usa agregación controlada, contexto territorial y medición explícita de cobertura.
 
 ## Transformaciones Silver por fuente
 
@@ -71,11 +71,11 @@ Hallazgos relevantes:
 - Los duplicados no fueron exactos.
 - En los grupos duplicados varían montos, territorio o nombre de ejecutora.
 - En recursos `daily` no se observó una columna real de día; la estructura disponible mantiene año y mes.
-- No se debe integrar MEF fila-a-fila con Predial o RENAMU.
+- No se debe integrar MEF fila-a-fila con SISMEPRE o RENAMU.
 
 Decisión de integración:
 
-MEF se integra mediante `mef_municipal_amounts`, un dataset agregado por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. Los montos se suman de forma controlada porque los duplicados por llave candidata reflejan granularidad más fina o cambios de atributos, no duplicados exactos.
+MEF se integra mediante `siaf_municipal_amounts`, un dataset agregado por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. Los montos se suman de forma controlada porque los duplicados por llave candidata reflejan granularidad más fina o cambios de atributos, no duplicados exactos.
 
 Los montos negativos se mantienen como valores observados y se tratan como `WARNING` de calidad. No se eliminan automáticamente porque pueden representar ajustes, anulaciones o semántica contable que debe validarse antes de Gold.
 
@@ -101,7 +101,7 @@ data/silver/sismepre/resource_key=<resource_key>/
 
 Reglas aplicadas:
 
-- Mantener las siete tablas prediales por separado.
+- Mantener las siete tablas sismeprees por separado.
 - No hacer joins entre tablas en la transformación por fuente.
 - Aplicar `trim` técnico.
 - Preservar identificadores como string.
@@ -135,7 +135,7 @@ Hallazgos relevantes:
 
 Decisión de integración:
 
-Predial se integra mediante `predial_entity_period`, preservando granularidad por entidad, periodo, formulario y tiempo estadístico. No se colapsa todo a `sec_ejec`, porque eso perdería granularidad real de la fuente.
+SISMEPRE se integra mediante `sismepre_entity_period`, preservando granularidad por entidad, periodo, formulario y tiempo estadístico. No se colapsa todo a `sec_ejec`, porque eso perdería granularidad real de la fuente.
 
 Cuando se usa `respuestas`, la integración considera registros activos (`estado_registro = 'A'`) como resumen auxiliar, no como tabla final fila-a-fila.
 
@@ -202,8 +202,8 @@ Salidas locales no versionables:
 
 ```text
 data/silver/integrated/municipal_entity_bridge/
-data/silver/integrated/mef_municipal_amounts/
-data/silver/integrated/predial_entity_period/
+data/silver/integrated/siaf_municipal_amounts/
+data/silver/integrated/sismepre_entity_period/
 data/silver/integrated/renamu_municipal_context/
 data/silver/integrated/integration_coverage/
 ```
@@ -212,9 +212,9 @@ data/silver/integrated/integration_coverage/
 
 | Dataset | Propósito | Granularidad |
 | --- | --- | --- |
-| `municipal_entity_bridge` | Puente municipal entre `sec_ejec` y `ubigeo`, construido principalmente desde Predial y validado contra RENAMU. | Mapeo `sec_ejec`/`ubigeo` observado. |
-| `mef_municipal_amounts` | Montos MEF agregados para evitar integración fila-a-fila. | Recurso MEF, año, mes, `sec_ejec` y clasificadores presupuestales. |
-| `predial_entity_period` | Métricas prediales por entidad, formulario y tiempo estadístico. | `ano_aplicacion`, `periodo`, `sec_ejec`, `ubigeo`, `formulario_id`, `ano_estadistica`, `mes_estadistica`. |
+| `municipal_entity_bridge` | Puente municipal entre `sec_ejec` y `ubigeo`, construido principalmente desde SISMEPRE y validado contra RENAMU. | Mapeo `sec_ejec`/`ubigeo` observado. |
+| `siaf_municipal_amounts` | Montos SIAF agregados para evitar integración fila-a-fila. | Recurso MEF, año, mes, `sec_ejec` y clasificadores presupuestales. |
+| `sismepre_entity_period` | Métricas sismeprees por entidad, formulario y tiempo estadístico. | `ano_aplicacion`, `periodo`, `sec_ejec`, `ubigeo`, `formulario_id`, `ano_estadistica`, `mes_estadistica`. |
 | `renamu_municipal_context` | Contexto territorial y municipal RENAMU. | `ubigeo`. |
 | `integration_coverage` | Métricas de cobertura de cruce entre fuentes. | Métrica de cobertura. |
 
@@ -223,8 +223,8 @@ data/silver/integrated/integration_coverage/
 | Dataset | Filas | Columnas |
 | --- | ---: | ---: |
 | `municipal_entity_bridge` | 2,598 | 15 |
-| `mef_municipal_amounts` | 12,129,286 | 23 |
-| `predial_entity_period` | 133,938 | 37 |
+| `siaf_municipal_amounts` | 12,129,286 | 23 |
+| `sismepre_entity_period` | 133,938 | 37 |
 | `renamu_municipal_context` | 1,874 | 109 |
 | `integration_coverage` | 6 | 6 |
 
@@ -232,12 +232,12 @@ data/silver/integrated/integration_coverage/
 
 | Métrica | Resultado | Cobertura |
 | --- | ---: | ---: |
-| `total_predial_sec_ejec_entities` | 1,485 / 1,485 | 100.0000% |
-| `predial_entities_with_valid_ubigeo` | 1,113 / 1,485 | 74.9495% |
-| `predial_entities_with_renamu_match` | 1,110 / 1,485 | 74.7475% |
-| `mef_sec_ejec_with_bridge` | 1,485 / 3,014 | 49.2701% |
-| `mef_sec_ejec_without_bridge` | 1,529 / 3,014 | 50.7299% |
-| `renamu_ubigeos_without_predial` | 764 / 1,874 | 40.7684% |
+| `total_sismepre_sec_ejec_entities` | 1,485 / 1,485 | 100.0000% |
+| `sismepre_entities_with_valid_ubigeo` | 1,113 / 1,485 | 74.9495% |
+| `sismepre_entities_with_renamu_match` | 1,110 / 1,485 | 74.7475% |
+| `siaf_sec_ejec_with_bridge` | 1,485 / 3,014 | 49.2701% |
+| `siaf_sec_ejec_without_bridge` | 1,529 / 3,014 | 50.7299% |
+| `renamu_ubigeos_without_sismepre` | 764 / 1,874 | 40.7684% |
 
 ## Interpretación de problemas de integración
 
@@ -245,11 +245,11 @@ data/silver/integrated/integration_coverage/
 
 `sec_ejec` identifica unidades ejecutoras o entidades administrativas. `ubigeo` identifica territorio. La integración no asume equivalencia directa entre ambos campos.
 
-Por eso se construye `municipal_entity_bridge` como puente observado `sec_ejec -> ubigeo`, usando Predial como fuente principal del mapeo y RENAMU como referencia territorial.
+Por eso se construye `municipal_entity_bridge` como puente observado `sec_ejec -> ubigeo`, usando SISMEPRE como fuente principal del mapeo y RENAMU como referencia territorial.
 
-### Cobertura MEF limitada
+### Cobertura SIAF limitada
 
-Solo 1,485 de 3,014 `sec_ejec` MEF cruzan con el puente municipal observado. Esto implica que Gold no debe asumir que todo MEF puede cruzarse con Predial o RENAMU.
+Solo 1,485 de 3,014 `sec_ejec` MEF cruzan con el puente municipal observado. Esto implica que Gold no debe asumir que todo MEF puede cruzarse con SISMEPRE o RENAMU.
 
 Para análisis posteriores se debe modelar explícitamente:
 
@@ -257,15 +257,15 @@ Para análisis posteriores se debe modelar explícitamente:
 - MEF sin puente territorial.
 - Posibles fuentes complementarias de mapeo `sec_ejec -> ubigeo`.
 
-### Cobertura Predial con RENAMU razonable pero incompleta
+### Cobertura SISMEPRE con RENAMU razonable pero incompleta
 
-Predial tiene 1,485 entidades con `sec_ejec`, de las cuales 1,113 tienen `ubigeo` válido y 1,110 cruzan con RENAMU. La cobertura es útil para integración territorial, pero no completa.
+SISMEPRE tiene 1,485 entidades con `sec_ejec`, de las cuales 1,113 tienen `ubigeo` válido y 1,110 cruzan con RENAMU. La cobertura es útil para integración territorial, pero no completa.
 
-Gold debe considerar entidades prediales sin match RENAMU y evitar descartes silenciosos.
+Gold debe considerar entidades sismeprees sin match RENAMU y evitar descartes silenciosos.
 
-### RENAMU contiene municipios sin Predial
+### RENAMU contiene municipios sin SISMEPRE
 
-RENAMU tiene 764 ubigeos sin presencia en el puente predial observado. Esto puede representar municipios fuera del universo predial disponible, diferencias de cobertura de fuente o diferencias de identificación.
+RENAMU tiene 764 ubigeos sin presencia en el puente sismepre observado. Esto puede representar municipios fuera del universo sismepre disponible, diferencias de cobertura de fuente o diferencias de identificación.
 
 Estos casos deben conservarse para análisis de cobertura y no eliminarse antes de definir el modelo analítico.
 
@@ -273,8 +273,8 @@ Estos casos deben conservarse para análisis de cobertura y no eliminarse antes 
 
 Gold debe construirse sobre datasets agregados y con cobertura explícita:
 
-- Usar `mef_municipal_amounts`, no filas crudas MEF, para hechos presupuestales preliminares.
-- Usar `predial_entity_period`, no `respuestas` crudas, para métricas prediales preparadas.
+- Usar `siaf_municipal_amounts`, no filas crudas MEF, para hechos presupuestales preliminares.
+- Usar `sismepre_entity_period`, no `respuestas` crudas, para métricas sismeprees preparadas.
 - Usar `renamu_municipal_context` como dimensión/contexto territorial.
 - Usar `municipal_entity_bridge` como puente validado, no como verdad definitiva.
 - Incluir métricas de cobertura y faltantes para no ocultar entidades sin match.
@@ -297,3 +297,46 @@ docs/silver_transformations.md
 ```
 
 Los Parquet integrados pueden regenerarse ejecutando el pipeline Silver correspondiente.
+
+## Estrategia de rediseño Silver posterior al profiling
+
+El modelo Silver vigente se considera una base de transición. Antes de redefinir dimensiones, hechos y marts Gold, se debe revisar el profiling Bronze generado por `src.quality.profile_bronze_datasets`.
+
+La nueva estrategia de modelado se organizará por fuentes reales:
+
+| Fuente | Nombre técnico | Rol en Silver |
+| --- | --- | --- |
+| SIAF ingresos | `siaf_income` | Hecho financiero de ingresos y recaudación presupuestal. |
+| SISMEPRE | `sismepre` | Hechos y cuestionarios de meta del impuesto predial. |
+| RENAMU | `renamu` | Contexto institucional y territorial municipal. |
+| Categorías municipales | `municipal_categories` | Segmentación manual A-G; no debe asumirse como match perfecto. |
+
+Salidas Silver objetivo:
+
+```text
+silver/siaf_income
+silver/sismepre/estadistica_atm
+silver/sismepre/formulario
+silver/sismepre/preguntas
+silver/sismepre/respuestas
+silver/renamu/full_clean
+silver/renamu/municipal_context
+silver/municipal_categories
+silver/integrated/municipal_entity_bridge
+```
+
+El puente municipal debe conservar evidencia de cruce:
+
+```text
+sec_ejec
+ubigeo6
+idmunici
+municipalidad_nombre_normalizado
+categoria_municipal
+categoria_match_method
+categoria_match_distance
+categoria_match_status
+categoria_match_is_ambiguous
+```
+
+Ninguna dimensión Gold debe asumir que `sec_ejec`, `ubigeo`, `idmunici` y nombre municipal son equivalentes directos.

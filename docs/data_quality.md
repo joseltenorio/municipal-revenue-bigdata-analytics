@@ -22,7 +22,7 @@ Fuentes evaluadas:
 | Fuente | Descripción | Recursos |
 | --- | --- | ---: |
 | `siaf_income` | Presupuesto y ejecución de ingresos SIAF. | 17 |
-| `sismepre` | Seguimiento de la meta del impuesto predial. | 7 |
+| `sismepre` | Seguimiento de la meta del impuesto sismepre. | 7 |
 | `renamu` | Registro Nacional de Municipalidades 2022. | 1 |
 | `municipal_categories` | Categorías municipales manuales. | 1 |
 
@@ -100,7 +100,7 @@ Warnings Bronze observados:
 | --- | ---: | --- |
 | `invalid_percentage` | 25 | No se encontraron columnas candidatas de porcentaje en Bronze. |
 | `invalid_ubigeo` | 23 | No todos los recursos Bronze contienen `ubigeo`. |
-| `invalid_year` | 7 | Algunos recursos prediales no exponen año con nombres candidatos genéricos. |
+| `invalid_year` | 7 | Algunos recursos sismeprees no exponen año con nombres candidatos genéricos. |
 
 No hubo `FAIL`, por lo que Bronze cumple el contrato técnico mínimo para continuar hacia limpieza y tipado Silver.
 
@@ -151,9 +151,9 @@ Estos outputs son regenerables y no deben versionarse.
 | Estructura básica | `row_count_positive`, `column_count_positive` |
 | Contrato Silver | `silver_metadata_columns_present`, `expected_typed_columns_present`, `expected_flags_present` |
 | Nulos | `critical_nulls` |
-| Duplicados | `exact_duplicate_rows`, `candidate_key_duplicates`, `mef_candidate_key_duplicates`, `predial_candidate_key_duplicates`, `renamu_ubigeo_duplicates`, `renamu_idmunici_duplicates` |
-| Flags | `invalid_boolean_flags`, `invalid_mef_flags` |
-| Calidad numérica | `negative_amounts`, `predial_parse_failures`, `renamu_financial_parse_failures` |
+| Duplicados | `exact_duplicate_rows`, `candidate_key_duplicates`, `siaf_candidate_key_duplicates`, `sismepre_candidate_key_duplicates`, `renamu_ubigeo_duplicates`, `renamu_idmunici_duplicates` |
+| Flags | `invalid_boolean_flags`, `invalid_siaf_flags` |
+| Calidad numérica | `negative_amounts`, `sismepre_parse_failures`, `renamu_financial_parse_failures` |
 | Territorio RENAMU | `renamu_territory_nulls`, `renamu_tipomuni_invalid_values` |
 | Referencias semánticas | `dictionary_reference_missing` |
 
@@ -181,9 +181,9 @@ Warnings Silver principales:
 | --- | ---: | --- |
 | `negative_amounts` | 17 | Hay montos negativos en recursos SIAF. Requieren interpretación presupuestal o contable; no deben bloquearse automáticamente. |
 | `candidate_key_duplicates` | 19 | Las llaves candidatas preliminares todavía no identifican unicidad completa. Esto sugiere granularidad más fina o llaves incompletas. |
-| `mef_candidate_key_duplicates` | 16 | La llave presupuestal SIAF propuesta es hipótesis funcional y debe revisarse antes de integrar o modelar Gold. |
-| `predial_candidate_key_duplicates` | 3 | Algunas tablas prediales requieren revisar llaves relacionales o granularidad. |
-| `predial_parse_failures` | 1 | Existe un hallazgo puntual de parseo en SISMEPRE que debe revisarse antes de usar el campo en Gold. |
+| `siaf_candidate_key_duplicates` | 16 | La llave presupuestal SIAF propuesta es hipótesis funcional y debe revisarse antes de integrar o modelar Gold. |
+| `sismepre_candidate_key_duplicates` | 3 | Algunas tablas sismeprees requieren revisar llaves relacionales o granularidad. |
+| `sismepre_parse_failures` | 1 | Existe un hallazgo puntual de parseo en SISMEPRE que debe revisarse antes de usar el campo en Gold. |
 
 No hubo `FAIL`. Por tanto, Silver queda técnicamente validada para avanzar hacia análisis de integración, manteniendo los `WARNING` como riesgos explícitos.
 
@@ -210,7 +210,7 @@ La siguiente fase debe usar estos hallazgos para:
 - Revisar parseos puntuales de SISMEPRE.
 - Validar consistencia territorial entre fuentes.
 
-La integración Silver ya trata estos warnings de forma conservadora: SIAF se agrega en `mef_municipal_amounts`, SISMEPRE conserva granularidad de entidad/formulario/tiempo estadístico en `predial_entity_period`, y el cruce territorial se apoya en `municipal_entity_bridge` sin asumir que `sec_ejec` equivale a `ubigeo`. Los detalles y coberturas observadas se documentan en `docs/silver_transformations.md`.
+La integración Silver ya trata estos warnings de forma conservadora: SIAF se agrega en `siaf_municipal_amounts`, SISMEPRE conserva granularidad de entidad/formulario/tiempo estadístico en `sismepre_entity_period`, y el cruce territorial se apoya en `municipal_entity_bridge` sin asumir que `sec_ejec` equivale a `ubigeo`. Los detalles y coberturas observadas se documentan en `docs/silver_transformations.md`.
 
 ## Criterio de versionamiento
 

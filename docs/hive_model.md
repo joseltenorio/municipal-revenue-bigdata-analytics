@@ -51,8 +51,8 @@ Las tablas integradas principales son:
 | Tabla | Propósito |
 | --- | --- |
 | `silver.municipal_entity_bridge` | Puente municipal entre identificadores administrativos y territoriales |
-| `silver.mef_municipal_amounts` | Montos MEF agregados con granularidad controlada |
-| `silver.predial_entity_period` | Información predial integrada por entidad, periodo, formulario y tiempo estadístico |
+| `silver.siaf_municipal_amounts` | Montos MEF agregados con granularidad controlada |
+| `silver.sismepre_sismepre_predial_entity_period` | Información predial integrada por entidad, periodo, formulario y tiempo estadístico |
 | `silver.renamu_municipal_context` | Contexto territorial y municipal desde RENAMU |
 | `silver.integration_coverage` | Métricas técnicas de cobertura de cruce entre fuentes |
 
@@ -123,11 +123,11 @@ También se validaron consultas sobre tablas integradas:
 | --- | ---: |
 | `SELECT COUNT(*) FROM silver.integration_coverage` | 6 |
 | `SELECT COUNT(*) FROM silver.municipal_entity_bridge` | 2598 |
-| `SELECT COUNT(*) FROM silver.predial_entity_period` | 133938 |
+| `SELECT COUNT(*) FROM silver.sismepre_sismepre_predial_entity_period` | 133938 |
 | `SELECT COUNT(*) FROM silver.renamu_municipal_context` | 1874 |
-| `SELECT * FROM silver.mef_municipal_amounts LIMIT 5` | Correcto |
+| `SELECT * FROM silver.siaf_municipal_amounts LIMIT 5` | Correcto |
 
-La tabla `silver.mef_municipal_amounts` tiene más de 12 millones de filas, por lo que se validó con `LIMIT 5` en lugar de un conteo completo.
+La tabla `silver.siaf_municipal_amounts` tiene más de 12 millones de filas, por lo que se validó con `LIMIT 5` en lugar de un conteo completo.
 
 ## Interpretación
 

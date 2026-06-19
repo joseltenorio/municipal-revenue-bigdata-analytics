@@ -88,7 +88,7 @@ Bronze no garantiza todavía:
 - Conversión final de montos, porcentajes, fechas o ubigeos.
 - Reglas de calidad definitivas.
 - Identificación final de llaves primarias o foráneas.
-- Integración entre MEF, Predial y RENAMU.
+- Integración entre SIAF, SISMEPRE y RENAMU.
 - Modelo de hechos y dimensiones.
 - Modelo Gold.
 - Tablas externas Hive.
@@ -442,10 +442,10 @@ Estos Parquet son outputs locales regenerables y no deben versionarse.
 | Dataset | Propósito |
 | --- | --- |
 | `municipal_entity_bridge` | Puente observado entre `sec_ejec` y `ubigeo`, con validación territorial contra RENAMU. |
-| `mef_municipal_amounts` | Montos MEF agregados por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. |
-| `predial_entity_period` | Dataset predial preparado por entidad, periodo, formulario y tiempo estadístico. |
+| `siaf_municipal_amounts` | Montos MEF agregados por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. |
+| `sismepre_sismepre_predial_entity_period` | Dataset predial preparado por entidad, periodo, formulario y tiempo estadístico. |
 | `renamu_municipal_context` | Contexto territorial RENAMU por `ubigeo`. |
-| `integration_coverage` | Métricas de cobertura de cruce entre MEF, Predial y RENAMU. |
+| `integration_coverage` | Métricas de cobertura de cruce entre SIAF, SISMEPRE y RENAMU. |
 
 Columnas clave de integración:
 

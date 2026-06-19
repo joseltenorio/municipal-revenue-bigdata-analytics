@@ -1,6 +1,6 @@
 # Municipal Revenue Big Data Analytics
 
-Plataforma analítica local para analizar ingresos municipales, cumplimiento predial y contexto territorial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
+Plataforma analítica local para analizar ingresos municipales, cumplimiento sismepre y contexto territorial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
 
 ## Propósito
 
@@ -17,7 +17,7 @@ El proyecto busca responder preguntas como:
 - ¿Qué municipalidades presentan mejor desempeño en ejecución de ingresos?
 - ¿Qué brechas existen entre presupuesto, ejecución y cumplimiento de metas?
 - ¿Cómo varía el desempeño municipal por departamento, provincia o distrito?
-- ¿Qué municipalidades muestran mayores brechas en la meta del impuesto predial?
+- ¿Qué municipalidades muestran mayores brechas en la meta del impuesto sismepre?
 - ¿Qué contexto territorial y de capacidad municipal ayuda a interpretar los resultados?
 
 ## Fuentes Consideradas
@@ -25,7 +25,7 @@ El proyecto busca responder preguntas como:
 Las fuentes principales del proyecto son:
 
 - Presupuesto y ejecución de ingresos del MEF / SIAF.
-- Seguimiento de la meta del impuesto predial desde SISMERE / MEF.
+- Seguimiento de la meta del impuesto sismepre desde SISMERE / MEF.
 - Registro Nacional de Municipalidades RENAMU 2022 del INEI.
 
 ## Arquitectura General
