@@ -105,10 +105,9 @@ def test_render_create_external_table() -> None:
 def test_discover_gold_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     """La función discover_gold_tables descubre directorios Gold con Parquet."""
 
-    # Crear estructura simulada: area/dataset/file.parquet
+    # Crear estructura simulada: dataset/file.parquet
     gold_mock = tmp_path / "data" / "gold"
-    area_mock = gold_mock / "municipal_revenue"
-    dataset_mock = area_mock / "fact_municipal_income_execution"
+    dataset_mock = gold_mock / "fact_siaf_income"
     dataset_mock.mkdir(parents=True)
 
     # Crear un archivo parquet vacío para que sea detectado por parquet_files_exist
@@ -125,8 +124,8 @@ def test_discover_gold_tables(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -
     assert len(specs) == 1
     spec = specs[0]
     assert spec.database == "gold"
-    assert spec.table_name == "fact_municipal_income_execution"
-    assert spec.hive_location == "/app/data/gold/municipal_revenue/fact_municipal_income_execution"
+    assert spec.table_name == "fact_siaf_income"
+    assert spec.hive_location == "/app/data/gold/fact_siaf_income"
 
 
 def test_render_create_external_table_gold() -> None:
@@ -134,23 +133,23 @@ def test_render_create_external_table_gold() -> None:
 
     spec = ExternalTableSpec(
         database="gold",
-        table_name="fact_municipal_income_execution",
-        dataset_path=Path("data/gold/municipal_revenue/fact_municipal_income_execution"),
-        hive_location="/app/data/gold/municipal_revenue/fact_municipal_income_execution",
+        table_name="fact_siaf_income",
+        dataset_path=Path("data/gold/fact_siaf_income"),
+        hive_location="/app/data/gold/fact_siaf_income",
     )
     sql = render_create_external_table(
         spec,
         [
             ("sec_ejec", "STRING"),
-            ("monto_recaudado_total", "DECIMAL(30,4)"),
+            ("monto_recaudado", "DECIMAL(30,4)"),
         ],
     )
 
-    assert "CREATE EXTERNAL TABLE IF NOT EXISTS `gold`.`fact_municipal_income_execution`" in sql
+    assert "CREATE EXTERNAL TABLE IF NOT EXISTS `gold`.`fact_siaf_income`" in sql
     assert "`sec_ejec` STRING" in sql
-    assert "`monto_recaudado_total` DECIMAL(30,4)" in sql
+    assert "`monto_recaudado` DECIMAL(30,4)" in sql
     assert "STORED AS PARQUET" in sql
-    assert "LOCATION '/app/data/gold/municipal_revenue/fact_municipal_income_execution'" in sql
+    assert "LOCATION '/app/data/gold/fact_siaf_income'" in sql
 
 
 def test_discover_bronze_tables_supports_direct_datasets(

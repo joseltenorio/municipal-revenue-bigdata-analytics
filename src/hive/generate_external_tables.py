@@ -212,25 +212,23 @@ def discover_silver_integrated_tables() -> list[ExternalTableSpec]:
 
 
 def discover_gold_tables() -> list[ExternalTableSpec]:
-    """Descubre recursos Gold bajo sus carpetas de área analítica."""
+    """Descubre recursos Gold directamente bajo la carpeta Gold."""
 
     if not GOLD_DIR.exists():
         return []
 
     specs: list[ExternalTableSpec] = []
-    # Escanear carpetas de área (municipal_revenue, predial_compliance, territorial_context)
-    for area_path in sorted(path for path in GOLD_DIR.iterdir() if path.is_dir()):
-        for dataset_path in sorted(path for path in area_path.iterdir() if path.is_dir()):
-            if not parquet_files_exist(dataset_path):
-                continue
-            specs.append(
-                ExternalTableSpec(
-                    database="gold",
-                    table_name=normalize_hive_identifier(dataset_path.name),
-                    dataset_path=dataset_path,
-                    hive_location=project_path_to_hive_location(dataset_path),
-                )
+    for dataset_path in sorted(path for path in GOLD_DIR.iterdir() if path.is_dir()):
+        if not parquet_files_exist(dataset_path):
+            continue
+        specs.append(
+            ExternalTableSpec(
+                database="gold",
+                table_name=normalize_hive_identifier(dataset_path.name),
+                dataset_path=dataset_path,
+                hive_location=project_path_to_hive_location(dataset_path),
             )
+        )
     return specs
 
 

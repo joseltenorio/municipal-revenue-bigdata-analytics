@@ -58,6 +58,7 @@ def build_spark_session(
             "spark.sql.parquet.compression.codec",
             get_config_value(spark_config, "spark.parquet.compression", "snappy"),
         )
+        .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem")
     )
 
     if extra_configs:

@@ -3115,3 +3115,39 @@ CREATE EXTERNAL TABLE IF NOT EXISTS `silver`.`renamu_municipal_context` (
 )
 STORED AS PARQUET
 LOCATION '/app/data/silver/integrated/renamu_municipal_context';
+
+CREATE EXTERNAL TABLE IF NOT EXISTS `silver`.`map_sec_ejec_ubigeo` (
+  `sec_ejec` STRING,
+  `ubigeo6` STRING,
+  `municipality_key` STRING,
+  `has_siaf_match` BOOLEAN,
+  `has_sismepre_match` BOOLEAN,
+  `has_renamu_match` BOOLEAN,
+  `has_classification_match` BOOLEAN,
+  `match_status` STRING,
+  `confidence_level` STRING,
+  `issue_reason` STRING,
+  `silver_source_name` STRING,
+  `silver_resource_key` STRING,
+  `silver_processed_at_utc` STRING
+)
+STORED AS PARQUET
+LOCATION '/app/data/silver/integrated/map_sec_ejec_ubigeo';
+
+CREATE EXTERNAL TABLE IF NOT EXISTS `silver`.`integration_coverage` (
+  `coverage_scope` STRING,
+  `source_name` STRING,
+  `metric_name` STRING,
+  `metric_value` BIGINT,
+  `total_records` BIGINT,
+  `matched_records` BIGINT,
+  `unmatched_records` BIGINT,
+  `match_rate` DOUBLE,
+  `issue_count` BIGINT,
+  `issue_rate` DOUBLE,
+  `silver_source_name` STRING,
+  `silver_resource_key` STRING,
+  `silver_processed_at_utc` STRING
+)
+STORED AS PARQUET
+LOCATION '/app/data/silver/integrated/integration_coverage';

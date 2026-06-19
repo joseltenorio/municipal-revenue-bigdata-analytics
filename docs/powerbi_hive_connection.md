@@ -26,6 +26,7 @@ Power BI debe priorizar:
 - `dim_renamu_context`
 - `audit_quality_results`
 - `audit_dataset_summary`
+- `audit_integration_coverage`
 
 ## Tablas que no deben usarse como navegación principal
 

@@ -55,6 +55,7 @@ La capa Gold objetivo se alinea con el modelo dimensional documentado en `docs/g
 
 - `gold.audit_quality_results`
 - `gold.audit_dataset_summary`
+- `gold.audit_integration_coverage`
 
 ## Propósito de `map_sec_ejec_ubigeo`
 
