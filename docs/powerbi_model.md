@@ -111,6 +111,7 @@ Sirve para el calendario operativo de SISMEPRE.
 Hecho principal para ingresos municipales.
 
 Debe llegar con `municipality_key` resuelto para evitar cruces manuales en Power BI.
+Debe exponer `date_key` y `match_status` ya resueltos desde Gold, sin obligar al reporte a usar `map_sec_ejec_ubigeo`.
 
 ### `fact_predial_statistics`
 

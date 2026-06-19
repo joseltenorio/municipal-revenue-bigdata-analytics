@@ -521,6 +521,20 @@ Reglas clave:
 - `gold.fact_siaf_income`
 - `gold.fact_predial_statistics`
 
+Salidas fisicas implementadas para el bloque inicial de hechos:
+
+| Dataset | Ruta local | Fuente Silver vigente | Llaves principales |
+| --- | --- | --- | --- |
+| `fact_siaf_income` | `data/gold/fact_siaf_income/` | `siaf_income/*` y `integrated/map_sec_ejec_ubigeo` | `municipality_key`, `sec_ejec`, `date_key` |
+| `fact_predial_statistics` | `data/gold/fact_predial_statistics/` | `sismepre/resource_key=esat_estadistica_atm` | `municipality_key`, `sismepre_period_key`, `sec_ejec` |
+
+Reglas clave:
+
+- `fact_siaf_income` resuelve `municipality_key` desde el mapa tecnico Silver.
+- `fact_siaf_income` conserva `source_resource_key` y `source_granularity`.
+- `fact_predial_statistics` usa solo el recurso principal SISMEPRE del Gold inicial.
+- Ninguna de estas facts expone nombres observados por fuente ni depende de `municipal_entity_bridge`.
+
 ### Marts
 
 - `gold.mart_municipal_revenue_overview`

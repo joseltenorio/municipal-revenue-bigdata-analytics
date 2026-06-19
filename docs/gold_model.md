@@ -44,9 +44,12 @@ erDiagram
 
 Estado fisico de este commit:
 
-- Se materializan las dimensiones base bajo `data/gold/dim_*`.
-- No se construyen hechos, marts, auditoria Gold ni registros Hive.
+- Se materializan dimensiones base bajo `data/gold/dim_*`.
+- Se materializan facts base bajo `data/gold/fact_*`.
+- No se construyen marts, auditoria Gold ni registros Hive.
 - Las dimensiones usan solo Silver curado: `renamu/resource_key=municipal_context`, `municipal_classification/resource_key=classification_2019`, `siaf_income/*` y `sismepre/resource_key=esat_estadistica_atm`.
+- `fact_siaf_income` usa `siaf_income/*` y `map_sec_ejec_ubigeo`.
+- `fact_predial_statistics` usa solo `sismepre/resource_key=esat_estadistica_atm`.
 
 ### `dim_municipality`
 
@@ -210,10 +213,18 @@ Campos objetivo:
 - `monto_recaudado`
 - `has_municipality_match`
 - `match_status`
+- `gold_processed_at_utc`
 
 Reglas:
 
 - Debe salir con `municipality_key` ya resuelto usando `map_sec_ejec_ubigeo`.
+- Ruta fisica: `data/gold/fact_siaf_income/`.
+- `municipality_key` debe ser el `ubigeo6` resuelto desde el mapa tecnico.
+- Si no existe resolucion unica, el registro se conserva con `has_municipality_match = false`.
+- Si no existe fila en el mapa tecnico, `match_status` debe quedar como `missing_map`.
+- Debe conservar `source_resource_key` y `source_granularity` para trazabilidad.
+- No debe incluir nombres observados por fuente ni atributos geograficos, de clasificacion o RENAMU.
+- `date_key` debe derivarse con grano mensual; recursos anuales pueden usar enero como convencion estable.
 - Power BI no debe depender del mapa técnico como tabla intermedia para análisis normal.
 
 ### `fact_predial_statistics`
@@ -233,10 +244,16 @@ Campos objetivo:
 - `ratio_recaudacion_emision`
 - `numero_predios_total`
 - `numero_contribuyentes_predio`
+- `gold_processed_at_utc`
 
 Reglas:
 
 - El Gold inicial solo consume `silver/sismepre/resource_key=esat_estadistica_atm`.
+- Ruta fisica: `data/gold/fact_predial_statistics/`.
+- `municipality_key = ubigeo6`.
+- `sismepre_period_key` debe ser compatible con `dim_sismepre_period`.
+- `ratio_recaudacion_emision` debe evitar division entre cero devolviendo `null`.
+- No incluye nombres observados por fuente, atributos territoriales, clasificacion municipal ni variables RENAMU.
 - Los recursos SISMEPRE restantes quedan en Silver por trazabilidad, pero no entran al Gold inicial ni al dashboard principal.
 
 ## Marts Gold para Power BI
