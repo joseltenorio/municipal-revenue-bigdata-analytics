@@ -23,6 +23,24 @@ SILVER_SQL_PATH = HIVE_SQL_DIR / "create_silver_external_tables.sql"
 GOLD_SQL_PATH = HIVE_SQL_DIR / "create_gold_external_tables.sql"
 
 
+LEGACY_TABLES = {
+    "municipal_categories",
+    "municipal_entity_bridge",
+    "mef_municipal_amounts",
+    "renamu_municipal_context",
+    "predial_entity_period",
+    "fact_municipal_income_execution",
+    "fact_revenue_integration_coverage",
+    "fact_predial_integration_coverage",
+    "fact_territorial_integration_coverage",
+    "mart_predial_compliance_overview",
+    "mart_predial_ranking",
+    "mart_municipal_capacity",
+    "mart_territorial_context",
+    "dim_municipality_context",
+}
+
+
 class HiveDdlError(Exception):
     """Error controlado durante generación de DDL Hive."""
 
@@ -177,7 +195,11 @@ def discover_silver_source_tables() -> list[ExternalTableSpec]:
             resource_key = normalize_hive_identifier(
                 resource_path.name.replace("resource_key=", "")
             )
+            if resource_key in {"base_renamu_2022", "renamu_full"}:
+                continue
             table_name = normalize_hive_identifier(f"{source_name}__{resource_key}")
+            if table_name in LEGACY_TABLES:
+                continue
             specs.append(
                 ExternalTableSpec(
                     database="silver",
@@ -200,10 +222,13 @@ def discover_silver_integrated_tables() -> list[ExternalTableSpec]:
     for dataset_path in sorted(path for path in integrated_path.iterdir() if path.is_dir()):
         if not parquet_files_exist(dataset_path):
             continue
+        table_name = normalize_hive_identifier(dataset_path.name)
+        if table_name in LEGACY_TABLES:
+            continue
         specs.append(
             ExternalTableSpec(
                 database="silver",
-                table_name=normalize_hive_identifier(dataset_path.name),
+                table_name=table_name,
                 dataset_path=dataset_path,
                 hive_location=project_path_to_hive_location(dataset_path),
             )
@@ -221,10 +246,13 @@ def discover_gold_tables() -> list[ExternalTableSpec]:
     for dataset_path in sorted(path for path in GOLD_DIR.iterdir() if path.is_dir()):
         if not parquet_files_exist(dataset_path):
             continue
+        table_name = normalize_hive_identifier(dataset_path.name)
+        if table_name in LEGACY_TABLES:
+            continue
         specs.append(
             ExternalTableSpec(
                 database="gold",
-                table_name=normalize_hive_identifier(dataset_path.name),
+                table_name=table_name,
                 dataset_path=dataset_path,
                 hive_location=project_path_to_hive_location(dataset_path),
             )
