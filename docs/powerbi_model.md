@@ -248,3 +248,33 @@ Se consideran legacy para Power BI:
 - `CategoriasMunicipalidades.csv`
 
 Esos nombres pueden seguir apareciendo en documentos viejos o en código heredado, pero no forman parte del contrato objetivo del reporte final.
+## Capa dashboard-ready recomendada
+
+Hive y las tablas externas se mantienen como evidencia tÃ©cnica y ruta SQL local del proyecto. Aun asÃ­, para Power BI Desktop el consumo recomendado pasa a ser la capa derivada `data/gold/powerbi/` y sus exports `powerbi/exports/dashboard/`, porque la conexiÃ³n local ODBC + HiveServer2 ha mostrado inestabilidad con metadata, `SELECT *`, SASL/Thrift y tablas SIAF grandes.
+
+Power BI no debe cargar:
+
+- `fact_siaf_income` completa
+- `mart_municipal_revenue_overview` cruda cuando mantenga granularidad SIAF detallada
+- tablas legacy o mapas tÃ©cnicos como navegaciÃ³n del dashboard
+
+Datasets recomendados para el dashboard:
+
+- `revenue_monthly_dashboard.csv`
+- `revenue_source_monthly_dashboard.csv`
+- `revenue_source_annual_dashboard.csv`
+- `revenue_annual_dashboard.csv`
+- `territorial_revenue_dashboard.csv`
+- `predial_dashboard.csv`
+- `municipal_context_dashboard.csv`
+- `municipal_performance_dashboard.csv`
+- `audit_dataset_summary_dashboard.csv`
+- `audit_integration_coverage_dashboard.csv`
+- `audit_quality_results_dashboard.csv`
+
+`revenue_monthly_dashboard` es el dataset liviano base para KPIs y comparativos. La estructura de ingresos, autonomÃ­a financiera y dependencia de transferencias debe analizarse con:
+
+- `revenue_source_monthly_dashboard`
+- `revenue_source_annual_dashboard`
+
+En el estado actual del modelo Gold, `mart_municipal_revenue_overview` no conserva `fuente_financiamiento`, `rubro` ni `tipo_recurso`. Por esa razÃ³n, la construcciÃ³n de `revenue_source_*` usa enriquecimiento tÃ©cnico desde la capa Silver SIAF curada, manteniendo el filtro municipal blindado del modelo vigente.

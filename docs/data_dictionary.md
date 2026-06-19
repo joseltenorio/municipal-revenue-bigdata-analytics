@@ -608,3 +608,45 @@ El diccionario maestro se complementa con:
 - `docs/gold_model.md`
 - `docs/data_profiling.md`
 - `docs/data_quality.md`
+## Capa derivada Power BI dashboard-ready
+
+Adicionalmente, el proyecto incorpora una capa derivada para visualizaciÃ³n:
+
+- `gold.powerbi.revenue_monthly_dashboard`
+- `gold.powerbi.revenue_source_monthly_dashboard`
+- `gold.powerbi.revenue_source_annual_dashboard`
+- `gold.powerbi.revenue_annual_dashboard`
+- `gold.powerbi.territorial_revenue_dashboard`
+- `gold.powerbi.predial_dashboard`
+- `gold.powerbi.municipal_context_dashboard`
+- `gold.powerbi.municipal_performance_dashboard`
+- `gold.powerbi.audit_dataset_summary_dashboard`
+- `gold.powerbi.audit_integration_coverage_dashboard`
+- `gold.powerbi.audit_quality_results_dashboard`
+
+Salidas fisicas:
+
+| Dataset | Ruta Gold agregada | Export recomendado |
+| --- | --- | --- |
+| `revenue_monthly_dashboard` | `data/gold/powerbi/revenue_monthly_dashboard/` | `powerbi/exports/dashboard/revenue_monthly_dashboard.csv` |
+| `revenue_source_monthly_dashboard` | `data/gold/powerbi/revenue_source_monthly_dashboard/` | `powerbi/exports/dashboard/revenue_source_monthly_dashboard.csv` |
+| `revenue_source_annual_dashboard` | `data/gold/powerbi/revenue_source_annual_dashboard/` | `powerbi/exports/dashboard/revenue_source_annual_dashboard.csv` |
+| `revenue_annual_dashboard` | `data/gold/powerbi/revenue_annual_dashboard/` | `powerbi/exports/dashboard/revenue_annual_dashboard.csv` |
+| `territorial_revenue_dashboard` | `data/gold/powerbi/territorial_revenue_dashboard/` | `powerbi/exports/dashboard/territorial_revenue_dashboard.csv` |
+| `predial_dashboard` | `data/gold/powerbi/predial_dashboard/` | `powerbi/exports/dashboard/predial_dashboard.csv` |
+| `municipal_context_dashboard` | `data/gold/powerbi/municipal_context_dashboard/` | `powerbi/exports/dashboard/municipal_context_dashboard.csv` |
+| `municipal_performance_dashboard` | `data/gold/powerbi/municipal_performance_dashboard/` | `powerbi/exports/dashboard/municipal_performance_dashboard.csv` |
+| `audit_dataset_summary_dashboard` | `data/gold/powerbi/audit_dataset_summary_dashboard/` | `powerbi/exports/dashboard/audit_dataset_summary_dashboard.csv` |
+| `audit_integration_coverage_dashboard` | `data/gold/powerbi/audit_integration_coverage_dashboard/` | `powerbi/exports/dashboard/audit_integration_coverage_dashboard.csv` |
+| `audit_quality_results_dashboard` | `data/gold/powerbi/audit_quality_results_dashboard/` | `powerbi/exports/dashboard/audit_quality_results_dashboard.csv` |
+
+Reglas clave:
+
+- Las marts Gold existentes se mantienen como modelo formal.
+- `data/gold/powerbi/` es una capa derivada optimizada para visualizaciÃ³n.
+- Power BI debe usar datasets agregados dashboard-ready.
+- `revenue_monthly_dashboard` es la tabla principal de ingresos para KPI y tendencia.
+- `revenue_source_monthly_dashboard` y `revenue_source_annual_dashboard` preservan la estructura de ingresos por fuente/rubro/tipo de recurso.
+- `predial_dashboard` es la tabla principal de recaudaciÃ³n predial.
+- `municipal_context_dashboard` concentra capacidades RENAMU por municipalidad.
+- `municipal_performance_dashboard` integra ingresos, predial y contexto para segmentaciÃ³n descriptiva.

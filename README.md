@@ -76,3 +76,36 @@ docker compose up -d
 
 El repositorio versiona código, configuración, SQL, tests y documentación.
 No versiona datos reales, Parquet, ZIP, CSV generados, logs pesados ni exports de Power BI.
+
+## Power BI dashboard-ready
+
+Hive sigue siendo parte del modelo tÃ©cnico local y del catÃ¡logo SQL del proyecto. Sin embargo, debido a la inestabilidad observada en Power BI Desktop con ODBC + HiveServer2 local para tablas SIAF grandes, el consumo recomendado del dashboard se mueve a datasets exportados y agregados.
+
+Ruta Gold derivada para visualizaciÃ³n:
+
+```text
+data/gold/powerbi/
+```
+
+Ruta de export final para Power BI Desktop:
+
+```text
+powerbi/exports/dashboard/
+```
+
+Builder recomendado:
+
+```powershell
+python -m src.powerbi.build_dashboard_export_marts --dry-run
+python -m src.powerbi.build_dashboard_export_marts --overwrite
+```
+
+Datasets principales:
+
+- `revenue_monthly_dashboard`
+- `revenue_source_monthly_dashboard`
+- `revenue_source_annual_dashboard`
+- `predial_dashboard`
+- `municipal_context_dashboard`
+- `municipal_performance_dashboard`
+- `audit_*_dashboard`

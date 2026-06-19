@@ -92,6 +92,7 @@ Thumbs.db
 .idea/
 
 # Power BI exports
+powerbi/exports/
 powerbi/exports/**
 !powerbi/exports/.gitkeep
 
