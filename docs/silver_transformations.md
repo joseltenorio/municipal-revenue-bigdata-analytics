@@ -161,11 +161,13 @@ Salidas locales no versionables:
 
 ```text
 data/silver/integrated/map_sec_ejec_ubigeo/
+data/silver/integrated/integration_coverage/
 ```
 
 Las salidas Silver integradas se documentan con un objetivo claro:
 
 - `map_sec_ejec_ubigeo` resuelve la trazabilidad técnica
+- `integration_coverage` resume la cobertura técnica del cruce
 - la validación contra SIAF, RENAMU y clasificación se resuelve dentro del propio mapa
 
 ## Decisiones cerradas para Gold

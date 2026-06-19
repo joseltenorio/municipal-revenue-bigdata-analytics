@@ -14,6 +14,7 @@ from src.silver.integrate_municipal_sources import (
     INTEGRATED_DATASETS,
     IntegrationPaths,
     SilverIntegrationError,
+    build_integration_coverage_from_frames,
     build_map_sec_ejec_ubigeo_from_frames,
     calculate_coverage_percentage,
     existing_columns,
@@ -114,17 +115,19 @@ def test_output_dataset_path_accepts_only_map_dataset() -> None:
     root = Path("data/silver/integrated")
 
     assert output_dataset_path(root, "map_sec_ejec_ubigeo") == root / "map_sec_ejec_ubigeo"
-    assert INTEGRATED_DATASETS == ["map_sec_ejec_ubigeo"]
+    assert output_dataset_path(root, "integration_coverage") == root / "integration_coverage"
+    assert INTEGRATED_DATASETS == ["map_sec_ejec_ubigeo", "integration_coverage"]
 
     with pytest.raises(SilverIntegrationError):
-        output_dataset_path(root, "integration_coverage")
+        output_dataset_path(root, "raw_join")
 
 
 def test_selected_dataset_names_validates_cli_values() -> None:
     """La seleccion opcional de datasets rechaza nombres no soportados."""
 
-    assert selected_dataset_names(None) == ["map_sec_ejec_ubigeo"]
+    assert selected_dataset_names(None) == ["map_sec_ejec_ubigeo", "integration_coverage"]
     assert selected_dataset_names(["map_sec_ejec_ubigeo"]) == ["map_sec_ejec_ubigeo"]
+    assert selected_dataset_names(["integration_coverage"]) == ["integration_coverage"]
 
     with pytest.raises(SilverIntegrationError):
         selected_dataset_names(["municipal_entity_bridge"])
@@ -248,6 +251,74 @@ def test_build_map_sec_ejec_ubigeo_creates_expected_contract(
     }
 
 
+def test_build_integration_coverage_creates_expected_contract(
+    spark: SparkSession,
+) -> None:
+    """La cobertura tecnica resume el mapa sin exponer nombres por fuente."""
+
+    frames = sample_frames(spark)
+    map_dataframe = build_map_sec_ejec_ubigeo_from_frames(
+        sismepre=frames["sismepre"],
+        siaf_sec_ejec=frames["siaf_sec_ejec"],
+        renamu_ubigeos=frames["renamu_ubigeos"],
+        classification_ubigeos=frames["classification_ubigeos"],
+        processed_at="2026-01-01T00:00:00+00:00",
+    )
+    coverage = build_integration_coverage_from_frames(
+        map_dataframe=map_dataframe,
+        siaf_sec_ejec=frames["siaf_sec_ejec"],
+        renamu_ubigeos=frames["renamu_ubigeos"],
+        classification_ubigeos=frames["classification_ubigeos"],
+        processed_at="2026-01-01T00:00:00+00:00",
+    )
+    rows = {
+        (row["coverage_scope"], row["metric_name"]): row.asDict()
+        for row in coverage.collect()
+    }
+
+    assert coverage.columns == [
+        "coverage_scope",
+        "source_name",
+        "metric_name",
+        "metric_value",
+        "total_records",
+        "matched_records",
+        "unmatched_records",
+        "match_rate",
+        "issue_count",
+        "issue_rate",
+        "silver_source_name",
+        "silver_resource_key",
+        "silver_processed_at_utc",
+    ]
+
+    assert "municipalidad_siaf_nombre" not in coverage.columns
+    assert "municipalidad_sismepre_nombre" not in coverage.columns
+    assert "nombre_siaf" not in coverage.columns
+    assert "nombre_sismepre" not in coverage.columns
+
+    assert rows[("map_sec_ejec_ubigeo", "total_map_records")]["metric_value"] == 6.0
+    assert rows[("map_sec_ejec_ubigeo", "matched_records")]["metric_value"] == 1.0
+    assert rows[("map_sec_ejec_ubigeo", "unmatched_records")]["metric_value"] == 5.0
+    assert 0.0 <= rows[("map_sec_ejec_ubigeo", "match_rate")]["match_rate"] <= 1.0
+    assert rows[("map_quality", "missing_siaf")]["metric_value"] == 1.0
+    assert rows[("map_quality", "missing_renamu")]["metric_value"] == 1.0
+    assert rows[("map_quality", "missing_classification")]["metric_value"] == 1.0
+    assert rows[("map_quality", "invalid_ubigeo")]["metric_value"] == 0.0
+    assert rows[("map_quality", "high_confidence_records")]["metric_value"] == 1.0
+    assert rows[("map_quality", "medium_confidence_records")]["metric_value"] == 3.0
+    assert rows[("map_quality", "low_confidence_records")]["metric_value"] == 2.0
+    assert rows[("map_quality", "distinct_sec_ejec")]["metric_value"] == 5.0
+    assert rows[("map_quality", "distinct_ubigeo6")]["metric_value"] == 6.0
+    assert rows[("map_quality", "distinct_municipality_key")]["metric_value"] == 6.0
+    assert rows[("siaf_to_sismepre", "missing_sismepre")]["metric_value"] == 0.0
+    assert rows[("renamu_to_classification", "missing_classification")]["metric_value"] == 1.0
+    assert rows[("classification_to_renamu", "missing_renamu")]["metric_value"] == 1.0
+
+    assert all(0.0 <= row["match_rate"] <= 1.0 for row in rows.values())
+    assert all(0.0 <= row["issue_rate"] <= 1.0 for row in rows.values())
+
+
 def test_source_module_does_not_reference_legacy_inputs() -> None:
     """El modulo de integracion no debe depender de nombres legacy."""
 
@@ -295,5 +366,5 @@ def test_run_integration_dry_run_uses_resolved_paths(
         output_subdir="integrated",
     )
 
-    assert result["datasets"] == ["map_sec_ejec_ubigeo"]
+    assert result["datasets"] == ["map_sec_ejec_ubigeo", "integration_coverage"]
     assert result["output_root"] == str(dummy_paths.output_root)

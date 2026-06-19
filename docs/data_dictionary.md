@@ -474,11 +474,13 @@ Salidas locales no versionables:
 
 ```text
 data/silver/integrated/map_sec_ejec_ubigeo/
+data/silver/integrated/integration_coverage/
 ```
 
 | Dataset | Propósito |
 | --- | --- |
 | `map_sec_ejec_ubigeo` | Mapa técnico para resolver `sec_ejec -> ubigeo6 -> municipality_key`. |
+| `integration_coverage` | Resumen técnico de cobertura y calidad de la integración municipal. |
 
 ## Relación con Gold y Power BI
 

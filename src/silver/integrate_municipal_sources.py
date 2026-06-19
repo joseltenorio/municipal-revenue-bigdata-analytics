@@ -29,7 +29,8 @@ SISMEPRE_RESOURCE_KEY = "esat_estadistica_atm"
 RENAMU_RESOURCE_KEY = "municipal_context"
 CLASSIFICATION_RESOURCE_KEY = "classification_2019"
 OUTPUT_DATASET_NAME = "map_sec_ejec_ubigeo"
-INTEGRATED_DATASETS = [OUTPUT_DATASET_NAME]
+OUTPUT_COVERAGE_DATASET_NAME = "integration_coverage"
+INTEGRATED_DATASETS = [OUTPUT_DATASET_NAME, OUTPUT_COVERAGE_DATASET_NAME]
 
 
 class SilverIntegrationError(Exception):
@@ -235,6 +236,12 @@ def add_silver_metadata(dataframe: Any, *, processed_at: str) -> Any:
     )
 
 
+def metric_output_path(output_root: Path, dataset_name: str) -> Path:
+    """Construye la ruta física de cualquier salida Silver integrada soportada."""
+
+    return output_dataset_path(output_root, dataset_name)
+
+
 def resolve_paths(output_subdir: str) -> IntegrationPaths:
     """Resuelve rutas Silver de entrada y salida."""
 
@@ -414,6 +421,369 @@ def build_status_columns(dataframe: Any) -> Any:
     )
 
 
+def _metric_row(
+    *,
+    coverage_scope: str,
+    source_name: str,
+    metric_name: str,
+    metric_value: float,
+    total_records: int,
+    matched_records: int,
+    issue_count: int | None = None,
+    processed_at: str,
+) -> dict[str, Any]:
+    """Construye una fila de cobertura con métricas consistentes."""
+
+    unmatched_records = max(total_records - matched_records, 0)
+    issue_count = unmatched_records if issue_count is None else issue_count
+    match_rate = 0.0 if total_records == 0 else round(matched_records / total_records, 6)
+    issue_rate = 0.0 if total_records == 0 else round(issue_count / total_records, 6)
+
+    return {
+        "coverage_scope": coverage_scope,
+        "source_name": source_name,
+        "metric_name": metric_name,
+        "metric_value": float(metric_value),
+        "total_records": int(total_records),
+        "matched_records": int(matched_records),
+        "unmatched_records": int(unmatched_records),
+        "match_rate": float(match_rate),
+        "issue_count": int(issue_count),
+        "issue_rate": float(issue_rate),
+        "silver_source_name": "integrated",
+        "silver_resource_key": OUTPUT_COVERAGE_DATASET_NAME,
+        "silver_processed_at_utc": processed_at,
+    }
+
+
+def _count_distinct_in_frame(dataframe: Any, *columns: str) -> int:
+    """Cuenta combinaciones distintas en un DataFrame Spark."""
+
+    if not columns:
+        return 0
+    return dataframe.select(*columns).dropDuplicates().count()
+
+
+def build_integration_coverage_from_frames(
+    *,
+    map_dataframe: Any,
+    siaf_sec_ejec: Any,
+    renamu_ubigeos: Any,
+    classification_ubigeos: Any,
+    processed_at: str | None = None,
+) -> Any:
+    """Construye el resumen técnico de cobertura a partir del mapa Silver."""
+
+    from pyspark.sql import functions as F
+
+    processed_at_value = processed_at or utc_now_iso()
+
+    total_map_records = map_dataframe.count()
+    matched_map_records = map_dataframe.where(F.col("match_status") == "matched").count()
+    missing_siaf = map_dataframe.where(F.col("match_status") == "missing_siaf").count()
+    missing_sismepre = map_dataframe.where(F.col("match_status") == "missing_sismepre").count()
+    missing_renamu = map_dataframe.where(F.col("match_status") == "missing_renamu").count()
+    missing_classification = map_dataframe.where(
+        F.col("match_status") == "missing_classification"
+    ).count()
+    invalid_ubigeo = map_dataframe.where(F.col("match_status") == "invalid_ubigeo").count()
+    ambiguous_sec_ejec = map_dataframe.where(F.col("match_status") == "ambiguous_sec_ejec").count()
+    ambiguous_sec_ejec_ubigeo = map_dataframe.where(
+        F.col("match_status") == "ambiguous_sec_ejec_ubigeo"
+    ).count()
+    high_confidence_records = map_dataframe.where(
+        F.col("confidence_level") == "high"
+    ).count()
+    medium_confidence_records = map_dataframe.where(
+        F.col("confidence_level") == "medium"
+    ).count()
+    low_confidence_records = map_dataframe.where(F.col("confidence_level") == "low").count()
+    distinct_sec_ejec = _count_distinct_in_frame(map_dataframe, "sec_ejec")
+    distinct_ubigeo6 = _count_distinct_in_frame(map_dataframe, "ubigeo6")
+    distinct_municipality_key = _count_distinct_in_frame(map_dataframe, "municipality_key")
+
+    map_sec_ejec = map_dataframe.select("sec_ejec").dropDuplicates()
+    siaf_total = siaf_sec_ejec.select("sec_ejec").dropDuplicates().count()
+    siaf_matched = (
+        0
+        if siaf_total == 0
+        else map_sec_ejec.join(
+            siaf_sec_ejec.select("sec_ejec").dropDuplicates(),
+            on="sec_ejec",
+            how="inner",
+        ).count()
+    )
+    renamu_distinct = renamu_ubigeos.select("ubigeo6").dropDuplicates()
+    renamu_total = renamu_distinct.count()
+    classification_total = classification_ubigeos.select("ubigeo6").dropDuplicates().count()
+    classification_distinct = classification_ubigeos.select("ubigeo6").dropDuplicates()
+    renamu_classification_shared = (
+        0
+        if renamu_total == 0 or classification_total == 0
+        else renamu_distinct.join(
+            classification_distinct,
+            on="ubigeo6",
+            how="inner",
+        ).count()
+    )
+
+    rows = [
+        _metric_row(
+            coverage_scope="map_sec_ejec_ubigeo",
+            source_name="integrated",
+            metric_name="total_map_records",
+            metric_value=total_map_records,
+            total_records=total_map_records,
+            matched_records=total_map_records,
+            issue_count=0,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_sec_ejec_ubigeo",
+            source_name="integrated",
+            metric_name="matched_records",
+            metric_value=matched_map_records,
+            total_records=total_map_records,
+            matched_records=matched_map_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_sec_ejec_ubigeo",
+            source_name="integrated",
+            metric_name="unmatched_records",
+            metric_value=max(total_map_records - matched_map_records, 0),
+            total_records=total_map_records,
+            matched_records=matched_map_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_sec_ejec_ubigeo",
+            source_name="integrated",
+            metric_name="match_rate",
+            metric_value=0.0 if total_map_records == 0 else matched_map_records / total_map_records,
+            total_records=total_map_records,
+            matched_records=matched_map_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="missing_siaf",
+            metric_value=missing_siaf,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_siaf, 0),
+            issue_count=missing_siaf,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="missing_sismepre",
+            metric_value=missing_sismepre,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_sismepre, 0),
+            issue_count=missing_sismepre,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="missing_renamu",
+            metric_value=missing_renamu,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_renamu, 0),
+            issue_count=missing_renamu,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="missing_classification",
+            metric_value=missing_classification,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_classification, 0),
+            issue_count=missing_classification,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="invalid_ubigeo",
+            metric_value=invalid_ubigeo,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - invalid_ubigeo, 0),
+            issue_count=invalid_ubigeo,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="ambiguous_sec_ejec",
+            metric_value=ambiguous_sec_ejec,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - ambiguous_sec_ejec, 0),
+            issue_count=ambiguous_sec_ejec,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="ambiguous_sec_ejec_ubigeo",
+            metric_value=ambiguous_sec_ejec_ubigeo,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - ambiguous_sec_ejec_ubigeo, 0),
+            issue_count=ambiguous_sec_ejec_ubigeo,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="high_confidence_records",
+            metric_value=high_confidence_records,
+            total_records=total_map_records,
+            matched_records=high_confidence_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="medium_confidence_records",
+            metric_value=medium_confidence_records,
+            total_records=total_map_records,
+            matched_records=medium_confidence_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="low_confidence_records",
+            metric_value=low_confidence_records,
+            total_records=total_map_records,
+            matched_records=low_confidence_records,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="distinct_sec_ejec",
+            metric_value=distinct_sec_ejec,
+            total_records=total_map_records,
+            matched_records=distinct_sec_ejec,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="distinct_ubigeo6",
+            metric_value=distinct_ubigeo6,
+            total_records=total_map_records,
+            matched_records=distinct_ubigeo6,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="map_quality",
+            source_name="integrated",
+            metric_name="distinct_municipality_key",
+            metric_value=distinct_municipality_key,
+            total_records=total_map_records,
+            matched_records=distinct_municipality_key,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="siaf_to_sismepre",
+            source_name="siaf_income",
+            metric_name="missing_sismepre",
+            metric_value=max(siaf_total - siaf_matched, 0),
+            total_records=siaf_total,
+            matched_records=siaf_matched,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="sismepre_to_renamu",
+            source_name="sismepre",
+            metric_name="missing_renamu",
+            metric_value=missing_renamu,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_renamu, 0),
+            issue_count=missing_renamu,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="sismepre_to_classification",
+            source_name="sismepre",
+            metric_name="missing_classification",
+            metric_value=missing_classification,
+            total_records=total_map_records,
+            matched_records=max(total_map_records - missing_classification, 0),
+            issue_count=missing_classification,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="renamu_to_classification",
+            source_name="renamu",
+            metric_name="missing_classification",
+            metric_value=max(renamu_total - renamu_classification_shared, 0),
+            total_records=renamu_total,
+            matched_records=renamu_classification_shared,
+            processed_at=processed_at_value,
+        ),
+        _metric_row(
+            coverage_scope="classification_to_renamu",
+            source_name="municipal_classification",
+            metric_name="missing_renamu",
+            metric_value=max(classification_total - renamu_classification_shared, 0),
+            total_records=classification_total,
+            matched_records=renamu_classification_shared,
+            processed_at=processed_at_value,
+        ),
+    ]
+
+    coverage = map_dataframe.sparkSession.createDataFrame(rows)
+    return coverage.select(
+        "coverage_scope",
+        "source_name",
+        "metric_name",
+        "metric_value",
+        "total_records",
+        "matched_records",
+        "unmatched_records",
+        "match_rate",
+        "issue_count",
+        "issue_rate",
+        "silver_source_name",
+        "silver_resource_key",
+        "silver_processed_at_utc",
+    )
+
+
+def build_integration_coverage(
+    spark: Any,
+    paths: IntegrationPaths,
+    limit: int | None,
+) -> Any:
+    """Construye el resumen técnico de cobertura de integración."""
+
+    map_dataframe = build_map_sec_ejec_ubigeo(spark, paths, limit)
+    siaf_sec_ejec = select_sec_ejec_from_siaf(spark, paths.siaf_root, limit)
+    renamu_ubigeos = select_distinct_ubigeos(
+        spark,
+        paths.renamu_path,
+        limit=limit,
+    )
+    classification_ubigeos = select_distinct_ubigeos(
+        spark,
+        paths.classification_path,
+        limit=limit,
+    )
+
+    return build_integration_coverage_from_frames(
+        map_dataframe=map_dataframe,
+        siaf_sec_ejec=siaf_sec_ejec,
+        renamu_ubigeos=renamu_ubigeos,
+        classification_ubigeos=classification_ubigeos,
+    )
+
+
 def build_map_sec_ejec_ubigeo_from_frames(
     *,
     sismepre: Any,
@@ -545,6 +915,9 @@ def build_dry_run_schema_summary(
         "classification_path": str(paths.classification_path),
         "output_root": str(paths.output_root),
         "output_dataset_path": str(output_dataset_path(paths.output_root, OUTPUT_DATASET_NAME)),
+        "coverage_dataset_path": str(
+            output_dataset_path(paths.output_root, OUTPUT_COVERAGE_DATASET_NAME)
+        ),
     }
 
     if paths.sismepre_path.exists():
@@ -603,37 +976,63 @@ def run_integration(
             print("=" * 80)
             print("Plan de integración Silver map_sec_ejec_ubigeo")
             print(f"Salida integrada: {paths.output_root}")
-            print(f"Dataset objetivo: {datasets[0]}")
+            print(f"Datasets objetivo: {datasets}")
             print(pformat(summary, sort_dicts=True))
             return {"datasets": datasets, "output_root": str(paths.output_root)}
 
         logger = get_logger(__name__)
-        output_path = output_dataset_path(paths.output_root, OUTPUT_DATASET_NAME)
-        dataframe = build_map_sec_ejec_ubigeo(spark, paths, limit)
-        logger.info("Escribiendo mapa técnico en %s", output_path)
-        write_dataset(dataframe, output_path, overwrite=overwrite)
+        outputs: dict[str, Any] = {}
 
-        from pyspark.sql import functions as F
+        map_dataframe = build_map_sec_ejec_ubigeo(spark, paths, limit)
+        if OUTPUT_DATASET_NAME in datasets:
+            output_path = output_dataset_path(paths.output_root, OUTPUT_DATASET_NAME)
+            logger.info("Escribiendo mapa técnico en %s", output_path)
+            write_dataset(map_dataframe, output_path, overwrite=overwrite)
+            outputs[OUTPUT_DATASET_NAME] = str(output_path)
+
+        if OUTPUT_COVERAGE_DATASET_NAME in datasets:
+            siaf_sec_ejec = select_sec_ejec_from_siaf(spark, paths.siaf_root, limit)
+            renamu_ubigeos = select_distinct_ubigeos(
+                spark,
+                paths.renamu_path,
+                limit=limit,
+            )
+            classification_ubigeos = select_distinct_ubigeos(
+                spark,
+                paths.classification_path,
+                limit=limit,
+            )
+            coverage_dataframe = build_integration_coverage_from_frames(
+                map_dataframe=map_dataframe,
+                siaf_sec_ejec=siaf_sec_ejec,
+                renamu_ubigeos=renamu_ubigeos,
+                classification_ubigeos=classification_ubigeos,
+            )
+            coverage_output_path = output_dataset_path(
+                paths.output_root,
+                OUTPUT_COVERAGE_DATASET_NAME,
+            )
+            logger.info("Escribiendo cobertura de integración en %s", coverage_output_path)
+            write_dataset(coverage_dataframe, coverage_output_path, overwrite=overwrite)
+            outputs[OUTPUT_COVERAGE_DATASET_NAME] = str(coverage_output_path)
 
         coverage_rows = [
             row.asDict()
-            for row in dataframe.groupBy("match_status")
-            .agg(F.count(F.lit(1)).alias("row_count"))
+            for row in map_dataframe.groupBy("match_status")
+            .count()
             .orderBy("match_status")
             .collect()
         ]
 
         print("=" * 80)
-        print("Integración Silver map_sec_ejec_ubigeo finalizada")
-        print(f"- {OUTPUT_DATASET_NAME}: {output_path}")
+        print("Integración Silver finalizada")
+        for dataset_name, output_path in outputs.items():
+            print(f"- {dataset_name}: {output_path}")
         print("Distribución por match_status:")
         for row in coverage_rows:
-            print(f"- {row['match_status']}: {row['row_count']}")
+            print(f"- {row['match_status']}: {row['count']}")
 
-        return {
-            "datasets": {OUTPUT_DATASET_NAME: str(output_path)},
-            "coverage": coverage_rows,
-        }
+        return {"datasets": outputs, "coverage": coverage_rows}
     finally:
         spark.stop()
 
