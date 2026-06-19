@@ -14,9 +14,16 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt requirements.txt
+COPY requirements-dev.txt requirements-dev.txt
+
+ARG INSTALL_DEV=false
 
 RUN pip install --no-cache-dir --upgrade pip \
-    && pip install --no-cache-dir -r requirements.txt
+    && if [ "$INSTALL_DEV" = "true" ]; then \
+        pip install --no-cache-dir -r requirements-dev.txt; \
+    else \
+        pip install --no-cache-dir -r requirements.txt; \
+    fi
 
 COPY . .
 

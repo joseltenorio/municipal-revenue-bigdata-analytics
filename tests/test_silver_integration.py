@@ -4,10 +4,12 @@ from __future__ import annotations
 
 import os
 import sys
+from collections.abc import Iterator
 from pathlib import Path
 
+
 import pytest
-from pyspark.sql import SparkSession
+from pyspark.sql import DataFrame, SparkSession
 from pyspark.sql.types import StringType, StructField, StructType
 
 from src.silver.integrate_municipal_sources import (
@@ -27,7 +29,7 @@ from src.silver.integrate_municipal_sources import (
 
 
 @pytest.fixture()
-def spark() -> SparkSession:
+def spark() -> Iterator[SparkSession]:
     """Crea una sesion Spark local para pruebas."""
 
     os.environ["PYSPARK_PYTHON"] = sys.executable
@@ -47,7 +49,7 @@ def spark() -> SparkSession:
         session.stop()
 
 
-def sample_frames(spark: SparkSession) -> dict[str, object]:
+def sample_frames(spark: SparkSession) -> dict[str, DataFrame]:
     """Construye DataFrames en memoria para el mapa tecnico."""
 
     schema_sec_ejec = StructType([StructField("sec_ejec", StringType(), True)])
