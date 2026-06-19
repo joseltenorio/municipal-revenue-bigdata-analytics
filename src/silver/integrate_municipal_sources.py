@@ -1,8 +1,10 @@
-"""Integración Silver controlada de fuentes municipales.
+"""Integración Silver focalizada en el mapa técnico `sec_ejec -> ubigeo6`.
 
-Este módulo prepara datasets integrables a partir de Silver MEF, Predial y
-RENAMU. No construye Gold, no calcula KPIs finales y no hace joins fila-a-fila
-entre fuentes con granularidades incompatibles.
+Este módulo construye únicamente `data/silver/integrated/map_sec_ejec_ubigeo/`.
+La salida no es Gold, no materializa hechos, no crea dimensiones de negocio y
+no incluye nombres observados por fuente. Su función es resolver llaves y dejar
+trazabilidad técnica mínima entre SIAF, SISMEPRE, RENAMU y la clasificación
+municipal oficial.
 """
 
 from __future__ import annotations
@@ -17,48 +19,17 @@ from src.common.logger import get_logger
 from src.common.paths import SILVER_DIR, get_source_silver_path
 
 
-MEF_SOURCE = "siaf_income"
-PREDIAL_SOURCE = "sismepre"
-RENAMU_SOURCE = "renamu"
-RENAMU_RESOURCE_KEY = "base_renamu_2022"
-
-INTEGRATED_DATASETS = [
-    "municipal_entity_bridge",
-    "mef_municipal_amounts",
-    "predial_entity_period",
-    "renamu_municipal_context",
-    "integration_coverage",
-]
-
-MEF_GROUP_COLUMNS = [
-    "source_dataset",
-    "silver_source_granularity",
-    "anio",
-    "mes",
-    "nivel_gobierno",
-    "sector",
-    "pliego",
-    "sec_ejec",
-    "ejecutora",
-    "fuente_financiamiento",
-    "rubro",
-    "tipo_recurso",
-    "generica",
-    "subgenerica",
-    "subgenerica_det",
-    "especifica",
-    "especifica_det",
-]
-
-PREDIAL_ENTITY_GRAIN = [
-    "ano_aplicacion",
-    "periodo",
-    "sec_ejec",
-    "ubigeo",
-    "formulario_id",
-    "ano_estadistica",
-    "mes_estadistica",
-]
+SOURCE_NAMES = {
+    "siaf": "siaf_income",
+    "sismepre": "sismepre",
+    "renamu": "renamu",
+    "classification": "municipal_classification",
+}
+SISMEPRE_RESOURCE_KEY = "esat_estadistica_atm"
+RENAMU_RESOURCE_KEY = "municipal_context"
+CLASSIFICATION_RESOURCE_KEY = "classification_2019"
+OUTPUT_DATASET_NAME = "map_sec_ejec_ubigeo"
+INTEGRATED_DATASETS = [OUTPUT_DATASET_NAME]
 
 
 class SilverIntegrationError(Exception):
@@ -67,16 +38,17 @@ class SilverIntegrationError(Exception):
 
 @dataclass(frozen=True)
 class IntegrationPaths:
-    """Rutas de entrada y salida para integración Silver."""
+    """Rutas de entrada y salida para la integración Silver."""
 
-    mef_path: Path
-    predial_path: Path
+    siaf_root: Path
+    sismepre_path: Path
     renamu_path: Path
+    classification_path: Path
     output_root: Path
 
 
 def utc_now_iso() -> str:
-    """Retorna fecha y hora actual en UTC con formato ISO."""
+    """Retorna la fecha y hora actual en UTC con formato ISO."""
 
     return datetime.now(timezone.utc).isoformat()
 
@@ -106,25 +78,6 @@ def calculate_coverage_percentage(numerator: int, denominator: int) -> float:
     return round((numerator / denominator) * 100, 4)
 
 
-def output_dataset_path(output_root: Path, dataset_name: str) -> Path:
-    """Construye la ruta de salida de un dataset integrado."""
-
-    if dataset_name not in INTEGRATED_DATASETS:
-        raise SilverIntegrationError(f"Dataset integrado no soportado: {dataset_name}")
-    return output_root / dataset_name
-
-
-def decimal_columns_by_prefix(columns: Iterable[str], prefixes: Iterable[str]) -> list[str]:
-    """Selecciona columnas decimales por prefijo técnico."""
-
-    prefix_tuple = tuple(prefixes)
-    return [
-        column
-        for column in columns
-        if column.startswith(prefix_tuple) and column.endswith("_decimal")
-    ]
-
-
 def normalize_metric_row(
     metric_name: str,
     numerator: int,
@@ -142,38 +95,37 @@ def normalize_metric_row(
     }
 
 
-def resolve_paths(output_subdir: str) -> IntegrationPaths:
-    """Resuelve rutas Silver de entrada y salida."""
+def output_dataset_path(output_root: Path, dataset_name: str) -> Path:
+    """Construye la ruta de salida del dataset integrado objetivo."""
 
-    return IntegrationPaths(
-        mef_path=get_source_silver_path(MEF_SOURCE),
-        predial_path=get_source_silver_path(PREDIAL_SOURCE),
-        renamu_path=get_source_silver_path(RENAMU_SOURCE)
-        / f"resource_key={RENAMU_RESOURCE_KEY}",
-        output_root=SILVER_DIR / output_subdir,
-    )
+    if dataset_name not in INTEGRATED_DATASETS:
+        raise SilverIntegrationError(f"Dataset integrado no soportado: {dataset_name}")
+    return output_root / dataset_name
 
 
-def validate_input_paths(paths: IntegrationPaths) -> None:
-    """Valida que existan las rutas Silver necesarias."""
+def selected_dataset_names(selected_sources: list[str] | None) -> list[str]:
+    """Resuelve datasets integrados seleccionados por CLI."""
 
-    required_paths = [paths.mef_path, paths.predial_path, paths.renamu_path]
-    missing_paths = [str(path) for path in required_paths if not path.exists()]
-    if missing_paths:
+    if not selected_sources:
+        return INTEGRATED_DATASETS
+
+    invalid = sorted(set(selected_sources) - set(INTEGRATED_DATASETS))
+    if invalid:
         raise SilverIntegrationError(
-            "Faltan rutas Silver requeridas para integración: "
-            + ", ".join(missing_paths)
+            f"Dataset integrado no soportado: {invalid}. "
+            f"Disponible: {INTEGRATED_DATASETS}."
         )
+    return selected_sources
 
 
 def resource_path(source_path: Path, resource_key: str) -> Path:
-    """Construye ruta de un recurso Silver por resource_key."""
+    """Construye ruta de un recurso Silver por `resource_key`."""
 
     return source_path / f"resource_key={resource_key}"
 
 
 def list_resource_paths(source_path: Path) -> list[Path]:
-    """Lista carpetas resource_key existentes bajo una fuente Silver."""
+    """Lista carpetas `resource_key=*` existentes bajo una fuente Silver."""
 
     return sorted(
         path
@@ -199,389 +151,376 @@ def nonblank(column_name: str) -> Any:
     return F.col(column_name).isNotNull() & (F.trim(F.col(column_name)) != "")
 
 
-def column_or_null(columns: list[str], column_name: str) -> Any:
-    """Retorna columna Spark si existe o literal nulo."""
+def trim_string_columns(dataframe: Any) -> Any:
+    """Aplica trim a todas las columnas string sin cambiar los nombres."""
+
+    from pyspark.sql import functions as F
+    from pyspark.sql.types import StringType
+
+    selected_columns = []
+
+    for field in dataframe.schema.fields:
+        column = F.col(field.name)
+        if isinstance(field.dataType, StringType):
+            selected_columns.append(F.trim(column).alias(field.name))
+        else:
+            selected_columns.append(column)
+
+    return dataframe.select(*selected_columns)
+
+
+def normalize_string_label(column_name: str) -> Any:
+    """Normaliza texto preservando nulos cuando el valor llega vacío."""
 
     from pyspark.sql import functions as F
 
-    if column_name in columns:
-        return F.col(column_name)
-    return F.lit(None)
+    return F.when(
+        F.trim(F.col(column_name).cast("string")) == "",
+        F.lit(None),
+    ).otherwise(F.trim(F.col(column_name).cast("string")))
 
 
-def first_existing_column(columns: list[str], candidates: list[str]) -> Any:
-    """Retorna la primera columna existente entre candidatas o nulo."""
+def normalize_string_code(column_name: str, *, width: int | None = None) -> Any:
+    """Normaliza códigos como string preservando ceros a la izquierda."""
 
     from pyspark.sql import functions as F
 
-    existing = [F.col(column) for column in candidates if column in columns]
-    if not existing:
-        return F.lit(None)
-    return F.coalesce(*existing)
+    cleaned = normalize_string_label(column_name)
+    if width is None:
+        return cleaned
+
+    return (
+        F.when(cleaned.isNull(), F.lit(None))
+        .when(cleaned.rlike(r"^[0-9]+$"), F.lpad(cleaned, width, "0"))
+        .otherwise(cleaned)
+    )
 
 
-def add_integration_metadata(dataframe: Any, dataset_name: str, grain: str) -> Any:
-    """Agrega metadata técnica de integración Silver."""
+def build_municipality_key(column_name: str) -> Any:
+    """Municipality key estable para el modelo objetivo."""
+
+    from pyspark.sql import functions as F
+
+    return F.col(column_name)
+
+
+def normalize_ubigeo6_from_sismepre(column_name: str) -> Any:
+    """Normaliza `ubigeo6` garantizando seis dígitos cuando el código es numérico."""
+
+    from pyspark.sql import functions as F
+
+    cleaned = normalize_string_label(column_name)
+    return (
+        F.when(cleaned.isNull(), F.lit(None))
+        .when(cleaned.rlike(r"^[0-9]+$"), F.lpad(cleaned, 6, "0"))
+        .otherwise(F.lit(None))
+    )
+
+
+def normalize_sec_ejec(column_name: str) -> Any:
+    """Normaliza `sec_ejec` como texto estable para integraciones posteriores."""
+
+    return normalize_string_code(column_name)
+
+
+def add_silver_metadata(dataframe: Any, *, processed_at: str) -> Any:
+    """Agrega metadata técnica Silver mínima al mapa técnico."""
 
     from pyspark.sql import functions as F
 
     return (
-        dataframe.withColumn("silver_integration_processed_at_utc", F.lit(utc_now_iso()))
-        .withColumn("integration_grain", F.lit(grain))
-        .withColumn("source_dataset", F.lit(dataset_name))
+        dataframe.withColumn("silver_source_name", F.lit("integrated"))
+        .withColumn("silver_resource_key", F.lit(OUTPUT_DATASET_NAME))
+        .withColumn("silver_processed_at_utc", F.lit(processed_at))
     )
 
 
-def build_renamu_context(spark: Any, paths: IntegrationPaths, limit: int | None) -> Any:
-    """Prepara contexto municipal RENAMU con columnas territoriales mínimas."""
+def resolve_paths(output_subdir: str) -> IntegrationPaths:
+    """Resuelve rutas Silver de entrada y salida."""
 
-    from pyspark.sql import functions as F
+    return IntegrationPaths(
+        siaf_root=get_source_silver_path(SOURCE_NAMES["siaf"]),
+        sismepre_path=get_source_silver_path(SOURCE_NAMES["sismepre"])
+        / f"resource_key={SISMEPRE_RESOURCE_KEY}",
+        renamu_path=get_source_silver_path(SOURCE_NAMES["renamu"])
+        / f"resource_key={RENAMU_RESOURCE_KEY}",
+        classification_path=get_source_silver_path(SOURCE_NAMES["classification"])
+        / f"resource_key={CLASSIFICATION_RESOURCE_KEY}",
+        output_root=SILVER_DIR / output_subdir,
+    )
 
-    renamu = read_parquet(spark, paths.renamu_path, limit)
-    columns = renamu.columns
-    base_columns = [
-        "anio",
-        "idmunici",
-        "ubigeo",
-        "ccdd",
-        "ccpp",
-        "ccdi",
-        "departamento",
-        "provincia",
-        "distrito",
-        "departamento_normalizado",
-        "provincia_normalizada",
-        "distrito_normalizado",
-        "tipomuni",
-        "tipomuni_int",
-        "is_valid_anio",
-        "is_valid_ubigeo",
-        "is_valid_ccdd",
-        "is_valid_ccpp",
-        "is_valid_ccdi",
-        "has_complete_territory",
-        "has_municipal_identifier",
-        "is_valid_tipomuni",
+
+def validate_input_paths(paths: IntegrationPaths) -> None:
+    """Valida que existan las rutas Silver necesarias."""
+
+    required_paths = [
+        paths.siaf_root,
+        paths.sismepre_path,
+        paths.renamu_path,
+        paths.classification_path,
     ]
-    financial_columns = decimal_columns_by_prefix(columns, ["c96", "c97"])
-    selected = existing_columns(columns, [*base_columns, *financial_columns])
-
-    return (
-        renamu.select(*selected)
-        .dropDuplicates(["ubigeo"])
-        .withColumn("silver_integration_processed_at_utc", F.lit(utc_now_iso()))
-        .withColumn("integration_grain", F.lit("ubigeo"))
-        .withColumn("source_dataset", F.lit("renamu/base_renamu_2022"))
-    )
-
-
-def select_predial_mapping(dataframe: Any, mapping_source: str) -> Any:
-    """Selecciona columnas de mapeo territorial desde un recurso predial."""
-
-    from pyspark.sql import functions as F
-
-    columns = dataframe.columns
-    return dataframe.select(
-        column_or_null(columns, "sec_ejec").cast("string").alias("sec_ejec"),
-        column_or_null(columns, "ubigeo").cast("string").alias("ubigeo"),
-        first_existing_column(columns, ["departamento", "departamento_nombre"])
-        .cast("string")
-        .alias("departamento"),
-        first_existing_column(columns, ["provincia", "provincia_nombre"])
-        .cast("string")
-        .alias("provincia"),
-        first_existing_column(columns, ["distrito", "distrito_nombre"])
-        .cast("string")
-        .alias("distrito"),
-        column_or_null(columns, "departamento_nombre")
-        .cast("string")
-        .alias("departamento_nombre"),
-        column_or_null(columns, "provincia_nombre")
-        .cast("string")
-        .alias("provincia_nombre"),
-        column_or_null(columns, "distrito_nombre")
-        .cast("string")
-        .alias("distrito_nombre"),
-        column_or_null(columns, "municipalidad_nombre")
-        .cast("string")
-        .alias("municipalidad_nombre"),
-        F.lit(mapping_source).alias("mapping_source"),
-    )
-
-
-def build_municipal_entity_bridge(
-    spark: Any,
-    paths: IntegrationPaths,
-    renamu_context: Any,
-    limit: int | None,
-) -> Any:
-    """Construye puente sec_ejec -> ubigeo sin asumir equivalencia directa."""
-
-    from pyspark.sql import functions as F
-
-    mapping_frames = []
-    for resource_key in ["entidad_estado", "esat_estadistica_atm"]:
-        path = resource_path(paths.predial_path, resource_key)
-        if path.exists():
-            mapping_frames.append(
-                select_predial_mapping(
-                    read_parquet(spark, path, limit),
-                    mapping_source=f"sismepre/{resource_key}",
-                )
-            )
-
-    if not mapping_frames:
+    missing_paths = [str(path) for path in required_paths if not path.exists()]
+    if missing_paths:
         raise SilverIntegrationError(
-            "No se encontraron recursos prediales para construir el puente."
+            "Faltan rutas Silver requeridas para construir el mapa técnico: "
+            + ", ".join(missing_paths)
         )
 
-    bridge = mapping_frames[0]
-    for frame in mapping_frames[1:]:
-        bridge = bridge.unionByName(frame, allowMissingColumns=True)
 
-    bridge = (
-        bridge.where(nonblank("sec_ejec") | nonblank("ubigeo"))
-        .dropDuplicates(
-            [
-                "sec_ejec",
-                "ubigeo",
-                "departamento",
-                "provincia",
-                "distrito",
-                "mapping_source",
-            ]
-        )
-        .withColumn("is_valid_sec_ejec", nonblank("sec_ejec"))
-        .withColumn("is_valid_ubigeo", F.col("ubigeo").rlike(r"^[0-9]{6}$"))
-    )
-
-    renamu_keys = renamu_context.select("ubigeo").dropDuplicates()
-    return (
-        bridge.join(
-            renamu_keys.withColumn("has_renamu_match", F.lit(True)),
-            on="ubigeo",
-            how="left",
-        )
-        .withColumn(
-            "has_renamu_match",
-            F.coalesce(F.col("has_renamu_match"), F.lit(False)),
-        )
-        .withColumn("silver_integration_processed_at_utc", F.lit(utc_now_iso()))
-        .withColumn("integration_grain", F.lit("sec_ejec_ubigeo_mapping"))
-    )
-
-
-def read_mef_resources(spark: Any, paths: IntegrationPaths, limit: int | None) -> Any:
-    """Lee y une recursos MEF Silver con esquema compatible."""
-
-    from pyspark.sql import functions as F
+def select_sec_ejec_from_siaf(spark: Any, siaf_root: Path, limit: int | None) -> Any:
+    """Construye el universo de `sec_ejec` observado en SIAF Silver."""
 
     frames = []
-    for path in list_resource_paths(paths.mef_path):
-        resource_key = path.name.replace("resource_key=", "")
+    for path in list_resource_paths(siaf_root):
         dataframe = read_parquet(spark, path, limit)
-        frames.append(dataframe.withColumn("source_dataset", F.lit(resource_key)))
+        if "sec_ejec" not in dataframe.columns:
+            continue
+        frames.append(
+            dataframe.select(
+                normalize_sec_ejec("sec_ejec").alias("sec_ejec"),
+            )
+        )
 
     if not frames:
-        raise SilverIntegrationError("No se encontraron recursos MEF Silver.")
+        raise SilverIntegrationError(
+            "No se encontraron recursos SIAF Silver con columna `sec_ejec`."
+        )
 
     combined = frames[0]
     for frame in frames[1:]:
         combined = combined.unionByName(frame, allowMissingColumns=True)
-    return combined
+
+    return combined.where(nonblank("sec_ejec")).dropDuplicates(["sec_ejec"])
 
 
-def build_mef_municipal_amounts(
+def select_distinct_ubigeos(
     spark: Any,
-    paths: IntegrationPaths,
+    path: Path,
+    *,
     limit: int | None,
+    column_name: str = "ubigeo6",
 ) -> Any:
-    """Agrega MEF por granularidad presupuestal controlada.
+    """Selecciona ubigeos válidos desde una tabla Silver ya curada."""
 
-    La suma es deliberada: los duplicados por llave candidata no eran exactos y
-    reflejan granularidad presupuestal más fina o cambios de atributos. No se
-    deduplican filas a ciegas.
-    """
+    dataframe = read_parquet(spark, path, limit)
+    if column_name not in dataframe.columns:
+        raise SilverIntegrationError(
+            f"La ruta Silver no tiene la columna requerida `{column_name}`: {path}"
+        )
 
-    from pyspark.sql import functions as F
-
-    mef = read_mef_resources(spark, paths, limit)
-    required = ["anio", "mes", "sec_ejec", "monto_pia_decimal", "monto_pim_decimal", "monto_recaudado_decimal"]
-    missing = missing_required_columns(mef.columns, required)
-    if missing:
-        raise SilverIntegrationError(f"MEF Silver no tiene columnas requeridas: {missing}")
-
-    group_columns = existing_columns(mef.columns, MEF_GROUP_COLUMNS)
     return (
-        mef.groupBy(*group_columns)
-        .agg(
-            F.sum("monto_pia_decimal").alias("monto_pia_total"),
-            F.sum("monto_pim_decimal").alias("monto_pim_total"),
-            F.sum("monto_recaudado_decimal").alias("monto_recaudado_total"),
-            F.count(F.lit(1)).alias("source_record_count"),
-        )
-        .withColumn("silver_integration_processed_at_utc", F.lit(utc_now_iso()))
-        .withColumn(
-            "integration_grain",
-            F.lit("source_dataset_anio_mes_sec_ejec_budget_classifier"),
-        )
+        dataframe.select(normalize_ubigeo6_from_sismepre(column_name).alias("ubigeo6"))
+        .where(nonblank("ubigeo6"))
+        .dropDuplicates(["ubigeo6"])
     )
 
 
-def build_active_responses_summary(
+def select_sismepre_base(
     spark: Any,
-    paths: IntegrationPaths,
-    limit: int | None,
-) -> Any | None:
-    """Resume respuestas prediales activas sin usarlas como tabla final cruda."""
-
-    from pyspark.sql import functions as F
-
-    path = resource_path(paths.predial_path, "respuestas")
-    if not path.exists():
-        return None
-
-    respuestas = read_parquet(spark, path, limit)
-    keys = ["ano_aplicacion", "periodo", "sec_ejec", "formulario_id"]
-    if missing_required_columns(respuestas.columns, keys):
-        return None
-
-    if "estado_registro" in respuestas.columns:
-        respuestas = respuestas.where(F.col("estado_registro") == F.lit("A"))
-
-    return respuestas.groupBy(*keys).agg(
-        F.count(F.lit(1)).alias("active_response_count")
-    )
-
-
-def build_predial_entity_period(
-    spark: Any,
-    paths: IntegrationPaths,
+    path: Path,
+    *,
     limit: int | None,
 ) -> Any:
-    """Agrega Predial preservando granularidad de entidad, periodo y formulario."""
+    """Selecciona el vínculo principal `sec_ejec + ubigeo6` desde SISMEPRE."""
 
-    from pyspark.sql import functions as F
-
-    path = resource_path(paths.predial_path, "esat_estadistica_atm")
-    if not path.exists():
-        raise SilverIntegrationError("No existe esat_estadistica_atm en Silver Predial.")
-
-    esat = read_parquet(spark, path, limit)
-    grain = existing_columns(esat.columns, PREDIAL_ENTITY_GRAIN)
-    missing = missing_required_columns(esat.columns, ["ano_aplicacion", "periodo", "sec_ejec"])
+    required_columns = ["sec_ejec", "ubigeo6"]
+    dataframe = read_parquet(spark, path, limit)
+    missing = missing_required_columns(dataframe.columns, required_columns)
     if missing:
         raise SilverIntegrationError(
-            f"Predial esat_estadistica_atm no tiene columnas requeridas: {missing}"
+            "El recurso SISMEPRE `esat_estadistica_atm` no tiene columnas "
+            f"requeridas para el mapa técnico: {missing}"
         )
 
-    numeric_columns = decimal_columns_by_prefix(esat.columns, ["mon_", "num_"])
-    aggregations = [F.sum(column).alias(f"{column}_total") for column in numeric_columns]
-    aggregations.append(F.count(F.lit(1)).alias("source_record_count"))
-
-    predial = esat.groupBy(*grain).agg(*aggregations)
-    active_responses = build_active_responses_summary(spark, paths, limit)
-    if active_responses is not None:
-        join_keys = existing_columns(predial.columns, ["ano_aplicacion", "periodo", "sec_ejec", "formulario_id"])
-        predial = predial.join(active_responses, on=join_keys, how="left").fillna(
-            {"active_response_count": 0}
-        )
-
-    return (
-        predial.withColumn("silver_integration_processed_at_utc", F.lit(utc_now_iso()))
-        .withColumn(
-            "integration_grain",
-            F.lit("ano_aplicacion_periodo_sec_ejec_formulario_ano_mes_estadistica"),
-        )
-        .withColumn("source_dataset", F.lit("sismepre/esat_estadistica_atm"))
+    selected = dataframe.select(
+        normalize_sec_ejec("sec_ejec").alias("sec_ejec"),
+        normalize_ubigeo6_from_sismepre("ubigeo6").alias("ubigeo6"),
     )
 
-
-def metric_count(dataframe: Any) -> int:
-    """Cuenta filas de un DataFrame Spark como entero."""
-
-    return int(dataframe.count())
+    return selected.where(nonblank("sec_ejec") & nonblank("ubigeo6"))
 
 
-def build_integration_coverage(
-    spark: Any,
-    bridge: Any,
-    mef_amounts: Any,
-    renamu_context: Any,
-) -> Any:
-    """Construye métricas de cobertura de cruce."""
+def build_status_columns(dataframe: Any) -> Any:
+    """Deriva flags y estado técnico final del mapa."""
 
     from pyspark.sql import functions as F
 
-    predial_entities = bridge.where(nonblank("sec_ejec")).select("sec_ejec").distinct()
-    valid_ubigeo_entities = (
-        bridge.where(nonblank("sec_ejec") & F.col("is_valid_ubigeo"))
-        .select("sec_ejec")
-        .distinct()
-    )
-    renamu_matched_entities = (
-        bridge.where(nonblank("sec_ejec") & F.col("has_renamu_match"))
-        .select("sec_ejec")
-        .distinct()
-    )
-    mef_entities = mef_amounts.where(nonblank("sec_ejec")).select("sec_ejec").distinct()
-    bridge_entities = bridge.where(nonblank("sec_ejec")).select("sec_ejec").distinct()
-    mef_with_bridge = mef_entities.join(bridge_entities, on="sec_ejec", how="inner")
-    mef_without_bridge = mef_entities.join(bridge_entities, on="sec_ejec", how="left_anti")
-    renamu_ubigeos = renamu_context.where(nonblank("ubigeo")).select("ubigeo").distinct()
-    predial_ubigeos = bridge.where(F.col("is_valid_ubigeo")).select("ubigeo").distinct()
-    renamu_without_predial = renamu_ubigeos.join(
-        predial_ubigeos,
-        on="ubigeo",
-        how="left_anti",
+    return (
+        dataframe.withColumn("municipality_key", build_municipality_key("ubigeo6"))
+        .withColumn("has_siaf_match", F.coalesce(F.col("has_siaf_match"), F.lit(False)))
+        .withColumn(
+            "has_sismepre_match",
+            F.coalesce(F.col("has_sismepre_match"), F.lit(False)),
+        )
+        .withColumn("has_renamu_match", F.coalesce(F.col("has_renamu_match"), F.lit(False)))
+        .withColumn(
+            "has_classification_match",
+            F.coalesce(F.col("has_classification_match"), F.lit(False)),
+        )
+        .withColumn(
+            "match_status",
+            F.when(F.col("is_invalid_ubigeo"), F.lit("invalid_ubigeo"))
+            .when(F.col("is_ambiguous_sec_ejec_ubigeo"), F.lit("ambiguous_sec_ejec_ubigeo"))
+            .when(F.col("is_ambiguous_sec_ejec"), F.lit("ambiguous_sec_ejec"))
+            .when(~F.col("has_siaf_match"), F.lit("missing_siaf"))
+            .when(~F.col("has_renamu_match"), F.lit("missing_renamu"))
+            .when(~F.col("has_classification_match"), F.lit("missing_classification"))
+            .when(~F.col("has_sismepre_match"), F.lit("missing_sismepre"))
+            .otherwise(F.lit("matched")),
+        )
+        .withColumn(
+            "confidence_level",
+            F.when(F.col("match_status") == "matched", F.lit("high"))
+            .when(
+                F.col("match_status").isin(
+                    "missing_siaf",
+                    "missing_renamu",
+                    "missing_classification",
+                    "missing_sismepre",
+                ),
+                F.lit("medium"),
+            )
+            .otherwise(F.lit("low")),
+        )
+        .withColumn(
+            "issue_reason",
+            F.when(F.col("match_status") == "matched", F.lit("ok"))
+            .when(
+                F.col("match_status") == "missing_siaf",
+                F.lit("sec_ejec_not_found_in_siaf"),
+            )
+            .when(
+                F.col("match_status") == "missing_renamu",
+                F.lit("ubigeo_not_found_in_renamu"),
+            )
+            .when(
+                F.col("match_status") == "missing_classification",
+                F.lit("ubigeo_not_found_in_classification"),
+            )
+            .when(
+                F.col("match_status") == "missing_sismepre",
+                F.lit("sec_ejec_not_found_in_sismepre"),
+            )
+            .when(
+                F.col("match_status") == "ambiguous_sec_ejec",
+                F.lit("sec_ejec_maps_to_multiple_ubigeo6"),
+            )
+            .when(
+                F.col("match_status") == "ambiguous_sec_ejec_ubigeo",
+                F.lit("duplicated_sec_ejec_ubigeo"),
+            )
+            .otherwise(F.lit("invalid_ubigeo_format")),
+        )
     )
 
-    total_predial_entities = metric_count(predial_entities)
-    total_mef_entities = metric_count(mef_entities)
-    total_renamu_ubigeos = metric_count(renamu_ubigeos)
 
-    rows = [
-        normalize_metric_row(
-            "total_predial_sec_ejec_entities",
-            total_predial_entities,
-            total_predial_entities,
-            "Entidades prediales con sec_ejec en el puente.",
-        ),
-        normalize_metric_row(
-            "predial_entities_with_valid_ubigeo",
-            metric_count(valid_ubigeo_entities),
-            total_predial_entities,
-            "Entidades prediales con ubigeo válido.",
-        ),
-        normalize_metric_row(
-            "predial_entities_with_renamu_match",
-            metric_count(renamu_matched_entities),
-            total_predial_entities,
-            "Entidades prediales que cruzan con RENAMU por ubigeo.",
-        ),
-        normalize_metric_row(
-            "mef_sec_ejec_with_bridge",
-            metric_count(mef_with_bridge),
-            total_mef_entities,
-            "Sec_ejec MEF que cruza con el puente municipal.",
-        ),
-        normalize_metric_row(
-            "mef_sec_ejec_without_bridge",
-            metric_count(mef_without_bridge),
-            total_mef_entities,
-            "Sec_ejec MEF sin correspondencia en el puente municipal.",
-        ),
-        normalize_metric_row(
-            "renamu_ubigeos_without_predial",
-            metric_count(renamu_without_predial),
-            total_renamu_ubigeos,
-            "Ubigeos RENAMU sin presencia en el puente predial.",
-        ),
+def build_map_sec_ejec_ubigeo_from_frames(
+    *,
+    sismepre: Any,
+    siaf_sec_ejec: Any,
+    renamu_ubigeos: Any,
+    classification_ubigeos: Any,
+    processed_at: str | None = None,
+) -> Any:
+    """Construye el mapa técnico a partir de DataFrames ya cargados."""
+
+    from pyspark.sql import functions as F
+
+    source_counts = (
+        sismepre.groupBy("sec_ejec", "ubigeo6")
+        .agg(F.count(F.lit(1)).alias("source_pair_count"))
+    )
+    sec_ejec_counts = (
+        sismepre.groupBy("sec_ejec")
+        .agg(F.countDistinct("ubigeo6").alias("distinct_ubigeo6_count"))
+    )
+    base = (
+        sismepre.dropDuplicates(["sec_ejec", "ubigeo6"])
+        .join(source_counts, on=["sec_ejec", "ubigeo6"], how="left")
+        .join(sec_ejec_counts, on="sec_ejec", how="left")
+        .withColumn("has_sismepre_match", F.lit(True))
+        .join(siaf_sec_ejec.withColumn("has_siaf_match", F.lit(True)), on="sec_ejec", how="left")
+        .join(
+            renamu_ubigeos.withColumn("has_renamu_match", F.lit(True)),
+            on="ubigeo6",
+            how="left",
+        )
+        .join(
+            classification_ubigeos.withColumn("has_classification_match", F.lit(True)),
+            on="ubigeo6",
+            how="left",
+        )
+        .withColumn(
+            "is_invalid_ubigeo",
+            F.col("ubigeo6").isNull() | ~F.col("ubigeo6").rlike(r"^[0-9]{6}$"),
+        )
+        .withColumn(
+            "is_ambiguous_sec_ejec_ubigeo",
+            F.coalesce(F.col("source_pair_count") > F.lit(1), F.lit(False)),
+        )
+        .withColumn(
+            "is_ambiguous_sec_ejec",
+            F.coalesce(F.col("distinct_ubigeo6_count") > F.lit(1), F.lit(False)),
+        )
+    )
+
+    base = build_status_columns(base)
+
+    final_columns = [
+        "sec_ejec",
+        "ubigeo6",
+        "municipality_key",
+        "has_siaf_match",
+        "has_sismepre_match",
+        "has_renamu_match",
+        "has_classification_match",
+        "match_status",
+        "confidence_level",
+        "issue_reason",
+        "silver_source_name",
+        "silver_resource_key",
+        "silver_processed_at_utc",
     ]
 
-    return spark.createDataFrame(rows).withColumn(
-        "silver_integration_processed_at_utc",
-        F.lit(utc_now_iso()),
+    mapped = add_silver_metadata(
+        base.select(*final_columns[:-3]),
+        processed_at=processed_at or utc_now_iso(),
+    )
+
+    mapped = mapped.select(*final_columns)
+
+    # El contrato objetivo exige ubigeo de 6 dígitos; los casos inválidos se
+    # excluyen de la salida física y quedan fuera del mapa técnico.
+    return mapped.where(
+        F.col("ubigeo6").isNotNull() & F.col("ubigeo6").rlike(r"^[0-9]{6}$")
+    )
+
+
+def build_map_sec_ejec_ubigeo(
+    spark: Any,
+    paths: IntegrationPaths,
+    limit: int | None,
+) -> Any:
+    """Construye el mapa técnico `sec_ejec -> ubigeo6 -> municipality_key`."""
+
+    sismepre = select_sismepre_base(spark, paths.sismepre_path, limit=limit)
+    siaf_sec_ejec = select_sec_ejec_from_siaf(spark, paths.siaf_root, limit)
+    renamu_ubigeos = select_distinct_ubigeos(
+        spark,
+        paths.renamu_path,
+        limit=limit,
+    )
+    classification_ubigeos = select_distinct_ubigeos(
+        spark,
+        paths.classification_path,
+        limit=limit,
+    )
+
+    return build_map_sec_ejec_ubigeo_from_frames(
+        sismepre=sismepre,
+        siaf_sec_ejec=siaf_sec_ejec,
+        renamu_ubigeos=renamu_ubigeos,
+        classification_ubigeos=classification_ubigeos,
     )
 
 
@@ -592,70 +531,46 @@ def write_dataset(dataframe: Any, output_path: Path, overwrite: bool) -> None:
     dataframe.write.mode(mode).option("compression", "snappy").parquet(str(output_path))
 
 
-def selected_dataset_names(selected_sources: list[str] | None) -> list[str]:
-    """Resuelve datasets integrados seleccionados por CLI."""
+def build_dry_run_schema_summary(
+    spark: Any,
+    paths: IntegrationPaths,
+    limit: int | None,
+) -> dict[str, Any]:
+    """Muestra columnas y conteos clave sin ejecutar la escritura."""
 
-    if not selected_sources:
-        return INTEGRATED_DATASETS
-
-    invalid = sorted(set(selected_sources) - set(INTEGRATED_DATASETS))
-    if invalid:
-        raise SilverIntegrationError(
-            f"Datasets integrados no soportados: {invalid}. "
-            f"Disponibles: {INTEGRATED_DATASETS}."
-        )
-    return selected_sources
-
-
-def print_dry_run(paths: IntegrationPaths, datasets: list[str]) -> None:
-    """Imprime plan de integración sin escribir Parquet."""
-
-    print("=" * 80)
-    print("Plan de integración Silver municipal")
-    print(f"MEF Silver: {paths.mef_path} | existe={paths.mef_path.exists()}")
-    print(f"Predial Silver: {paths.predial_path} | existe={paths.predial_path.exists()}")
-    print(f"RENAMU Silver: {paths.renamu_path} | existe={paths.renamu_path.exists()}")
-    print(f"Salida integrada: {paths.output_root}")
-    print("Datasets a crear:")
-    for dataset_name in datasets:
-        print(f"- {dataset_name}: {output_dataset_path(paths.output_root, dataset_name)}")
-    print("Dry-run finalizado. No se escribió data/silver/integrated.")
-
-
-def build_dry_run_schema_summary(spark: Any, paths: IntegrationPaths) -> None:
-    """Muestra columnas clave disponibles sin ejecutar integración real."""
-
-    inputs = {
-        "predial/entidad_estado": resource_path(paths.predial_path, "entidad_estado"),
-        "predial/esat_estadistica_atm": resource_path(
-            paths.predial_path,
-            "esat_estadistica_atm",
-        ),
-        "predial/respuestas": resource_path(paths.predial_path, "respuestas"),
-        "renamu/base_renamu_2022": paths.renamu_path,
+    summary: dict[str, Any] = {
+        "siaf_root": str(paths.siaf_root),
+        "sismepre_path": str(paths.sismepre_path),
+        "renamu_path": str(paths.renamu_path),
+        "classification_path": str(paths.classification_path),
+        "output_root": str(paths.output_root),
+        "output_dataset_path": str(output_dataset_path(paths.output_root, OUTPUT_DATASET_NAME)),
     }
-    for label, path in inputs.items():
-        if not path.exists():
-            print(f"- {label}: ruta no existe")
-            continue
-        columns = spark.read.parquet(str(path)).columns
-        keys = [
-            column
-            for column in [
-                "sec_ejec",
-                "ubigeo",
-                "ano_aplicacion",
-                "periodo",
-                "formulario_id",
-                "ano_estadistica",
-                "mes_estadistica",
-                "estado_registro",
-                "idmunici",
-                "tipomuni",
-            ]
-            if column in columns
-        ]
-        print(f"- {label}: columnas clave disponibles={keys}")
+
+    if paths.sismepre_path.exists():
+        sismepre = read_parquet(spark, paths.sismepre_path, limit)
+        summary["sismepre_row_count"] = sismepre.count()
+        summary["sismepre_columns"] = existing_columns(
+            sismepre.columns,
+            ["sec_ejec", "ubigeo6", "anio_aplicacion", "periodo", "formulario_id"],
+        )
+
+    if paths.renamu_path.exists():
+        renamu = read_parquet(spark, paths.renamu_path, limit)
+        summary["renamu_columns"] = existing_columns(renamu.columns, ["ubigeo6", "idmunici"])
+
+    if paths.classification_path.exists():
+        classification = read_parquet(spark, paths.classification_path, limit)
+        summary["classification_columns"] = existing_columns(
+            classification.columns,
+            ["ubigeo6", "tipo_clasificacion_municipal"],
+        )
+
+    if paths.siaf_root.exists():
+        sec_ejec = select_sec_ejec_from_siaf(spark, paths.siaf_root, limit)
+        summary["siaf_sec_ejec_count"] = sec_ejec.count()
+
+    return summary
 
 
 def run_integration(
@@ -666,7 +581,7 @@ def run_integration(
     limit: int | None = None,
     output_subdir: str = "integrated",
 ) -> dict[str, Any]:
-    """Ejecuta o planifica integración Silver municipal."""
+    """Ejecuta o planifica la integración Silver del mapa técnico."""
 
     from src.common.spark_session import build_spark_session
 
@@ -675,66 +590,50 @@ def run_integration(
     datasets = selected_dataset_names(selected_sources)
 
     spark = build_spark_session(
-        app_name="SilverMunicipalIntegration",
+        app_name="SilverSecEjecUbigeoMapping",
         master="local[2]",
         extra_configs={"spark.sql.shuffle.partitions": "4"},
     )
 
     try:
         if dry_run:
-            print_dry_run(paths, datasets)
-            build_dry_run_schema_summary(spark, paths)
+            from pprint import pformat
+
+            summary = build_dry_run_schema_summary(spark, paths, limit)
+            print("=" * 80)
+            print("Plan de integración Silver map_sec_ejec_ubigeo")
+            print(f"Salida integrada: {paths.output_root}")
+            print(f"Dataset objetivo: {datasets[0]}")
+            print(pformat(summary, sort_dicts=True))
             return {"datasets": datasets, "output_root": str(paths.output_root)}
 
         logger = get_logger(__name__)
-        outputs: dict[str, Any] = {}
-        renamu_context = build_renamu_context(spark, paths, limit)
-        bridge = build_municipal_entity_bridge(spark, paths, renamu_context, limit)
-        mef_amounts = build_mef_municipal_amounts(spark, paths, limit)
-        predial_period = build_predial_entity_period(spark, paths, limit)
-        coverage = build_integration_coverage(
-            spark,
-            bridge=bridge,
-            mef_amounts=mef_amounts,
-            renamu_context=renamu_context,
-        )
+        output_path = output_dataset_path(paths.output_root, OUTPUT_DATASET_NAME)
+        dataframe = build_map_sec_ejec_ubigeo(spark, paths, limit)
+        logger.info("Escribiendo mapa técnico en %s", output_path)
+        write_dataset(dataframe, output_path, overwrite=overwrite)
 
-        built = {
-            "municipal_entity_bridge": bridge,
-            "mef_municipal_amounts": mef_amounts,
-            "predial_entity_period": predial_period,
-            "renamu_municipal_context": renamu_context,
-            "integration_coverage": coverage,
-        }
-
-        for dataset_name in datasets:
-            output_path = output_dataset_path(paths.output_root, dataset_name)
-            logger.info("Escribiendo dataset integrado %s en %s", dataset_name, output_path)
-            write_dataset(built[dataset_name], output_path, overwrite=overwrite)
-            outputs[dataset_name] = str(output_path)
-
-        print("=" * 80)
-        print("Integración Silver municipal finalizada")
-        for dataset_name, output_path in outputs.items():
-            print(f"- {dataset_name}: {output_path}")
+        from pyspark.sql import functions as F
 
         coverage_rows = [
             row.asDict()
-            for row in coverage.select(
-                "metric_name",
-                "numerator",
-                "denominator",
-                "coverage_percentage",
-            ).collect()
+            for row in dataframe.groupBy("match_status")
+            .agg(F.count(F.lit(1)).alias("row_count"))
+            .orderBy("match_status")
+            .collect()
         ]
-        print("Cobertura de integración:")
-        for row in coverage_rows:
-            print(
-                f"- {row['metric_name']}: {row['numerator']}/"
-                f"{row['denominator']} ({row['coverage_percentage']}%)"
-            )
 
-        return {"datasets": outputs, "coverage": coverage_rows}
+        print("=" * 80)
+        print("Integración Silver map_sec_ejec_ubigeo finalizada")
+        print(f"- {OUTPUT_DATASET_NAME}: {output_path}")
+        print("Distribución por match_status:")
+        for row in coverage_rows:
+            print(f"- {row['match_status']}: {row['row_count']}")
+
+        return {
+            "datasets": {OUTPUT_DATASET_NAME: str(output_path)},
+            "coverage": coverage_rows,
+        }
     finally:
         spark.stop()
 
@@ -743,7 +642,7 @@ def parse_args() -> argparse.Namespace:
     """Procesa argumentos CLI."""
 
     parser = argparse.ArgumentParser(
-        description="Integra datasets Silver municipales por llaves geográficas controladas."
+        description="Construye el mapa técnico sec_ejec -> ubigeo6 -> municipality_key."
     )
     parser.add_argument(
         "--dry-run",
@@ -753,13 +652,13 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--overwrite",
         action="store_true",
-        help="Sobrescribe salidas integradas existentes.",
+        help="Sobrescribe la salida integrada existente.",
     )
     parser.add_argument(
         "--source",
         action="append",
         default=None,
-        help="Dataset integrado a crear. Puede repetirse.",
+        help="Dataset integrado a crear. Solo se admite map_sec_ejec_ubigeo.",
     )
     parser.add_argument(
         "--limit",
@@ -770,7 +669,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--output-subdir",
         default="integrated",
-        help="Subcarpeta bajo data/silver para salidas integradas.",
+        help="Subcarpeta bajo data/silver para la salida integrada.",
     )
     return parser.parse_args()
 

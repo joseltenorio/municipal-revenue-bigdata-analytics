@@ -474,17 +474,11 @@ Salidas locales no versionables:
 
 ```text
 data/silver/integrated/map_sec_ejec_ubigeo/
-data/silver/integrated/siaf_municipal_amounts/
-data/silver/integrated/municipal_context/
-data/silver/integrated/integration_coverage/
 ```
 
 | Dataset | Propósito |
 | --- | --- |
 | `map_sec_ejec_ubigeo` | Mapa técnico para resolver `sec_ejec -> ubigeo6 -> municipality_key`. |
-| `siaf_municipal_amounts` | Montos MEF agregados por recurso, año, mes y entidad. |
-| `municipal_context` | Contexto RENAMU seleccionado para negocio. |
-| `integration_coverage` | Métricas técnicas de cobertura y calidad del cruce. |
 
 ## Relación con Gold y Power BI
 
@@ -518,7 +512,6 @@ La capa Gold contiene dimensiones, hechos, marts y auditoría separados.
 
 - `gold.audit_quality_results`
 - `gold.audit_dataset_summary`
-- `gold.audit_municipality_name_comparison`
 
 ## Legacy explícito
 

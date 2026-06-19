@@ -49,7 +49,7 @@ El objetivo no es forzar joins de negocio, sino detectar riesgos antes del Gold 
 
 ## Modelo separado de auditoría
 
-La auditoría Gold debe documentarse con al menos tres datasets:
+La auditoría Gold debe documentarse con dos datasets:
 
 ### `audit_quality_results`
 
@@ -87,28 +87,6 @@ Campos mínimos:
 - `pass_count`
 - `warning_count`
 - `fail_count`
-- `processed_at_utc`
-
-### `audit_municipality_name_comparison`
-
-Comparación técnica y similitud de nombres observados por fuente vs nombre estándar.
-
-Campos mínimos:
-
-- `sec_ejec`
-- `ubigeo6`
-- `municipality_key`
-- `nombre_estandar`
-- `nombre_siaf_observado`
-- `nombre_sismepre_observado`
-- `nombre_renamu_observado`
-- `siaf_vs_estandar_match`
-- `sismepre_vs_estandar_match`
-- `siaf_vs_sismepre_match`
-- `similarity_score_siaf`
-- `similarity_score_sismepre`
-- `issue_type`
-- `issue_reason`
 - `processed_at_utc`
 
 ## Interpretación esperada

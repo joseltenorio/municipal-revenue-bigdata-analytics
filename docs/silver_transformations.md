@@ -161,17 +161,12 @@ Salidas locales no versionables:
 
 ```text
 data/silver/integrated/map_sec_ejec_ubigeo/
-data/silver/integrated/siaf_municipal_amounts/
-data/silver/integrated/municipal_context/
-data/silver/integrated/integration_coverage/
 ```
 
 Las salidas Silver integradas se documentan con un objetivo claro:
 
 - `map_sec_ejec_ubigeo` resuelve la trazabilidad técnica
-- `siaf_municipal_amounts` agrega SIAF a una granularidad utilizable
-- `municipal_context` conserva contexto RENAMU seleccionado
-- `integration_coverage` mide cobertura y calidad del cruce
+- la validación contra SIAF, RENAMU y clasificación se resuelve dentro del propio mapa
 
 ## Decisiones cerradas para Gold
 
@@ -196,7 +191,7 @@ Estas referencias se conservan sólo como historia o transición anterior:
 - `municipal_entity_bridge`
 - `mef_municipal_amounts`
 - `renamu_full`
-- `municipal_context`
+- `renamu_municipal_context`
 - `dim_municipality_context`
 - `fact_municipal_income_execution`
 - `fact_predial_compliance`
