@@ -74,3 +74,30 @@ Restricciones:
 - No se recomienda cargar `fact_siaf_income` completa.
 - No se recomienda cargar `mart_municipal_revenue_overview` cruda si conserva millones de filas.
 - No se deben reintroducir tablas legacy ni filtros manuales para excluir entidades no municipales.
+
+## Runner local y fallback operativo
+
+Para refrescar el pipeline antes de abrir Power BI Desktop, la ruta recomendada pasa a ser:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite
+```
+
+Si solo se necesita recomponer Gold y luego consumir fallback CSV/dashboard-ready:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage gold --overwrite
+```
+
+Si `python-app` no dispone de `beeline`, la etapa Hive del runner fallarÃ¡ con mensaje claro. En ese caso:
+
+1. Ejecutar el runner con `--skip-hive` si solo se quiere refrescar Parquet.
+2. Aplicar DDL manualmente desde `hive-server`.
+
+Comandos manuales de fallback:
+
+```powershell
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_databases.sql
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_silver_external_tables.sql
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_gold_external_tables.sql
+```

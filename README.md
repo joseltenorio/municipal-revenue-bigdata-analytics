@@ -109,3 +109,28 @@ Datasets principales:
 - `municipal_context_dashboard`
 - `municipal_performance_dashboard`
 - `audit_*_dashboard`
+
+## Runner local del pipeline
+
+El proyecto ahora incluye un runner local para refresco ordenado del pipeline:
+
+```powershell
+python -m src.pipeline.run_local_pipeline --stage all --overwrite
+```
+
+Comportamiento clave:
+
+- `--stage all` corre por defecto desde Silver, luego integration, Gold, Hive y validate.
+- `--include-bronze` agrega Bronze al comienzo de `all`.
+- `--from-stage gold` permite refrescar desde una etapa concreta hacia adelante.
+- `--skip-hive` omite generaciÃ³n/aplicaciÃ³n de DDL Hive y la validaciÃ³n Hive.
+- `--skip-validate` omite la validaciÃ³n final.
+
+Ejemplos:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite --include-bronze
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage gold --overwrite
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage validate
+```

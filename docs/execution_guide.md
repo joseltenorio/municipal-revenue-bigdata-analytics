@@ -740,3 +740,63 @@ El entorno local queda listo cuando:
 - Las capas requeridas existen localmente en `data/`.
 - `SHOW TABLES IN gold` lista tablas cuando Gold y DDL Hive ya fueron generados.
 - Power BI puede conectarse a Hive por ODBC o usar fallback CSV.
+
+## Runner local recomendado
+
+El proyecto ahora incluye un runner local para ejecutar el pipeline completo de forma ordenada:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite
+```
+
+Comportamiento recomendado:
+
+- `--stage all` corre por defecto: Silver, integration, Gold, Hive y validate.
+- Bronze no se ejecuta por defecto en `all`.
+- `--include-bronze` extiende `all` para incluir Bronze al inicio.
+
+Ejemplos principales:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite --include-bronze
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite --skip-hive
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage gold --overwrite
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage validate
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --from-stage silver --overwrite
+```
+
+Opciones utiles:
+
+- `--skip-hive` omite generaciÃ³n/aplicaciÃ³n de DDL Hive y la validaciÃ³n Hive.
+- `--skip-validate` omite la etapa final de validaciÃ³n.
+- `--continue-on-error` ejecuta todos los pasos y reporta fallos al final.
+- `--dry-run` solo lista los pasos planificados y no ejecuta nada.
+
+Ruta sugerida antes de abrir Power BI Desktop:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite
+```
+
+Ruta rÃ¡pida desde Gold cuando Bronze/Silver ya existen:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage gold --overwrite
+```
+
+## Fallback manual para Hive
+
+La etapa Hive del runner intenta usar `beeline` dentro del mismo entorno. Si `python-app` no tiene `beeline`, el runner falla con mensaje explÃ­cito y se debe usar el fallback manual desde `hive-server`:
+
+```powershell
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_databases.sql
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_silver_external_tables.sql
+docker compose exec hive-server beeline -u jdbc:hive2://localhost:10000 -f /app/sql/hive/create_gold_external_tables.sql
+```
+
+Si solo se requiere refrescar Parquet y no registrar tablas Hive en ese momento:
+
+```powershell
+docker compose run --rm python-app python -m src.pipeline.run_local_pipeline --stage all --overwrite --skip-hive
+```
