@@ -1,222 +1,236 @@
-# Modelo Semántico y Diseño de Reporte Power BI
+# Modelo semántico Power BI objetivo
 
 ## Propósito
 
-Este documento define el modelo semántico y el diseño detallado de las páginas del reporte de **Power BI Desktop** para el proyecto de analítica de ingresos municipales. El objetivo es servir como guía de implementación directa para construir el dashboard final basado en las tablas Gold reales catalogadas en Apache Hive.
+Este documento define el modelo semántico objetivo de Power BI para el proyecto `municipal-revenue-bigdata-analytics`.
 
----
+La meta es consumir la capa Gold dimensional final sin exponer tablas técnicas innecesarias. El modelo debe quedar orientado a negocio, con dimensiones claras, hechos estables, marts ejecutivos y un bloque de auditoría separado.
 
-## 1. Decisiones de Modelado Semántico
+## Regla base
 
-Para optimizar el rendimiento y simplificar el diseño en Power BI, el modelo prioriza el uso de **marts analíticos Gold planos** en lugar de relaciones complejas. Esto reduce el uso de relaciones Many-to-Many, previene duplicidades y disminuye el consumo de memoria en el motor Vertipaq.
+Power BI debe consumir preferentemente:
 
-### Componentes del Modelo Semántico:
+- `mart_municipal_revenue_overview`
+- `mart_predial_statistics_overview`
+- `mart_municipal_context`
+- `mart_territorial_summary`
+- `dim_municipality`
+- `dim_geography`
+- `dim_time`
+- `dim_sismepre_period`
+- `dim_renamu_context`
+- `audit_quality_results`
+- `audit_dataset_summary`
 
-1. **Dimensiones Físicas Principales (Tablas de Búsqueda):**
-   * [dim_geography](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_geography): Filtro jerárquico geográfico (Departamento -> Provincia -> Distrito) mediante llave territorial `ubigeo`.
-   * [dim_time](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_time): Calendario financiero para ingresos (`anio`, `mes`).
-   * [dim_municipality](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_municipality): Puente relacional ejecutor-territorio (`sec_ejec` <-> `ubigeo`).
-   * [dim_sismepre_period](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/dim_sismepre_period): Calendario especializado para periodos sismeprees.
-   * [dim_municipality_context](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_municipality_context): Atributos y tipo de municipalidad.
+No debe depender de:
 
-2. **Dimensión Derivada Presupuestal (`dim_budget_classifier`):**
-   * Los clasificadores atómicos presupuestales residen físicamente en `fact_municipal_income_execution`. Para evitar sobrecargar la tabla de hechos, se recomienda **derivar en Power Query** una dimensión llamada `dim_budget_classifier` haciendo una referencia a la fact y removiendo duplicados en las columnas: `generica`, `subgenerica`, `subgenerica_det`, `especifica`, `especifica_det`. Esto normaliza la jerarquía de ingresos sin alterar Hive ni Spark.
+- `map_sec_ejec_ubigeo` como tabla de análisis normal
+- `municipal_entity_bridge`
+- `mef_municipal_amounts`
+- `renamu_full`
+- `renamu_municipal_context`
+- `fact_municipal_income_execution`
 
-3. **Uso de Tablas por Propósito:**
-   * **Marts Planos:** Usados para las páginas ejecutivas y agregadas (`mart_municipal_revenue_overview`, `mart_sismepre_compliance_overview`, `mart_sismepre_ranking`, `mart_municipal_capacity`, `mart_territorial_context`).
-   * **Hechos Detallados (Facts):** `fact_municipal_income_execution` se reserva exclusivamente para páginas de desglose analítico presupuestal por partida.
-   * **Hechos Técnicos:** `fact_*_integration_coverage` se reservan para la página técnica de diagnóstico y cobertura.
-   * *Advertencia:* No combinar en el mismo visual campos de hechos y de marts que sumaricen la misma métrica (ej. PIA en la fact y en el mart) para prevenir doble conteo.
+## Diseño del modelo
 
----
+### Dimensiones
 
-## 2. Definición de Medidas DAX
+1. `dim_municipality`
+2. `dim_geography`
+3. `dim_time`
+4. `dim_sismepre_period`
+5. `dim_renamu_context`
 
-Todas las medidas deben ser creadas utilizando los nombres reales de las columnas físicas:
+### Hechos
 
-```dax
--- ==========================================
--- MEDIDAS DE INGRESOS MUNICIPALES (MEF)
--- ==========================================
-PIA Total = SUM(mart_municipal_revenue_overview[monto_pia_total])
+1. `fact_siaf_income`
+2. `fact_predial_statistics`
 
-PIM Total = SUM(mart_municipal_revenue_overview[monto_pim_total])
+### Marts
 
-Recaudación Total = SUM(mart_municipal_revenue_overview[monto_recaudado_total])
+1. `mart_municipal_revenue_overview`
+2. `mart_predial_statistics_overview`
+3. `mart_municipal_context`
+4. `mart_territorial_summary`
 
-Ratio Recaudación PIM = DIVIDE([Recaudación Total], [PIM Total], 0)
+### Auditoría
 
-Ratio Recaudación PIA = DIVIDE([Recaudación Total], [PIA Total], 0)
+1. `audit_quality_results`
+2. `audit_dataset_summary`
 
-Recaudación Año Anterior = 
-CALCULATE(
-    [Recaudación Total],
-    FILTER(
-        ALL(dim_time),
-        dim_time[anio] = MAX(dim_time[anio]) - 1 &&
-        dim_time[mes] = MAX(dim_time[mes])
-    )
-)
+## Relaciones recomendadas
 
-Variación Recaudación YoY = [Recaudación Total] - [Recaudación Año Anterior]
-
-Variación Recaudación YoY % = DIVIDE([Variación Recaudación YoY], [Recaudación Año Anterior], 0)
-
--- ==========================================
--- MEDIDAS DEL IMPUESTO PREDIAL
--- ==========================================
-Recaudación SISMEPRE = SUM(mart_sismepre_compliance_overview[sismepre_collection_total])
-
-Emisión SISMEPRE = SUM(mart_sismepre_compliance_overview[sismepre_issue_total])
-
-Saldo SISMEPRE = SUM(mart_sismepre_compliance_overview[sismepre_balance_total])
-
-Efectividad SISMEPRE = DIVIDE([Recaudación SISMEPRE], [Emisión SISMEPRE], 0)
-
-Ranking Recaudación = 
-RANKX(
-    ALL(dim_municipality),
-    [Recaudación Total],
-    ,
-    DESC,
-    Dense
-)
-
-Ranking Ejecución = 
-RANKX(
-    ALL(dim_municipality),
-    [Ratio Recaudación PIM],
-    ,
-    DESC,
-    Dense
-)
-
-Ranking Efectividad SISMEPRE = 
-RANKX(
-    ALL(dim_geography),
-    [Efectividad SISMEPRE],
-    ,
-    DESC,
-    Dense
-)
-
--- ==========================================
--- MEDIDAS DE CAPACIDADES INSTITUCIONALES (RENAMU)
--- ==========================================
-Municipalidades con Internet = 
-CALCULATE(
-    COUNTROWS(mart_municipal_capacity),
-    mart_municipal_capacity[tiene_internet] = TRUE
-)
-
-Municipalidades con Catastro = 
-CALCULATE(
-    COUNTROWS(mart_municipal_capacity),
-    mart_municipal_capacity[tiene_catastro] = TRUE
-)
-
-Municipalidades con Sistema de Rentas = 
-CALCULATE(
-    COUNTROWS(mart_municipal_capacity),
-    mart_municipal_capacity[tiene_sistema_rentas] = TRUE
-)
-
-Promedio Computadoras por Trabajador = AVERAGE(mart_municipal_capacity[computadoras_por_trabajador])
-
-Recaudación por Trabajador = 
-DIVIDE(
-    [Recaudación SISMEPRE],
-    SUM(mart_municipal_capacity[total_personal_mar_2022]),
-    0
-)
+```mermaid
+erDiagram
+    dim_geography ||--o{ dim_municipality : geography_key
+    dim_municipality ||--o{ fact_siaf_income : municipality_key
+    dim_municipality ||--o{ fact_predial_statistics : municipality_key
+    dim_time ||--o{ fact_siaf_income : date_key
+    dim_sismepre_period ||--o{ fact_predial_statistics : sismepre_period_key
+    dim_municipality ||--o{ dim_renamu_context : municipality_key
 ```
 
----
+Reglas:
 
-## 3. Estructura del Reporte (8 Páginas)
+- Relaciones 1:N unidireccionales.
+- Evitar many-to-many.
+- Evitar usar textos de nombre como llave de relación.
+- `geography_key` puede ser igual a `ubigeo6`.
+- `municipality_key` debe ser estable y consistente entre hechos y dimensiones.
 
-### 3.1. Páginas Obligatorias (6)
+## Rol de cada tabla
 
-#### 1. Resumen Ejecutivo Municipal
-* **Objetivo Analítico:** Visión macro del estado financiero, sismepre y tecnológico de los municipios.
-* **Pregunta de Negocio:** ¿Cuál es la recaudación consolidada a nivel nacional y qué nivel de cobertura tecnológica existe?
-* **Tablas Utilizadas:** `mart_municipal_revenue_overview`, `mart_sismepre_compliance_overview`, `mart_municipal_capacity`, `dim_geography`.
-* **Visuales:** Tarjetas (KPI) superiores, Gráfico de barras acumuladas (Avance presupuestal), Gráfico de rosca (Conectividad a Internet).
-* **Filtros:** Departamento, Tipo de Municipalidad.
-* **KPIs:** PIA, PIM, Recaudación Total, Efectividad SISMEPRE, Conectividad %.
+### `dim_municipality`
 
-#### 2. Ejecución y Tendencia de Ingresos
-* **Objetivo Analítico:** Evaluar la velocidad y estacionalidad de la ejecución presupuestal frente al año anterior.
-* **Pregunta de Negocio:** ¿Cómo evoluciona mensualmente la recaudación de ingresos comparada con el periodo anterior?
-* **Tablas Utilizadas:** `mart_municipal_revenue_overview`, `dim_time`.
-* **Visuales:** Gráfico de líneas (Recaudación Año Actual vs Año Anterior por Mes), Gráfico de cascada (Variación YoY de ingresos por Rubro).
-* **Filtros:** Año, Rubro de Ingresos, Pliego.
-* **KPIs:** Recaudación Total, Recaudación Año Anterior, Avance PIM.
+Sirve para segmentación institucional y clasificación municipal.
 
-#### 3. Ranking Top/Bottom Municipal
-* **Objetivo Analítico:** Clasificar a los municipios según su nivel de recaudación y eficiencia de ejecución.
-* **Pregunta de Negocio:** ¿Qué municipalidades registran el mayor volumen de recaudación y cuáles están más rezagadas?
-* **Tablas Utilizadas:** `mart_sismepre_ranking`, `mart_municipal_revenue_overview`, `dim_municipality`.
-* **Visuales:** Tabla de ranking dinámico (Top 10 y Bottom 10), Gráfico de barras horizontales (Recaudación de Municipalidades).
-* **Filtros:** Departamento, Provincia, Tipo de Municipalidad.
-* **KPIs:** Ranking Recaudación, Ranking Ejecución.
+No debe repetir la jerarquía territorial principal.
 
-#### 4. Control del Impuesto SISMEPRE
-* **Objetivo Analítico:** Medir la eficiencia de la emisión y cobranza del impuesto sismepre y el nivel de morosidad.
-* **Pregunta de Negocio:** ¿Cuál es la efectividad de cobranza sismepre por periodo y qué saldo queda pendiente?
-* **Tablas Utilizadas:** `mart_sismepre_compliance_overview`, `dim_sismepre_period`.
-* **Visuales:** Tarjetas (Emisión SISMEPRE, Recaudación SISMEPRE, Saldo), Gráfico de columnas agrupadas (Recaudación Ordinaria vs Coactiva), Gráfico de dispersión (Contribuyentes vs Efectividad).
-* **Filtros:** Año de Aplicación, Periodo Operativo.
-* **KPIs:** Efectividad SISMEPRE (%), Saldo SISMEPRE, Total Contribuyentes.
+### `dim_geography`
 
-#### 5. Brechas y Priorización SISMEPRE
-* **Objetivo Analítico:** Identificar territorios críticos con alta emisión pero baja efectividad de cobro para priorizar la recaudación.
-* **Pregunta de Negocio:** ¿Qué distritos presentan la mayor brecha financiera de impuesto sismepre pendiente de cobro?
-* **Tablas Utilizadas:** `mart_sismepre_compliance_overview`, `dim_geography`.
-* **Visuales:** Matriz de priorización con formato condicional (drill-down de Departamento -> Provincia -> Distrito), Árbol de descomposición para la brecha de saldo sismepre.
-* **Filtros:** Departamento, Tipo de Municipalidad.
-* **KPIs:** Saldo SISMEPRE, Efectividad SISMEPRE.
+Sirve para filtros jerárquicos de territorio.
 
-#### 6. Capacidad Institucional RENAMU
-* **Objetivo Analítico:** Analizar el equipamiento e infraestructura administrativa y tecnológica de los municipios.
-* **Pregunta de Negocio:** ¿Qué porcentaje de municipios opera con catastro, internet, SIAF o sistema de rentas y cómo impacta en sus recursos?
-* **Tablas Utilizadas:** `mart_municipal_capacity`, `dim_municipality_context`.
-* **Visuales:** Tarjetas de porcentaje de adopción de sistemas, Gráfico de barras (Promedio de computadoras por trabajador por Tipo Municipal), Gráfico de dispersión (Personal vs Computadoras).
-* **Filtros:** Departamento, Tipo de Municipalidad.
-* **KPIs:** Municipalidades con Internet, Municipalidades con Catastro, Promedio Computadoras por Trabajador.
+No debe cargar atributos institucionales.
 
----
+### `dim_renamu_context`
 
-### 3.2. Páginas Complementarias (2)
+Sirve para contexto operativo seleccionado desde RENAMU.
 
-#### 7. Análisis Territorial y Geográfico
-* **Objetivo Analítico:** Visualizar la distribución espacial de la recaudación y las capacidades.
-* **Pregunta de Negocio:** ¿Existe un patrón geográfico en la concentración de recaudación sismepre y avance de ingresos?
-* **Tablas Utilizadas:** `mart_municipal_revenue_overview`, `mart_sismepre_compliance_overview`, `dim_geography`.
-* **Visuales:** **Mapa de coropléticos** o burbujas utilizando la latitud/longitud o el Ubigeo nacional.
-* **Filtros:** Departamento, Provincia.
-* **KPIs:** Recaudación Total, Efectividad SISMEPRE.
-* *Advertencia:* Si Power BI experimentase fallas al geolocalizar distritos o ubigeos del Perú, se mantendrá un **fallback a barras horizontales por departamento y matrices detalladas** para no bloquear la visualización.
+No es una réplica completa del dataset RENAMU.
 
-#### 8. Diagnóstico Integrado y Cobertura del Modelo
-* **Objetivo Analítico:** Pestaña técnica dedicada a la salud de los datos y auditoría de la integración Medallion.
-* **Pregunta de Negocio:** ¿Qué nivel de cobertura técnica y matching territorial existe entre las fuentes SIAF, SISMEPRE y RENAMU?
-* **Tablas Utilizadas:** `fact_revenue_integration_coverage`, `fact_sismepre_integration_coverage`, `fact_territorial_integration_coverage`.
-* **Visuales:** Tarjetas con porcentajes de matching de las fuentes, Tabla detallada con los numeradores y denominadores de cada regla técnica.
-* **Filtros:** Capa (Ingresos, SISMEPRE, Geografía).
-* **KPIs:** Cobertura SIAF (%), Cobertura SISMEPRE (%), Cobertura Territorial (%).
-* *Advertencia:* **Estas métricas son de calidad técnica del modelo**, no representan el desempeño municipal y deben etiquetarse claramente como auditoría del lakehouse.
+### `dim_time`
 
-## Nota de transición para Power BI
+Sirve para el análisis continuo de ingresos SIAF.
 
-El modelo Power BI final debe esperar el rediseño Silver/Gold basado en profiling. Hasta entonces, cualquier mart actual se considera exploratorio.
+### `dim_sismepre_period`
 
-Las páginas futuras recomendadas son:
+Sirve para el calendario operativo de SISMEPRE.
 
-1. Ingresos SIAF municipales.
-2. Cumplimiento y brecha SISMEPRE.
-3. Capacidad institucional RENAMU.
-4. Comparativo por categoría municipal.
-5. Calidad y cobertura de integración.
+### `fact_siaf_income`
 
-Los slicers de categoría municipal deben mostrar también el estado de matching para evitar conclusiones basadas en emparejamientos ambiguos.
+Hecho principal para ingresos municipales.
+
+Debe llegar con `municipality_key` resuelto para evitar cruces manuales en Power BI.
+
+### `fact_predial_statistics`
+
+Hecho principal para estadísticas prediales iniciales.
+
+Debe consumir únicamente el recurso objetivo de SISMEPRE definido para el Gold inicial.
+
+### `mart_municipal_revenue_overview`
+
+Tabla ejecutiva para KPI, tendencia y comparativos.
+
+### `mart_predial_statistics_overview`
+
+Tabla ejecutiva para emisión, recaudación y saldo predial.
+
+### `mart_municipal_context`
+
+Tabla de contexto institucional para clasificación y variables RENAMU seleccionadas.
+
+### `mart_territorial_summary`
+
+Tabla de síntesis geográfica.
+
+### `audit_quality_results` y `audit_dataset_summary`
+
+Tablas de control técnico.
+
+No deben mezclarse con la navegación del análisis de negocio.
+
+## Modelo semántico recomendado
+
+La navegación del reporte debe concentrarse en los marts. Las dimensiones sólo deben usarse cuando aporten segmentación o jerarquía clara.
+
+No se recomienda exponer al usuario final:
+
+- el mapa técnico Silver
+- puentes intermedios
+- tablas de cobertura
+- tablas de integración transitoria
+
+## Páginas recomendadas
+
+### 1. Resumen de ingresos municipales
+
+Fuentes:
+
+- `mart_municipal_revenue_overview`
+- `dim_municipality`
+- `dim_geography`
+- `dim_time`
+
+### 2. Estadísticas prediales
+
+Fuentes:
+
+- `mart_predial_statistics_overview`
+- `dim_municipality`
+- `dim_sismepre_period`
+
+### 3. Contexto municipal
+
+Fuentes:
+
+- `mart_municipal_context`
+- `dim_municipality`
+- `dim_renamu_context`
+
+### 4. Resumen territorial
+
+Fuentes:
+
+- `mart_territorial_summary`
+- `dim_geography`
+
+### 5. Auditoría y calidad
+
+Fuentes:
+
+- `audit_quality_results`
+- `audit_dataset_summary`
+
+## Medidas DAX
+
+Las medidas deben construirse sobre las tablas ejecutivas y los hechos finales, no sobre mapas técnicos.
+
+Ejemplos de contrato:
+
+- `PIA Total` sobre `mart_municipal_revenue_overview`
+- `PIM Total` sobre `mart_municipal_revenue_overview`
+- `Recaudacion Total` sobre `mart_municipal_revenue_overview`
+- `Emision Predial Total` sobre `mart_predial_statistics_overview`
+- `Recaudacion Predial Total` sobre `mart_predial_statistics_overview`
+- `Saldo Predial Total` sobre `mart_predial_statistics_overview`
+- `Efectividad Predial` como ratio entre recaudación y emisión
+
+Las medidas de auditoría deben permanecer separadas:
+
+- `pass_count`
+- `warning_count`
+- `fail_count`
+- `completeness_score`
+- `validity_score`
+- `conformity_score`
+- `duplicate_rows`
+- `null_percentage`
+- `row_count`
+- `datasets_evaluados`
+- `processed_at_utc`
+
+## Legacy explícito
+
+Se consideran legacy para Power BI:
+
+- `dim_municipality_context`
+- `fact_municipal_income_execution`
+- `fact_predial_compliance`
+- `mart_municipal_capacity`
+- `mart_sismepre_ranking`
+- `municipal_categories`
+- `categorias_municipalidades`
+- `CategoriasMunicipalidades.csv`
+
+Esos nombres pueden seguir apareciendo en documentos viejos o en código heredado, pero no forman parte del contrato objetivo del reporte final.

@@ -1,71 +1,63 @@
 # Municipal Revenue Big Data Analytics
 
-Plataforma analítica local para analizar ingresos municipales, cumplimiento sismepre y contexto territorial de municipalidades peruanas usando Apache Spark, Apache Hive, arquitectura Medallion, archivos Parquet y Power BI.
+Plataforma local de datos para analizar ingresos municipales, estadísticas prediales, contexto RENAMU y clasificación municipal oficial del MEF.
 
-## Propósito
+## Estado del proyecto
 
-Este proyecto implementa un flujo local de ingeniería y analítica de datos que permite ingestar, organizar, transformar, validar, consultar y visualizar información municipal pública de forma trazable.
+El proyecto está en fase de alineamiento entre:
 
-El objetivo no es construir únicamente un dashboard, sino desarrollar una solución completa de datos con capas Landing, Bronze, Silver y Gold, catálogo SQL en Hive y consumo analítico desde Power BI.
+- Silver integrado
+- Gold dimensional
+- Hive como catálogo SQL
+- Power BI como capa de consumo
 
-## Problema Analítico
+Ya no debe leerse como una arquitectura inicial de Bronze/Silver por fuente. Esa lectura quedó reemplazada por el modelo objetivo documentado en `docs/gold_model.md` y `docs/powerbi_model.md`.
 
-La información municipal se encuentra distribuida en distintas fuentes públicas, con formatos y estructuras que requieren exploración, limpieza, validación e integración antes de ser utilizadas para análisis.
-
-El proyecto busca responder preguntas como:
-
-- ¿Qué municipalidades presentan mejor desempeño en ejecución de ingresos?
-- ¿Qué brechas existen entre presupuesto, ejecución y cumplimiento de metas?
-- ¿Cómo varía el desempeño municipal por departamento, provincia o distrito?
-- ¿Qué municipalidades muestran mayores brechas en la meta del impuesto sismepre?
-- ¿Qué contexto territorial y de capacidad municipal ayuda a interpretar los resultados?
-
-## Fuentes Consideradas
-
-Las fuentes principales del proyecto son:
-
-- Presupuesto y ejecución de ingresos del MEF / SIAF.
-- Seguimiento de la meta del impuesto sismepre desde SISMERE / MEF.
-- Registro Nacional de Municipalidades RENAMU 2022 del INEI.
-- Clasificación Municipal MEF 2019, publicada como siete PDF oficiales A-G.
-
-## Arquitectura General
-
-El proyecto sigue una arquitectura Medallion local:
+## Arquitectura resumida
 
 ```text
 Fuentes públicas
 -> Landing
--> Bronze Parquet
--> Profiling y Quality Gates
--> Silver Parquet
--> Integración Silver
--> Gold Parquet / Marts analíticos
+-> Bronze
+-> Silver por fuente
+-> Silver integrado
+-> Gold dimensional
 -> Hive External Tables
 -> Power BI
 ```
 
-La capa Landing conserva archivos originales. Bronze convierte fuentes a Parquet manteniendo granularidad. Silver limpia, tipa, estandariza e integra. Gold contiene marts listos para análisis y consumo desde Power BI.
+## Fuentes principales
 
-## Tecnologías Principales
+- SIAF / MEF para ingresos municipales.
+- SISMEPRE para estadísticas prediales.
+- RENAMU para contexto municipal.
+- Clasificación municipal oficial MEF 2019.
 
-- Python
-- Apache Spark
-- Apache Hive, Hive Metastore y HiveServer2
-- Parquet
-- Docker y Docker Compose
-- Power BI Desktop
-- Git y GitHub
+## Convenciones cerradas
 
-## Ejecución Local Desde Cero
+- `municipal_classification` es la fuente vigente de clasificación municipal.
+- `municipal_categories` es legacy.
+- `map_sec_ejec_ubigeo` es un mapa técnico Silver.
+- `dim_municipality` representa la entidad municipal.
+- `dim_geography` representa la jerarquía territorial.
+- `fact_siaf_income` debe salir con `municipality_key` resuelto.
+- El Gold inicial de SISMEPRE usa sólo `silver/sismepre/resource_key=esat_estadistica_atm`.
+- RENAMU completo no vuelve a Gold; se separa en `dim_renamu_context`.
 
-La guía completa para clonar, instalar dependencias, levantar Docker, validar Hive, ejecutar/verificar capas y abrir Power BI está en:
+## Documentación principal
 
-```text
-docs/execution_guide.md
-```
+- `docs/architecture.md`
+- `docs/project_scope.md`
+- `docs/silver_transformations.md`
+- `docs/data_quality.md`
+- `docs/gold_model.md`
+- `docs/hive_model.md`
+- `docs/powerbi_model.md`
+- `docs/powerbi_hive_connection.md`
 
-Esa guía está pensada para una persona que recibe el repositorio en una máquina local nueva y necesita preparar Git, Python, Docker Desktop, Hive y Power BI paso a paso.
+## Ejecución local
+
+La guía completa está en `docs/execution_guide.md`.
 
 Resumen mínimo:
 
@@ -78,64 +70,9 @@ python -m pip install --upgrade pip
 pip install -r requirements.txt
 pip install -r requirements-dev.txt
 docker compose up -d
-docker compose ps
 ```
 
-Los datos reales no se versionan. Una persona que clone el repositorio debe ejecutar la ingesta y procesamiento local, o colocar los archivos de datos en las carpetas esperadas antes de construir las capas.
+## Versionamiento
 
-## Rol de Apache Spark
-
-Apache Spark procesa los datos por capas, convierte fuentes a Parquet, aplica transformaciones, ejecuta validaciones y construye datasets analíticos.
-
-## Rol de Apache Hive
-
-Apache Hive funciona como catálogo SQL del lakehouse. Las tablas externas apuntan a archivos Parquet generados por Spark en Bronze, Silver y Gold, permitiendo consultas SQL sin mover ni duplicar los datos.
-
-## Rol de Power BI
-
-Power BI consume preferentemente las tablas Gold expuestas por HiveServer2/ODBC en modo Import. Si la conexión local entre Hive y Power BI no es estable, existe un fallback controlado de exportación Gold a CSV.
-
-## Documentación
-
-- `docs/project_scope.md`: alcance, objetivos y requerimientos.
-- `docs/architecture.md`: arquitectura Medallion y flujo técnico.
-- `docs/data_sources.md`: inventario de fuentes.
-- `docs/source_discovery.md`: hallazgos de acceso a fuentes.
-- `docs/data_profiling.md`: profiling de datos.
-- `docs/data_quality.md`: reglas y resultados de calidad.
-- `docs/ingestion_audit.md`: auditoría de ingesta.
-- `docs/silver_transformations.md`: reglas de limpieza e integración.
-- `docs/hive_model.md`: bases y tablas externas Hive.
-- `docs/gold_model.md`: modelo analítico final.
-- `docs/powerbi_model.md`: modelo semántico y páginas del reporte.
-- `docs/powerbi_hive_connection.md`: conexión Hive - Power BI.
-- `docs/execution_guide.md`: guía de instalación y ejecución local desde cero.
-
-## Alcance
-
-El proyecto incluye:
-
-- Arquitectura Medallion local.
-- Ingesta de fuentes públicas hacia Landing.
-- Conversión a Parquet en Bronze.
-- Profiling y reglas de calidad.
-- Transformaciones Silver.
-- Integración Silver.
-- Marts analíticos Gold.
-- Tablas externas en Hive.
-- Reporte Power BI con conexión preferente a Hive y fallback CSV.
-- Evidencias y documentación técnica.
-
-## Fuera de Alcance
-
-El proyecto no incluye:
-
-- Implementación en GCP, BigQuery, Dataflow o servicios cloud.
-- Procesamiento en tiempo real.
-- Orquestación empresarial avanzada.
-- Machine Learning obligatorio.
-- Versionamiento de datos reales en GitHub.
-
-## Versionamiento de Datos
-
-El repositorio versiona código, configuración pública, SQL, tests y documentación. No versiona datasets reales ni archivos pesados como CSV, ZIP, PDF, XLSX, Parquet, reportes generados, logs pesados, `.env`, `.venv` o exports Power BI.
+El repositorio versiona código, configuración, SQL, tests y documentación.
+No versiona datos reales, Parquet, ZIP, CSV generados, logs pesados ni exports de Power BI.

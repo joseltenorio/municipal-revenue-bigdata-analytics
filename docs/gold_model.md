@@ -1,197 +1,326 @@
-# Modelo Analítico Gold del Lakehouse
+# Modelo Gold objetivo
 
 ## Propósito
 
-La capa **Gold** constituye la capa analítica final y optimizada del lakehouse local. Su objetivo es exponer tablas estables, comprensibles y eficientes para su consumo desde Power BI. A diferencia de las capas técnicas anteriores, Gold estructura la información en dimensiones, hechos y marts de datos de negocio, catalogados en Apache Hive y materializados en formato Parquet Snappy.
+Este documento define la arquitectura objetivo de la capa **Gold** del proyecto `municipal-revenue-bigdata-analytics`.
 
-Este documento detalla el modelo de datos real implementado y registrado en el catálogo SQL de Hive.
+La arquitectura ya no se organiza como Bronze/Silver por fuente ni como un conjunto de puentes transitorios para negocio. El estado cerrado del proyecto es este:
 
-Gold garantiza:
-- **Respeto a las granularidades nativas:** Evita cruces fila-a-fila que distorsionen o dupliquen importes financieros o sismeprees.
-- **Trazabilidad técnica:** Mantiene referencias a campos de auditoría (`gold_processed_at_utc`, `gold_grain`).
-- **Exposición transparente de la cobertura:** Incorpora métricas específicas de integración para que Power BI reporte la calidad del cruce de datos de manera explícitamente auditable.
-- **Acceso mediante Hive Server:** Las tablas están diseñadas para ser consumidas mediante ODBC de HiveServer2, con un fallback documentado directo a Parquet físicos o CSV en caso de inestabilidad local.
+- **Silver integrado** prepara los datos limpios, tipados y trazables.
+- **Gold dimensional** expone las dimensiones, hechos y marts finales.
+- **Hive** cataloga las tablas externas.
+- **Power BI** consume los marts y dimensiones finales.
 
----
+Este documento describe el modelo objetivo. No implica que todas las tablas físicas ya estén construidas en este commit.
 
-## Estructura del Modelo Gold
+## Principios cerrados
 
-El modelo está organizado en tres grandes áreas temáticas: ingresos municipales (`municipal_revenue`), cumplimiento sismepre (`sismepre_compliance`) y contexto territorial (`territorial_context`), mapeadas en la base de datos `gold` de Hive Server.
+1. `municipal_categories` es legacy. La fuente vigente es `municipal_classification`, basada en la clasificación municipal oficial MEF 2019.
+2. RENAMU completo no debe volver a Gold. El contexto RENAMU se separa en `dim_renamu_context`.
+3. `dim_municipality` representa la entidad municipal o institucional. La jerarquía territorial vive en `dim_geography`.
+4. `map_sec_ejec_ubigeo` es un mapa técnico Silver, no una dimensión de negocio.
+5. `fact_siaf_income` debe salir con `municipality_key` ya resuelto.
+6. SISMEPRE inicial solo usa `silver/sismepre/resource_key=esat_estadistica_atm`.
+7. La clasificación municipal oficial se resuelve por `ubigeo6`, no por matching manual por nombre.
+
+## Esquema objetivo
 
 ```mermaid
 erDiagram
-    dim_geography ||--o{ dim_municipality : "mapea"
-    dim_municipality ||--o{ fact_municipal_income_execution : "cruzado por sec_ejec"
-    dim_municipality ||--o{ fact_sismepre_compliance : "cruzado por sec_ejec"
-    dim_municipality_context ||--|| mart_municipal_capacity : "extiende capacidad"
-    dim_time ||--o{ fact_municipal_income_execution : "filtra periodo"
-    dim_sismepre_period ||--o{ fact_sismepre_compliance : "filtra periodo sismepre"
-    mart_municipal_revenue_overview }|--|| dim_municipality : "agregado"
-    mart_sismepre_compliance_overview }|--|| dim_municipality : "agregado"
+    dim_geography ||--o{ dim_municipality : geography_key
+    dim_municipality ||--o{ fact_siaf_income : municipality_key
+    dim_municipality ||--o{ fact_predial_statistics : municipality_key
+    dim_sismepre_period ||--o{ fact_predial_statistics : sismepre_period_key
+    dim_time ||--o{ fact_siaf_income : date_key
+    dim_municipality ||--o{ dim_renamu_context : municipality_key
+    audit_dataset_summary ||--o{ audit_quality_results : dataset
+    mart_municipal_revenue_overview }|--|| fact_siaf_income : resume
+    mart_predial_statistics_overview }|--|| fact_predial_statistics : resume
+    mart_municipal_context }|--|| dim_municipality : resume
+    mart_territorial_summary }|--|| dim_geography : resume
 ```
 
----
+## Dimensiones y contexto
 
-## Catálogo de Tablas Gold
+### `dim_municipality`
 
-### 1. Dimensiones (Dimensions)
+Representa la entidad municipal/institucional.
 
-#### [dim_geography](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_geography)
-* **Propósito:** Estandarizar la jerarquía político-administrativa (Departamento, Provincia, Distrito) a nivel nacional para la colocación de filtros jerárquicos y mapeo territorial.
-* **Fuente Silver base:** `renamu_municipal_context`.
-* **Granularidad:** Un registro por `ubigeo` nacional único.
-* **Columnas principales:** `geography_key`, `ubigeo`, `ccdd`, `ccpp`, `ccdi`, `departamento_normalizado`, `provincia_normalizada`, `distrito_normalizado`, `is_valid_ubigeo`.
-* **Uso en Power BI:** Filtro geográfico principal (Slicer) y mapas.
-* **Limitaciones:** Representa la estructura territorial de ubigeos reportada formalmente en RENAMU.
+Campos objetivo:
 
-#### [dim_municipality](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_municipality)
-* **Propósito:** Registrar el universo municipal mapeando la relación técnica entre el código ejecutor presupuestal (`sec_ejec`) y el ubigeo territorial (`ubigeo`).
-* **Fuente Silver base:** `municipal_entity_bridge` y `renamu_municipal_context`.
-* **Granularidad:** Una fila por combinación válida de `sec_ejec` + `ubigeo` + `mapping_source`.
-* **Columnas principales:** `municipality_key`, `sec_ejec`, `ubigeo`, `municipalidad_nombre`, `tipomuni_label`, `has_renamu_match`, `is_valid_sec_ejec`, `is_valid_ubigeo`.
-* **Uso en Power BI:** Tabla de búsqueda (Lookup) para asociar hechos de ingresos (MEF) y predios a la geografía distrital.
-* **Limitaciones:** Conserva flags de cobertura técnica. Si un `sec_ejec` carece de mapeo geográfico, `has_renamu_match` se expone como falso para no forzar cruces erróneos.
+- `municipality_key`
+- `ubigeo6`
+- `geography_key`
+- `idmunici`
+- `tipomuni_codigo`
+- `tipomuni_nombre`
+- `tipo_clasificacion_municipal`
+- `ambito_municipal`
+- `descripcion_tipo`
 
-#### [dim_municipality_context](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/dim_municipality_context)
-* **Propósito:** Contextualizar las entidades municipales de RENAMU con atributos demográficos y de conformación institucional.
-* **Fuente Silver base:** `renamu_municipal_context` y `municipal_entity_bridge`.
-* **Granularidad:** Un registro por `ubigeo`.
-* **Columnas principales:** `municipality_context_key`, `ubigeo`, `idmunici`, `tipomuni_label`, `has_municipal_identifier`, `sec_ejec_count`, `sismepre_sec_ejec_count`, `has_sismepre_match`.
-* **Uso en Power BI:** Filtrado y clasificación institucional de municipalidades.
-* **Limitaciones:** Depende de la declaración del cuestionario RENAMU.
+Reglas:
 
-#### [dim_sismepre_period](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/dim_sismepre_period)
-* **Propósito:** Mapear la temporalidad y los ciclos operativos de la declaración y recolección del impuesto sismepre.
-* **Fuente Silver base:** `sismepre_entity_period`.
-* **Granularidad:** Combinación de `ano_aplicacion` + `periodo` + `ano_estadistica` + `mes_estadistica`.
-* **Columnas principales:** `sismepre_period_key`, `ano_aplicacion`, `periodo`, `sismepre_period_label`.
-* **Uso en Power BI:** Tabla de tiempo especializada para la línea de impuesto sismepre.
-* **Limitaciones:** Los periodos son discontinuos según los años declarados operativamente por las municipalidades.
+- `geography_key` puede ser igual a `ubigeo6` para mantener simplicidad.
+- No debe repetir departamento, provincia y distrito como atributos principales.
+- No debe mezclar contexto territorial con contexto institucional.
 
-#### [dim_time](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/dim_time)
-* **Propósito:** Estandarizar el análisis de la ejecución presupuestal a nivel de año y mes de forma continua.
-* **Fuente Silver base:** `fact_municipal_income_execution`.
-* **Granularidad:** Un registro por `anio` y `mes`.
-* **Columnas principales:** `period_key`, `anio`, `mes`, `is_annual_record`, `period_label`.
-* **Uso en Power BI:** Dimensión temporal para análisis de evolución de recaudación de ingresos.
-* **Limitaciones:** No se cuenta con granularidad diaria real; la ejecución mensualizada o acumulada anual es el estándar financiero.
+### `dim_geography`
 
----
+Representa la jerarquía territorial.
 
-### 2. Hechos (Facts)
+Campos objetivo:
 
-#### [fact_municipal_income_execution](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/fact_municipal_income_execution)
-* **Propósito:** Hecho centralizado de presupuesto y ejecución de ingresos municipales por clasificador de ingresos detallado y periodo temporal.
-* **Fuente Silver base:** `siaf_municipal_amounts`.
-* **Granularidad:** `source_dataset` + `anio` + `mes` + `sec_ejec` + Clasificadores presupuestales (`rubro`, `generica`, `subgenerica`, `especifica`, etc.).
-* **Columnas principales:** `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total`, `recaudacion_vs_pia_ratio`, `recaudacion_vs_pim_ratio`, `pim_vs_pia_ratio`, `integration_quality_status`.
-* **Uso en Power BI:** Sumarización y cálculo de tasas de avance de ingresos, desglosados por rubros y partidas presupuestarias.
-* **Limitaciones:** Cerca de la mitad de las ejecutoras (`sec_ejec`) no cruzan con puente municipal, por lo que estas transacciones se exponen con `integration_quality_status = 'without_bridge'`.
+- `geography_key`
+- `ubigeo6`
+- `ccdd`
+- `ccpp`
+- `ccdi`
+- `departamento_nombre`
+- `provincia_nombre`
+- `distrito_nombre`
 
-#### [fact_sismepre_compliance](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/fact_sismepre_compliance)
-* **Propósito:** Hecho principal para medir la emisión sismepre, recaudación ord/coactiva, saldos por cobrar y volumen de contribuyentes del impuesto sismepre.
-* **Fuente Silver base:** `sismepre_entity_period`.
-* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec` + `formulario_id` + `ano_estadistica` + `mes_estadistica`.
-* **Columnas principales:** `sismepre_collection_total`, `sismepre_issue_total`, `sismepre_balance_total`, `taxpayer_count_total`, `property_count_total`, `sismepre_effectiveness_ratio`, columnas de origen monetarias (`mon_*_total`) y numéricas (`num_*_total`).
-* **Uso en Power BI:** Cálculo de efectividad de cobranza sismepre y análisis de carteras morosas a nivel distrital y de periodos.
-* **Limitaciones:** La granularidad incluye el ID de formulario y el mes estadístico para fines de trazabilidad.
+Reglas:
 
-#### [fact_revenue_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/fact_revenue_integration_coverage)
-* **Propósito:** Exponer las métricas de cobertura técnica de integración del MEF sobre el universo presupuestal.
-* **Fuente Silver base:** `integration_coverage`.
-* **Granularidad:** Registro por métrica de cobertura.
-* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`, `description`.
-* **Uso en Power BI:** Dashboard técnico de auditoría del lakehouse.
-* **Limitaciones:** **Es una métrica técnica de calidad/integración de datos**, no representa desempeño municipal.
+- `geography_key` puede ser igual a `ubigeo6`.
+- Su granularidad es una fila por unidad territorial.
+- No debe incorporar atributos institucionales municipales.
 
-#### [fact_sismepre_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/fact_sismepre_integration_coverage)
-* **Propósito:** Reportar la cobertura e integridad de la información sismepre mapeada a nivel territorial distrital.
-* **Fuente Silver base:** `integration_coverage`.
-* **Granularidad:** Registro por métrica de cobertura sismepre.
-* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`.
-* **Uso en Power BI:** Reporte técnico de auditoría.
-* **Limitaciones:** **Es una métrica técnica de calidad de datos**, no de desempeño.
+### `dim_renamu_context`
 
-#### [fact_territorial_integration_coverage](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/fact_territorial_integration_coverage)
-* **Propósito:** Registrar las métricas de cobertura territorial y el cruce geográfico de distritos.
-* **Fuente Silver base:** `integration_coverage`.
-* **Granularidad:** Registro por métrica de integración territorial.
-* **Columnas principales:** `metric_name`, `numerator`, `denominator`, `coverage_percentage`.
-* **Uso en Power BI:** Reporte técnico de auditoría.
-* **Limitaciones:** **Es una métrica de calidad de datos**, no representa desempeño de gestión.
+Representa el contexto RENAMU seleccionado para negocio.
 
----
+Campos objetivo:
 
-### 3. Marts de Negocio (Marts)
+- `municipality_key`
+- `ubigeo6`
+- variables RENAMU seleccionadas
 
-#### [mart_municipal_capacity](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/mart_municipal_capacity)
-* **Propósito:** Consolidar métricas de capacidades institucionales de las municipalidades (personal contratado, computadoras, conectividad y disponibilidad de sistemas de administración tributaria y catastro) para analizar brechas operativas.
-* **Fuente Silver base:** `renamu_full` (Silver completo: `base_renamu_2022`) y `dim_municipality_context` (Gold).
-* **Granularidad:** Un registro por `ubigeo` (municipalidad).
-* **Columnas principales:** `total_personal_mar_2022`, `total_computadoras_operativas`, `ratio_computadoras_con_internet`, `tiene_internet`, `tiene_siaf`, `tiene_srtm`, `tiene_sistema_rentas`, `tiene_catastro`, `requiere_asistencia_administracion_tributaria`, `requiere_asistencia_catastro`, `renamu_income_total`, `renamu_expense_total`.
-* **Uso en Power BI:** Cruce de capacidad tecnológica e institucional con la efectividad de recaudación sismepre o ingresos para identificar municipalidades críticas en un análisis multidimensional de cuadrantes.
-* **Limitaciones:** Basado en el censo institucional de RENAMU 2022.
+Reglas:
 
-#### [mart_municipal_revenue_overview](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/municipal_revenue/mart_municipal_revenue_overview)
-* **Propósito:** Proporcionar una vista agregada y rápida de los ingresos municipales a nivel de entidad y periodo para optimizar el rendimiento del reporte en Power BI.
-* **Fuente Gold base:** `fact_municipal_income_execution`.
-* **Granularidad:** `anio` + `mes` + `sec_ejec` + `ubigeo`.
-* **Columnas principales:** `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total`, `recaudacion_vs_pia_ratio`, `recaudacion_vs_pim_ratio`, `integration_quality_status`.
-* **Uso en Power BI:** Gráficos de tendencias, resúmenes temporales de avance presupuestal y tarjetas KPI principales de ingresos.
-* **Limitaciones:** No incluye los desgloses presupuestales (partidas de clasificadores) para evitar sobrecargar la memoria.
+- Se limita a variables útiles para interpretación de contexto.
+- No replica toda la tabla RENAMU.
+- No debe insertarse dentro de `dim_municipality`.
 
-#### [mart_sismepre_compliance_overview](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/mart_sismepre_compliance_overview)
-* **Propósito:** Agregar las variables clave del impuesto sismepre por entidad y periodo operativo eliminando el detalle de formularios.
-* **Fuente Gold base:** `fact_sismepre_compliance`.
-* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec` + `effective_ubigeo`.
-* **Columnas principales:** `sismepre_collection_total`, `sismepre_issue_total`, `sismepre_balance_total`, `taxpayer_count_total`, `property_count_total`, `sismepre_effectiveness_ratio`.
-* **Uso en Power BI:** Dashboards principales de cobranza sismepre.
-* **Limitaciones:** Agrupado a nivel de periodo y entidad ejecutora.
+### `dim_time`
 
-#### [mart_sismepre_ranking](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/sismepre_compliance/mart_sismepre_ranking)
-* **Propósito:** Clasificar y ordenar las municipalidades según volumen y efectividad de recaudación sismepre por año y periodo para evaluaciones comparativas de desempeño.
-* **Fuente Gold base:** `mart_sismepre_compliance_overview`.
-* **Granularidad:** `ano_aplicacion` + `periodo` + `sec_ejec`.
-* **Columnas principales:** `collection_rank_desc`, `collection_rank_asc`, `effectiveness_rank_desc`, `balance_rank_desc`, `is_top_collection_candidate`, `is_bottom_collection_candidate`.
-* **Uso en Power BI:** Tablas de ranking y visualización de líderes de recaudación.
-* **Limitaciones:** El ranking se calcula independientemente para cada combinación de año y periodo.
+Calendario mensual para SIAF.
 
-#### [mart_territorial_context](file:///c:/Users/Windows%2011/Desktop/Proyectos/municipal-revenue-bigdata-analytics/data/gold/territorial_context/mart_territorial_context)
-* **Propósito:** Agregar métricas del cruce municipal-territorial por distritos y provincias para análisis y auditoría territorial.
-* **Fuente Gold base:** `dim_municipality_context`.
-* **Granularidad:** `ubigeo` y tipo de municipalidad.
-* **Columnas principales:** `municipality_count`, `valid_ubigeo_count`, `complete_territory_count`, `sismepre_match_count`, `without_sismepre_match_count`.
-* **Uso en Power BI:** Soporte geográfico para mapas de integración y visualización nacional de brechas.
-* **Limitaciones:** No contiene importes financieros.
+Campos objetivo:
 
----
+- `date_key`
+- `fecha_mes`
+- `anio`
+- `mes`
+- `anio_mes`
+- `trimestre`
+- `semestre`
 
-## Estrategia de Consumo en Power BI y Fallback
+### `dim_sismepre_period`
 
-1. **Consumo Recomendado (Hive ODBC):**
-   Power BI debe consumir preferentemente las tablas de la base de datos `gold` expuestas por HiveServer2. Esta conexión permite catalogar de forma nativa las tablas externas estructuradas, delegando el peso del procesamiento analítico a Hive y reduciendo el volumen de importación en memoria de Power BI.
-2. **Uso Técnico de Capas Anteriores:**
-   Las bases de datos `bronze` y `silver` registradas en Hive quedan reservadas como capas de auditoría, calidad de datos e ingeniería. **No deben ser expuestas en el modelo final de cara al usuario de negocio** para evitar inconsistencias en el reporte o cruces incorrectos.
-3. **Estrategia de Fallback Controlada:**
-   Si la conexión local mediante el driver ODBC de Hive experimentase inestabilidad, bloqueos de red o problemas de compatibilidad local del controlador ODBC en el sistema anfitrión, Power BI puede utilizar la contingencia consistente en:
-   - Carga directa desde los archivos físicos Parquet locales en `data/gold/` o
-   - Carga de los archivos CSV auxiliares exportados localmente.
+Calendario operativo de SISMEPRE.
 
-## Nota de transición para el rediseño Gold
+Campos objetivo:
 
-Los marts Gold existentes deben tratarse como referencia transicional hasta cerrar el nuevo Silver basado en profiling. El rediseño Gold debe partir de:
+- `sismepre_period_key`
+- `anio_aplicacion`
+- `periodo`
+- `anio_estadistica`
+- `mes_estadistica`
+- `periodo_estadistica_tipo`
+- `is_annual_stat_period`
+- `periodo_label`
 
-```text
-fact_siaf_income
-fact_sismepre_predial_statistics
-fact_sismepre_response
-fact_renamu_municipal_context
-dim_municipality
-dim_time
-dim_siaf_classifier
-dim_sismepre_form
-dim_sismepre_question
-dim_municipal_category
-```
+## Mapa técnico Silver
 
-La clasificación municipal oficial del MEF debe entrar mediante `dim_municipality` o el puente municipal usando `ubigeo6`. No debe degradarse a un join directo por nombre cuando exista llave territorial disponible.
+### `map_sec_ejec_ubigeo`
+
+Mapa técnico de trazabilidad y resolución territorial.
+
+Campos objetivo:
+
+- `sec_ejec`
+- `ubigeo6`
+- `municipality_key`
+- `municipalidad_sismepre_nombre`
+- `municipalidad_siaf_nombre`
+- `has_siaf_match`
+- `has_sismepre_match`
+- `has_renamu_match`
+- `has_classification_match`
+- `match_status`
+- `confidence_level`
+- `issue_reason`
+
+Reglas:
+
+- Se documenta como Silver técnico.
+- Sirve para resolver `sec_ejec -> ubigeo6 -> municipality_key`.
+- No debe usarse como tabla principal de Power BI.
+- No debe exponerse como dimensión de negocio.
+
+## Hechos Gold
+
+### `fact_siaf_income`
+
+Hecho de ingresos y ejecución municipal.
+
+Campos objetivo:
+
+- `municipality_key`
+- `sec_ejec`
+- `date_key`
+- `source_resource_key`
+- `source_granularity`
+- `monto_pia`
+- `monto_pim`
+- `monto_recaudado`
+- `has_municipality_match`
+- `match_status`
+
+Reglas:
+
+- Debe salir con `municipality_key` ya resuelto usando `map_sec_ejec_ubigeo`.
+- Power BI no debe depender del mapa técnico como tabla intermedia para análisis normal.
+
+### `fact_predial_statistics`
+
+Hecho inicial de estadísticas SISMEPRE.
+
+Campos objetivo:
+
+- `municipality_key`
+- `sismepre_period_key`
+- `sec_ejec`
+- `ubigeo6`
+- `formulario_id`
+- `monto_emision_predial_total`
+- `monto_recaudacion_predial_total`
+- `monto_saldo_predial_total`
+- `ratio_recaudacion_emision`
+- `numero_predios_total`
+- `numero_contribuyentes_predio`
+
+Reglas:
+
+- El Gold inicial solo consume `silver/sismepre/resource_key=esat_estadistica_atm`.
+- Los recursos SISMEPRE restantes quedan en Silver por trazabilidad, pero no entran al Gold inicial ni al dashboard principal.
+
+## Marts Gold para Power BI
+
+### `mart_municipal_revenue_overview`
+
+Vista ejecutiva de ingresos municipales.
+
+Uso:
+
+- KPIs principales.
+- Tendencias.
+- Comparativos por municipio y periodo.
+
+### `mart_predial_statistics_overview`
+
+Vista ejecutiva de SISMEPRE.
+
+Uso:
+
+- Emisión, recaudación, saldo y ratios.
+- Análisis por periodo y entidad municipal.
+
+### `mart_municipal_context`
+
+Vista de contexto municipal e institucional.
+
+Uso:
+
+- Lectura rápida de clasificación municipal.
+- Variables seleccionadas de RENAMU.
+
+### `mart_territorial_summary`
+
+Vista de resumen territorial.
+
+Uso:
+
+- Jerarquía geográfica.
+- Agregaciones por departamento, provincia y distrito.
+
+## Auditoría y calidad
+
+El modelo de auditoría y calidad debe mantenerse separado del modelo de negocio.
+
+### `audit_quality_results`
+
+Resultado detallado por regla.
+
+Campos mínimos:
+
+- `dataset`
+- `rule_name`
+- `status`
+- `severity`
+- `message`
+- `pass_count`
+- `warning_count`
+- `fail_count`
+- `completeness_score`
+- `validity_score`
+- `conformity_score`
+- `duplicate_rows`
+- `null_percentage`
+- `row_count`
+- `processed_at_utc`
+
+### `audit_dataset_summary`
+
+Resumen por dataset evaluado.
+
+Campos mínimos:
+
+- `dataset`
+- `datasets_evaluados`
+- `row_count`
+- `duplicate_rows`
+- `null_percentage`
+- `pass_count`
+- `warning_count`
+- `fail_count`
+- `processed_at_utc`
+
+## Legacy y reemplazos
+
+Las siguientes referencias deben considerarse legacy o transición anterior:
+
+- `municipal_entity_bridge`
+- `mef_municipal_amounts`
+- `renamu_full`
+- `renamu_municipal_context`
+- `fact_municipal_income_execution`
+- `dim_municipality_context`
+- `fact_predial_compliance`
+- `fact_revenue_integration_coverage`
+
+También quedan legacy las referencias a:
+
+- `municipal_categories`
+- `categorias_municipalidades`
+- `CategoriasMunicipalidades.csv`
+- matching manual por nombre como criterio principal de integración
+
+## Consumo en Hive y Power BI
+
+- Hive registra las tablas Gold como tablas externas.
+- Power BI consume preferentemente `mart_municipal_revenue_overview`, `mart_predial_statistics_overview`, `mart_municipal_context` y `mart_territorial_summary`.
+- `map_sec_ejec_ubigeo` se mantiene para trazabilidad técnica y depuración.
+- Los modelos de auditoría se usan para calidad, no para análisis de negocio.
+
+## Resumen operativo
+
+El modelo objetivo queda cerrado así:
+
+- Silver integrado resuelve y limpia.
+- Gold dimensional separa entidad, geografía, RENAMU y tiempo.
+- SIAF sale por `fact_siaf_income`.
+- SISMEPRE inicial sale por `fact_predial_statistics`.
+- RENAMU queda en `dim_renamu_context`.
+- La clasificación municipal oficial vive en `dim_municipality`.
+- La auditoría vive aparte en `audit_quality_results` y `audit_dataset_summary`.

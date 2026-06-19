@@ -468,190 +468,81 @@ Bronze no debe adelantar esas decisiones.
 
 ## Datasets Silver integrados
 
-La integración Silver prepara datasets intermedios para análisis posterior, sin construir todavía KPIs Gold ni modelo final.
+La integración Silver prepara datasets técnicos para resolver llaves y dejar trazabilidad antes del Gold dimensional.
 
-Las salidas integradas locales se organizan en:
+Salidas locales no versionables:
 
 ```text
-data/silver/integrated/<dataset_name>/
+data/silver/integrated/map_sec_ejec_ubigeo/
+data/silver/integrated/siaf_municipal_amounts/
+data/silver/integrated/municipal_context/
+data/silver/integrated/integration_coverage/
 ```
-
-Estos Parquet son outputs locales regenerables y no deben versionarse.
 
 | Dataset | Propósito |
 | --- | --- |
-| `municipal_entity_bridge` | Puente observado entre `sec_ejec` y `ubigeo`, con validación territorial contra RENAMU. |
-| `siaf_municipal_amounts` | Montos MEF agregados por recurso, año, mes, `sec_ejec` y clasificadores presupuestales. |
-| `sismepre_sismepre_predial_entity_period` | Dataset predial preparado por entidad, periodo, formulario y tiempo estadístico. |
-| `renamu_municipal_context` | Contexto territorial RENAMU por `ubigeo`. |
-| `integration_coverage` | Métricas de cobertura de cruce entre SIAF, SISMEPRE y RENAMU. |
-
-Columnas clave de integración:
-
-| Campo | Uso |
-| --- | --- |
-| `sec_ejec` | Identificador de entidad ejecutora o entidad predial. No equivale directamente a `ubigeo`. |
-| `ubigeo` | Llave territorial principal para cruce con RENAMU. |
-| `anio` | Año tipado para MEF o RENAMU. |
-| `mes` | Mes tipado en MEF. |
-| `ano_aplicacion` | Año de aplicación predial. |
-| `periodo` | Periodo operativo predial. |
-| `formulario_id` | Identificador de formulario predial. |
-| `ano_estadistica` | Año estadístico predial. |
-| `mes_estadistica` | Mes estadístico predial. |
-| `monto_pia_total` | Suma integrada de PIA MEF. |
-| `monto_pim_total` | Suma integrada de PIM MEF. |
-| `monto_recaudado_total` | Suma integrada de recaudación MEF. |
-| `integration_grain` | Descripción técnica de la granularidad integrada. |
-| `source_dataset` | Dataset fuente usado para construir la salida integrada. |
-| `silver_integration_processed_at_utc` | Fecha y hora UTC del procesamiento de integración Silver. |
-
-El detalle de reglas, decisiones y problemas de cruce se documenta en `docs/silver_transformations.md`.
+| `map_sec_ejec_ubigeo` | Mapa técnico para resolver `sec_ejec -> ubigeo6 -> municipality_key`. |
+| `siaf_municipal_amounts` | Montos MEF agregados por recurso, año, mes y entidad. |
+| `municipal_context` | Contexto RENAMU seleccionado para negocio. |
+| `integration_coverage` | Métricas técnicas de cobertura y calidad del cruce. |
 
 ## Relación con Gold y Power BI
 
-La capa Gold define los datasets analíticos finales y los KPIs optimizados para Power BI. Su especificación conceptual, decisiones de modelado y estrategias de consumo se documentan detalladamente en:
+La capa Gold define el contrato analítico final. Su modelo objetivo está documentado en `docs/gold_model.md`.
 
-```text
-docs/gold_model.md
-```
+## Contrato objetivo Gold
 
-## Contrato técnico y Diccionario de la Capa Gold
+La capa Gold contiene dimensiones, hechos, marts y auditoría separados.
 
-La capa Gold contiene los marts, dimensiones y hechos finales del lakehouse local materializados en Parquet Snappy.
+### Dimensiones
 
-### 1. Dimensiones (Dimensions)
+- `gold.dim_municipality`
+- `gold.dim_geography`
+- `gold.dim_renamu_context`
+- `gold.dim_time`
+- `gold.dim_sismepre_period`
 
-* **`gold.dim_geography` (Geografía distrital):**
-  * `geography_key` (string): Identificador único de la geografía, equivalente al ubigeo.
-  * `ubigeo` (string): Código de ubigeo nacional de 6 dígitos.
-  * `ccdd`, `ccpp`, `ccdi` (string): Códigos de departamento, provincia y distrito respectivamente.
-  * `departamento_normalizado`, `provincia_normalizada`, `distrito_normalizado` (string): Nombres geográficos limpios y normalizados.
-  * `is_valid_ubigeo` (boolean): Flag que indica si el ubigeo existe en la jerarquía nacional oficial.
+### Hechos
 
-* **`gold.dim_municipality` (Entidad municipal y puente ejecutor):**
-  * `municipality_key` (string): Hash SHA-256 único por combinación de sec_ejec + ubigeo + mapping_source.
-  * `sec_ejec` (string): Código ejecutor de la entidad presupuestal.
-  * `ubigeo` (string): Código territorial de ubigeo.
-  * `municipalidad_nombre` (string): Nombre oficial de la municipalidad.
-  * `tipomuni_label` (string): Clasificación (Provincial, Distrital, Centro Poblado).
-  * `has_renamu_match` (boolean): Flag de cruce exitoso con RENAMU.
-  * `is_valid_sec_ejec` (boolean): Flag de validez del código ejecutor.
+- `gold.fact_siaf_income`
+- `gold.fact_predial_statistics`
 
-* **`gold.dim_municipality_context` (Atributos institucionales):**
-  * `municipality_context_key` (string): Llave subrogada por ubigeo.
-  * `ubigeo` (string): Código de ubigeo de 6 dígitos.
-  * `idmunici` (string): Identificador institucional de la encuesta RENAMU.
-  * `has_municipal_identifier` (boolean): Indica si la municipalidad posee un identificador oficial declarado.
-  * `sec_ejec_count` (bigint): Número de unidades ejecutoras asociadas a este ubigeo.
-  * `predial_sec_ejec_count` (bigint): Número de unidades prediales asociadas.
-  * `has_predial_match` (boolean): Flag de existencia de impuesto predial observado.
+### Marts
 
-* **`gold.dim_predial_period` (Periodo operativo predial):**
-  * `predial_period_key` (string): Llave compuesta `ano_aplicacion_periodo_ano_estadistica_mes_estadistica`.
-  * `ano_aplicacion` (string): Año de aplicación de la SISMEPRE.
-  * `periodo` (string): Periodo predial declarado.
-  * `predial_period_label` (string): Etiqueta descriptiva del periodo predial.
+- `gold.mart_municipal_revenue_overview`
+- `gold.mart_predial_statistics_overview`
+- `gold.mart_municipal_context`
+- `gold.mart_territorial_summary`
 
-* **`gold.dim_time` (Periodo temporal MEF):**
-  * `period_key` (string): Llave temporal YYYYMM.
-  * `anio` (int): Año de ejecución.
-  * `mes` (int): Mes de ejecución (0 para acumulados anuales).
-  * `is_annual_record` (boolean): Flag de registro con saldo consolidado anual.
-  * `period_label` (string): Etiqueta visual del periodo (ej. "2012-05" o "2012 anual").
+### Auditoría
 
-### 2. Tablas de Hechos (Facts)
+- `gold.audit_quality_results`
+- `gold.audit_dataset_summary`
 
-* **`gold.fact_municipal_income_execution` (Ejecución de ingresos MEF):**
-  * `sec_ejec` (string): Unidad ejecutora municipal.
-  * `anio`, `mes` (int): Periodo de tiempo.
-  * clasificadores presupuestales: `rubro`, `generica`, `subgenerica`, `especifica`, etc. (partidas presupuestarias).
-  * `monto_pia_total` (decimal): Presupuesto Institucional de Apertura.
-  * `monto_pim_total` (decimal): Presupuesto Institucional Modificado.
-  * `monto_recaudado_total` (decimal): Monto ejecutado y recaudado real.
-  * `recaudacion_vs_pim_ratio` (decimal): Ratio de ejecución recaudado/PIM.
-  * `integration_quality_status` (string): Calidad de integración (`matched_renamu`, `without_bridge`, etc.).
+## Legacy explícito
 
-* **`gold.fact_predial_compliance` (Cumplimiento de emisión y recaudación predial):**
-  * `sec_ejec` (string): Código de entidad predial.
-  * `ano_aplicacion`, `periodo` (string): Periodo analítico del impuesto.
-  * `predial_collection_total` (decimal): Sumatoria total de recaudación de impuesto predial.
-  * `predial_issue_total` (decimal): Sumatoria total de emisión de impuesto predial.
-  * `predial_balance_total` (decimal): Saldo predial remanente.
-  * `predial_effectiveness_ratio` (decimal): Efectividad de cobranza (recaudación/emisión).
-  * `taxpayer_count_total` (decimal): Número total de contribuyentes prediales registrados.
-  * `property_count_total` (decimal): Número total de predios declarados.
+Las siguientes referencias se consideran legacy o transicionales:
 
-* **Hechos de Cobertura de Integración (`fact_revenue_integration_coverage`, `fact_predial_integration_coverage`, `fact_territorial_integration_coverage`):**
-  * `metric_name` (string): Nombre técnico de la cobertura de cruce (ej. `predial_entities_with_renamu_match`).
-  * `numerator` (bigint): Número de registros exitosamente emparejados.
-  * `denominator` (bigint): Universo total de registros de la fuente.
-  * `coverage_percentage` (double): Porcentaje técnico de éxito del cruce.
-  * *Nota de interpretación:* **Estas métricas auditan la integridad de integración del lakehouse**; no representan KPIs de desempeño de gestión municipal.
-
-### 3. Marts de Negocio (Marts)
-
-* **`gold.mart_municipal_capacity` (Capacidades y Conectividad Municipal):**
-  * `ubigeo` (string): Llave distrital.
-  * `total_personal_mar_2022` (decimal): Personal contratado por la municipalidad a marzo de 2022.
-  * `total_computadoras_operativas` (decimal): Computadoras operativas en la municipalidad.
-  * `ratio_computadoras_con_internet` (decimal): Computadoras con internet sobre el total operativo.
-  * `tiene_internet` (boolean): Flag de acceso a red.
-  * `tiene_siaf`, `tiene_srtm` (boolean): Flags de sistemas de gestión instalados.
-  * `tiene_sistema_rentas`, `tiene_catastro` (boolean): Flags de software de administración tributaria distrital y registro catastral.
-  * `requiere_asistencia_administracion_tributaria` (boolean): Declaración de necesidad de capacitación o asistencia.
-  * `renamu_income_total`, `renamu_expense_total` (decimal): Ingresos y gastos declarados en RENAMU.
-
-* **`gold.mart_municipal_revenue_overview` (Resumen de ingresos ejecutivos):**
-  * `anio`, `mes` (int): Tiempo de la recaudación.
-  * `sec_ejec`, `ubigeo` (string): Entidades y ubicación georeferenciada.
-  * `monto_pia_total`, `monto_pim_total`, `monto_recaudado_total` (decimal): Totales agregados financieros.
-  * `recaudacion_vs_pim_ratio`, `recaudacion_vs_pia_ratio` (decimal): Tasas de avance.
-
-* **`gold.mart_predial_compliance_overview` (Consolidado de cobranza predial):**
-  * `ano_aplicacion`, `periodo` (string): Periodo analítico.
-  * `sec_ejec`, `effective_ubigeo` (string): Identificación municipal.
-  * `predial_collection_total`, `predial_issue_total`, `predial_balance_total` (decimal): Totales prediales agregados.
-  * `predial_effectiveness_ratio` (decimal): Efectividad agregada.
-
-* **`gold.mart_predial_ranking` (Clasificación comparativa predial):**
-  * `ano_aplicacion`, `periodo` (string): Ventana temporal.
-  * `collection_rank_desc` (int): Puesto de la municipalidad según recaudación predial (mayor a menor).
-  * `effectiveness_rank_desc` (int): Puesto de la municipalidad según efectividad de cobranza (mayor a menor).
-  * `balance_rank_desc` (int): Puesto según saldo remanente (mayor a menor).
-  * `is_top_collection_candidate` (boolean): True si se ubica en el Top 10 de recaudación del periodo.
-
-* **`gold.mart_territorial_context` (Consolidado estructural territorial):**
-  * `departamento_normalizado`, `provincia_normalizada` (string): Jerarquía geográfica.
-  * `municipality_count` (bigint): Cantidad de distritos/municipalidades en la jerarquía.
-  * `predial_match_count` (bigint): Cantidad de entidades distritales con información predial real.
-
-### Lineamientos Generales de la Capa Gold
-
-1. **Uso de Claves Territoriales:** Se prioriza el uso de ubigeos territoriales (`ubigeo`) en lugar de códigos presupuestales (`sec_ejec`) como llave geográfica principal para el modelado, utilizando el puente municipal validado.
-2. **Consumo Analítico en Power BI:** Power BI se conectará de forma preferencial a las tablas externas Gold expuestas por Apache Hive mediante ODBC.
-3. **Capas Técnicas Protegidas:** Las tablas de las capas Bronze y Silver permanecen reservadas para auditoría de calidad de datos, controles técnicos e ingeniería de datos, evitando su exposición directa en los paneles de visualización de negocio.
-4. **Resguardo de Fallback:** En caso de fallas de conexión o inestabilidades de red con HiveServer2 en entornos locales del anfitrión, se mantendrá un fallback directo leyendo los archivos Parquet físicos en `data/gold/`.
-
-## Estado del contrato Bronze
-
-Estado actual:
-
-| Fuente | Bronze Parquet | Contrato documentado | Observación |
-| --- | --- | --- | --- |
-| SIAF ingresos | Sí | Sí | Recursos anuales 2012-2024 y recursos 2025-2026 mensual/diario. |
-| SISMEPRE | Sí | Sí | Siete tablas fuente convertidas de forma separada. |
-| RENAMU 2022 | Sí | Sí | CSV principal convertido como tabla ancha contextual. |
-
-La capa Bronze queda documentada como una capa técnica, trazable y preparada para profiling, calidad y transformaciones Silver.
-
+- `municipal_entity_bridge`
+- `mef_municipal_amounts`
+- `renamu_full`
+- `renamu_municipal_context`
+- `dim_municipality_context`
+- `fact_municipal_income_execution`
+- `fact_predial_compliance`
+- `fact_revenue_integration_coverage`
+- `fact_predial_integration_coverage`
+- `fact_territorial_integration_coverage`
+- `municipal_categories`
+- `categorias_municipalidades`
+- `CategoriasMunicipalidades.csv`
 
 ## Documentos específicos por capa
 
-El diccionario maestro se complementa con documentos específicos por capa:
+El diccionario maestro se complementa con:
 
-- [`docs/bronze_data_dictionary.md`](bronze_data_dictionary.md): contrato técnico de datasets Bronze por fuente y recurso.
-- `docs/silver_transformations.md`: decisiones de limpieza, tipado semántico e integración Silver.
-- `docs/gold_model.md`: dimensiones, hechos, marts y KPIs finales.
-- `docs/data_profiling.md`: resultados de profiling, nulos, duplicados, tipos inferidos y llaves candidatas.
-- `docs/data_quality.md`: reglas, severidades y resultados de calidad.
+- `docs/bronze_data_dictionary.md`
+- `docs/silver_transformations.md`
+- `docs/gold_model.md`
+- `docs/data_profiling.md`
+- `docs/data_quality.md`

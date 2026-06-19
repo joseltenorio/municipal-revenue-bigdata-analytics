@@ -1,142 +1,103 @@
-# Modelo Hive del lakehouse
+# Modelo Hive objetivo
 
 ## Propósito
 
-Apache Hive cumple el rol de catálogo SQL del lakehouse local. En este proyecto, Hive no mueve ni duplica datos: registra tablas externas sobre archivos Parquet generados previamente por Spark en las capas Bronze y Silver.
+Apache Hive funciona como catálogo SQL del lakehouse local.
 
-La relación operativa es:
+En este proyecto, Hive no define la lógica de negocio. Sólo registra tablas externas sobre los Parquet generados por Spark para que Power BI y las consultas SQL trabajen sobre nombres estables.
 
-- Spark genera datasets Parquet en `data/bronze`, `data/silver` y, más adelante, `data/gold`.
-- Hive registra esos Parquet como tablas externas.
-- Beeline permite validar las bases, tablas y consultas SQL.
-- Power BI consumirá preferentemente las tablas Gold expuestas por HiveServer2 mediante ODBC/JDBC.
+## Capas registradas
 
-## Bases Hive
-
-Se crean tres bases:
-
-| Base | Estado actual | Uso esperado |
-| --- | --- | --- |
-| `bronze` | Disponible con tablas externas | Consulta técnica de recursos en granularidad original |
-| `silver` | Disponible con tablas externas | Consulta de datos limpios, tipados e integrados |
-| `gold` | Disponible con tablas externas | Capa final para marts analíticos y consumo de reportabilidad |
-
-Gold ahora está completamente poblado con tablas externas mapeando los marts de la arquitectura Medallion.
-
-## Tablas Bronze
-
-La base `bronze` registra tablas externas sobre recursos Bronze existentes. Normalmente cada tabla representa un `resource_key`, pero también puede registrar datasets directos consolidados como `municipal_classification`.
-
-El diseño usa una tabla por recurso o por dataset consolidado porque:
-
-- Las fuentes tienen esquemas heterogéneos.
-- Predial contiene recursos con estructuras distintas.
-- RENAMU es un dataset ancho.
-- Clasificación municipal se consolida en un único dataset Bronze y no requiere siete tablas separadas.
-- La validación con `SELECT COUNT(*)` es directa.
-- Se evita depender de reparación de particiones con `MSCK REPAIR TABLE`.
-
-Las tablas Bronze conservan la granularidad original de los archivos fuente. No deben usarse como modelo analítico final.
-
-## Tablas Silver
-
-La base `silver` registra 30 tablas externas:
-
-- Recursos Silver de MEF por `resource_key`.
-- Recursos Silver de Predial por `resource_key`.
-- Recurso Silver de RENAMU.
-- Datasets integrados Silver.
-
-Las tablas integradas principales son:
-
-| Tabla | Propósito |
+| Base | Rol |
 | --- | --- |
-| `silver.municipal_entity_bridge` | Puente municipal entre identificadores administrativos y territoriales |
-| `silver.siaf_municipal_amounts` | Montos MEF agregados con granularidad controlada |
-| `silver.sismepre_sismepre_predial_entity_period` | Información predial integrada por entidad, periodo, formulario y tiempo estadístico |
-| `silver.renamu_municipal_context` | Contexto territorial y municipal desde RENAMU |
-| `silver.integration_coverage` | Métricas técnicas de cobertura de cruce entre fuentes |
+| `bronze` | Catálogo técnico de recursos crudos preservados |
+| `silver` | Catálogo técnico de datasets limpios, tipados e integrados |
+| `gold` | Catálogo analítico final para negocio y Power BI |
 
-Estas tablas permiten validar integración y cobertura antes de construir Gold. No constituyen todavía la capa analítica final.
+## Silver objetivo
 
-## Gold
+Silver sigue existiendo como capa técnica de integración y trazabilidad. Para este proyecto, los nombres relevantes a documentar son:
 
-La base `gold` registra 15 tablas externas correspondientes a los marts y dimensiones analíticas generados para ingresos municipales, cumplimiento predial y contexto territorial.
+- `silver/municipal_classification/resource_key=classification_2019`
+- `silver/sismepre/resource_key=esat_estadistica_atm`
+- `silver/renamu/resource_key=municipal_context`
+- `silver/map_sec_ejec_ubigeo`
 
-El archivo `sql/hive/create_gold_external_tables.sql` define los DDL correspondientes a las siguientes tablas de negocio:
+Los otros recursos SISMEPRE y RENAMU pueden permanecer en Silver por trazabilidad, pero no forman parte del Gold inicial ni del dashboard principal.
 
-* **Ingresos municipales (`municipal_revenue`):**
-  * `gold.dim_municipality`: Dimensión municipal unificada con ubigeos y códigos ejecutores.
-  * `gold.dim_time`: Dimensión temporal a nivel anual/mensual.
-  * `gold.fact_municipal_income_execution`: Hecho de ejecución de ingresos mensuales y anuales con KPIs de recaudación vs PIA/PIM.
-  * `gold.mart_municipal_revenue_overview`: Agregado ejecutivo para análisis visual.
-  * `gold.fact_revenue_integration_coverage`: Cobertura técnica de integración presupuestal.
-* **Cumplimiento predial (`predial_compliance`):**
-  * `gold.dim_predial_period`: Dimensión temporal y de contexto estadístico predial.
-  * `gold.fact_predial_compliance`: Hecho de cumplimiento e importes de recaudación y saldos del impuesto predial.
-  * `gold.mart_predial_compliance_overview`: Mart agregado de efectividad predial.
-  * `gold.mart_predial_ranking`: Ranking municipal según volumen y efectividad de recaudación.
-  * `gold.fact_predial_integration_coverage`: Cobertura de la integración predial.
-* **Contexto territorial (`territorial_context`):**
-  * `gold.dim_geography`: Dimensión geográfica jerárquica a nivel distrital, provincial y departamental.
-  * `gold.dim_municipality_context`: Atributos y tipo de municipalidades.
-  * `gold.mart_municipal_capacity`: Mart de capacidades institucionales (personal, sistemas, internet, catastro, etc.).
-  * `gold.mart_territorial_context`: Agrupador analítico distrital y provincial.
-  * `gold.fact_territorial_integration_coverage`: Cobertura del cruce geográfico-territorial.
+## Gold objetivo
+
+La capa Gold objetivo se alinea con el modelo dimensional documentado en `docs/gold_model.md`.
+
+### Tablas Gold objetivo
+
+#### Dimensiones y contexto
+
+- `gold.dim_municipality`
+- `gold.dim_geography`
+- `gold.dim_renamu_context`
+- `gold.dim_time`
+- `gold.dim_sismepre_period`
+
+#### Hechos
+
+- `gold.fact_siaf_income`
+- `gold.fact_predial_statistics`
+
+#### Marts
+
+- `gold.mart_municipal_revenue_overview`
+- `gold.mart_predial_statistics_overview`
+- `gold.mart_municipal_context`
+- `gold.mart_territorial_summary`
+
+#### Auditoría
+
+- `gold.audit_quality_results`
+- `gold.audit_dataset_summary`
+
+## Propósito de `map_sec_ejec_ubigeo`
+
+`map_sec_ejec_ubigeo` debe documentarse y conservarse como un mapa técnico Silver.
+
+Sirve para:
+
+- resolver `sec_ejec -> ubigeo6 -> municipality_key`
+- conectar SIAF con RENAMU
+- conectar SIAF con clasificación municipal oficial
+- evitar joins manuales por nombre en Power BI
+
+No debe tratarse como dimensión de negocio ni como tabla principal de consumo.
+
+## Legacy
+
+Las siguientes referencias quedan como legacy o transicionales:
+
+- `silver.municipal_entity_bridge`
+- `silver.mef_municipal_amounts`
+- `silver.renamu_municipal_context`
+- `silver.renamu_full`
+- `gold.fact_municipal_income_execution`
+- `gold.dim_municipality_context`
+- `gold.fact_predial_compliance`
+- `gold.mart_municipal_capacity`
+- `gold.mart_sismepre_ranking`
+
+También son legacy las referencias a:
+
+- `municipal_categories`
+- `categorias_municipalidades`
+- `CategoriasMunicipalidades.csv`
+- matching manual por nombre como estrategia principal
 
 ## Generación de SQL
 
-El SQL de tablas externas se genera con:
+Las tablas externas de Hive se generan a partir de los Parquet ya materializados por Spark.
 
-```powershell
-docker compose run --rm python-app python -m src.hive.generate_external_tables --overwrite-sql --validate-inputs
-```
+Hive debe mantener el contrato de nombres y ubicaciones, pero no debe imponer una lógica de transformación diferente a la documentada en Silver y Gold.
 
-El script:
+## Consumo
 
-- Lee Parquet existentes con Spark.
-- Infere schemas.
-- Traduce tipos Spark a tipos Hive.
-- Genera `CREATE EXTERNAL TABLE IF NOT EXISTS`.
-- Usa `STORED AS PARQUET`.
-- Usa rutas absolutas internas `LOCATION '/app/data/...'`.
-- No ejecuta Beeline.
-- No modifica archivos Parquet.
+Power BI debe conectarse preferentemente a `gold` mediante HiveServer2/ODBC.
 
-Las rutas `/app/data/...` son visibles tanto para HiveServer2 como para Hive Metastore. Para ello, `hive-metastore` monta `./data:/app/data` en Docker Compose.
-
-## Validaciones ejecutadas
-
-Se validó la generación y aplicación del SQL con:
-
-- `create_databases.sql`: correcto.
-- `create_bronze_external_tables.sql`: correcto.
-- `create_silver_external_tables.sql`: correcto.
-- `create_gold_external_tables.sql`: correcto con DDLs dinámicos mapeando los marts Parquet.
-- `SHOW DATABASES`: mostró `bronze`, `silver` y `gold`.
-- `SHOW TABLES IN bronze`: 25 tablas.
-- `SHOW TABLES IN silver`: 30 tablas.
-- `SHOW TABLES IN gold`: 15 tablas registradas y funcionales.
-
-También se validaron consultas sobre tablas integradas:
-
-| Consulta | Resultado |
-| --- | ---: |
-| `SELECT COUNT(*) FROM silver.integration_coverage` | 6 |
-| `SELECT COUNT(*) FROM silver.municipal_entity_bridge` | 2598 |
-| `SELECT COUNT(*) FROM silver.sismepre_sismepre_predial_entity_period` | 133938 |
-| `SELECT COUNT(*) FROM silver.renamu_municipal_context` | 1874 |
-| `SELECT * FROM silver.siaf_municipal_amounts LIMIT 5` | Correcto |
-
-La tabla `silver.siaf_municipal_amounts` tiene más de 12 millones de filas, por lo que se validó con `LIMIT 5` en lugar de un conteo completo.
-
-## Interpretación
-
-Hive cataloga de forma completa las tres capas del lakehouse local: Bronze (fuentes crudas), Silver (datos depurados y cruzados) y Gold (marts listos para visualización). 
-
-Power BI consume preferentemente los marts y dimensiones analíticas finales de la capa `gold` expuestos por HiveServer2 mediante el driver ODBC. Si la conexión por Hive experimentase inestabilidad local debido a restricciones de red o controladores locales del sistema anfitrión, Power BI puede utilizar un fallback directo consumiendo los archivos Parquet físicos en `data/gold/` o una exportación local CSV controlada como respaldo de contingencia.
-
-## Limitaciones
-
-- Las tablas Bronze y Silver son para auditoría interna e ingeniería de datos; no deben exponerse al usuario de negocio de Power BI.
-- Beeline puede mostrar warnings de Log4j o SLF4J; no afectan la ejecución de consultas.
+El mapa técnico Silver y las tablas de auditoría no deben exponerse como navegación principal del usuario de negocio.

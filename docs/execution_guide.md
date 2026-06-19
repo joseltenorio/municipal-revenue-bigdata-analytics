@@ -477,8 +477,8 @@ docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SH
 Validar consultas ligeras:
 
 ```powershell
-docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT COUNT(*) FROM gold.mart_municipal_capacity;"
-docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT * FROM gold.mart_municipal_revenue_overview LIMIT 5;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT COUNT(*) FROM gold.mart_municipal_revenue_overview;"
+docker compose exec hive-server beeline -u "jdbc:hive2://localhost:10000" -e "SELECT * FROM gold.mart_municipal_context LIMIT 5;"
 ```
 
 ## 16. Power BI
