@@ -259,6 +259,9 @@ quality:
       dictionary_reference_missing:
         severity: WARNING
         description: Advertir si falta una referencia semántica local opcional.
+      siaf_municipal_only:
+        severity: FAIL
+        description: Validar que no existan entidades no municipales (regionales, nacionales, mancomunidades) en Silver SIAF.
     sources:
       siaf_income:
         expected_resources:

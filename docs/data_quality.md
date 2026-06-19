@@ -49,6 +49,7 @@ La calidad Silver conserva reglas para:
 - columnas obligatorias
 - tipos y formatos de llaves técnicas
 - duplicados por grano
+- validación de universo municipal en Silver SIAF (`siaf_municipal_only`): garantiza la ausencia de gobiernos regionales, nacionales, mancomunidades y asociaciones en la capa Silver.
 - valores permitidos en `match_status` y `confidence_level`
 - llaves integradas como `municipality_key = ubigeo6`
 - rangos de `match_rate` e `issue_rate`

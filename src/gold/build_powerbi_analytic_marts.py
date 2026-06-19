@@ -269,6 +269,12 @@ def build_mart_municipal_revenue_overview(
     require_columns(dim_time, TIME_REQUIRED_COLUMNS, "dim_time")
     processed_at = processed_at_utc or utc_now_iso()
 
+    fact_siaf_income_filtered = fact_siaf_income.filter(
+        (F.col("has_municipality_match") == F.lit(True))
+        & F.col("municipality_key").isNotNull()
+        & (~F.col("match_status").isin("missing_map", "ambiguous_sec_ejec", "unmatched", "invalid_ubigeo"))
+    )
+
     municipality = dim_municipality.select(
         "municipality_key",
         "ubigeo6",
@@ -300,7 +306,7 @@ def build_mart_municipal_revenue_overview(
     )
 
     return (
-        fact_siaf_income.alias("fact")
+        fact_siaf_income_filtered.alias("fact")
         .join(municipality.alias("municipality"), on="municipality_key", how="left")
         .join(
             geography.alias("geography"),

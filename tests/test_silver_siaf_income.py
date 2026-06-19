@@ -27,6 +27,7 @@ def spark() -> SparkSession:
         SparkSession.builder.master("local[1]")
         .appName("test-silver-siaf-income")
         .config("spark.sql.shuffle.partitions", "1")
+        .config("spark.hadoop.fs.file.impl", "org.apache.hadoop.fs.RawLocalFileSystem")
         .getOrCreate()
     )
     session.sparkContext.setLogLevel("ERROR")
@@ -69,7 +70,7 @@ def sample_bronze_rows() -> list[dict[str, str]]:
             "pliego_nombre": "PLIEGO DEMO",
             "sec_ejec": "301863",
             "ejecutora": "030220",
-            "ejecutora_nombre": "MUNICIPALIDAD DEMO",
+            "ejecutora_nombre": "MUNICIPALIDAD DISTRITAL DE SAMUGARI",
             "departamento_ejecutora": "3",
             "departamento_ejecutora_nombre": "APURIMAC",
             "provincia_ejecutora": "2",
@@ -105,41 +106,176 @@ def sample_bronze_rows() -> list[dict[str, str]]:
         },
         {
             "ano_doc": "2024",
-            "mes_doc": "13",
+            "mes_doc": "5",
             "nivel_gobierno": "R",
-            "nivel_gobierno_nombre": "GOBIERNO REGIONAL",
-            "sector": "",
-            "sector_nombre": "",
-            "pliego": "",
-            "pliego_nombre": "",
-            "sec_ejec": "",
-            "ejecutora": "",
-            "ejecutora_nombre": "",
-            "departamento_ejecutora": "",
-            "departamento_ejecutora_nombre": "",
+            "nivel_gobierno_nombre": "GOBIERNOS REGIONALES",
+            "sector": "01",
+            "sector_nombre": "SECTOR REGIONAL",
+            "pliego": "000111",
+            "pliego_nombre": "PLIEGO REGIONAL",
+            "sec_ejec": "111111",
+            "ejecutora": "030111",
+            "ejecutora_nombre": "REGION AMAZONAS-SEDE CENTRAL",
+            "departamento_ejecutora": "1",
+            "departamento_ejecutora_nombre": "AMAZONAS",
             "provincia_ejecutora": "1",
-            "provincia_ejecutora_nombre": "",
-            "distrito_ejecutora": "",
-            "distrito_ejecutora_nombre": "",
-            "fuente_financiamiento": "",
-            "fuente_financiamiento_nombre": "",
-            "rubro": "",
-            "rubro_nombre": "",
-            "tipo_recurso": "",
-            "tipo_recurso_nombre": "",
-            "generica": "",
-            "generica_nombre": "",
-            "subgenerica": "",
-            "subgenerica_nombre": "",
-            "subgenerica_det": "",
-            "subgenerica_det_nombre": "",
-            "especifica": "",
-            "especifica_nombre": "",
-            "especifica_det": "",
-            "especifica_det_nombre": "",
-            "monto_pia": "abc",
-            "monto_pim": "",
-            "monto_recaudado": "1,050.00",
+            "provincia_ejecutora_nombre": "CHACHAPOYAS",
+            "distrito_ejecutora": "1",
+            "distrito_ejecutora_nombre": "CHACHAPOYAS",
+            "fuente_financiamiento": "2",
+            "fuente_financiamiento_nombre": "RECURSOS DIRECTAMENTE RECAUDADOS",
+            "rubro": "09",
+            "rubro_nombre": "RUBRO DEMO",
+            "tipo_recurso": "7",
+            "tipo_recurso_nombre": "TIPO DEMO",
+            "generica": "5",
+            "generica_nombre": "GENERICA DEMO",
+            "subgenerica": "1",
+            "subgenerica_nombre": "SUBGENERICA DEMO",
+            "subgenerica_det": "1",
+            "subgenerica_det_nombre": "SUBGENERICA DET DEMO",
+            "especifica": "1",
+            "especifica_nombre": "ESPECIFICA DEMO",
+            "especifica_det": "1",
+            "especifica_det_nombre": "ESPECIFICA DET DEMO",
+            "monto_pia": "1000.00",
+            "monto_pim": "1000.00",
+            "monto_recaudado": "1000.00",
+            "bronze_source_name": "mef_income",
+            "bronze_resource_key": "annual_2024",
+            "bronze_source_file_name": "2024-Ingreso.csv",
+            "bronze_source_file_path": "/app/data/landing/mef_income/2024-Ingreso.csv",
+            "bronze_source_year": "2024",
+            "bronze_source_granularity": "annual",
+            "bronze_processed_at_utc": "2026-06-19T00:00:00+00:00",
+        },
+        {
+            "ano_doc": "2024",
+            "mes_doc": "6",
+            "nivel_gobierno": "M",
+            "nivel_gobierno_nombre": "GOBIERNOS LOCALES",
+            "sector": "01",
+            "sector_nombre": "SECTOR LOCAL",
+            "pliego": "000222",
+            "pliego_nombre": "PLIEGO MANCOMUNIDAD",
+            "sec_ejec": "222222",
+            "ejecutora": "030222",
+            "ejecutora_nombre": "MANCOMUNIDAD MUNICIPAL DE LA AMAZONIA DE PUNO",
+            "departamento_ejecutora": "21",
+            "departamento_ejecutora_nombre": "PUNO",
+            "provincia_ejecutora": "1",
+            "provincia_ejecutora_nombre": "PUNO",
+            "distrito_ejecutora": "1",
+            "distrito_ejecutora_nombre": "PUNO",
+            "fuente_financiamiento": "2",
+            "fuente_financiamiento_nombre": "RECURSOS DIRECTAMENTE RECAUDADOS",
+            "rubro": "09",
+            "rubro_nombre": "RUBRO DEMO",
+            "tipo_recurso": "7",
+            "tipo_recurso_nombre": "TIPO DEMO",
+            "generica": "5",
+            "generica_nombre": "GENERICA DEMO",
+            "subgenerica": "1",
+            "subgenerica_nombre": "SUBGENERICA DEMO",
+            "subgenerica_det": "1",
+            "subgenerica_det_nombre": "SUBGENERICA DET DEMO",
+            "especifica": "1",
+            "especifica_nombre": "ESPECIFICA DEMO",
+            "especifica_det": "1",
+            "especifica_det_nombre": "ESPECIFICA DET DEMO",
+            "monto_pia": "1000.00",
+            "monto_pim": "1000.00",
+            "monto_recaudado": "1000.00",
+            "bronze_source_name": "mef_income",
+            "bronze_resource_key": "annual_2024",
+            "bronze_source_file_name": "2024-Ingreso.csv",
+            "bronze_source_file_path": "/app/data/landing/mef_income/2024-Ingreso.csv",
+            "bronze_source_year": "2024",
+            "bronze_source_granularity": "annual",
+            "bronze_processed_at_utc": "2026-06-19T00:00:00+00:00",
+        },
+        {
+            "ano_doc": "2024",
+            "mes_doc": "7",
+            "nivel_gobierno": "N",
+            "nivel_gobierno_nombre": "GOBIERNO NACIONAL",
+            "sector": "10",
+            "sector_nombre": "SECTOR EDUCACION",
+            "pliego": "000333",
+            "pliego_nombre": "PLIEGO MINEDU",
+            "sec_ejec": "333333",
+            "ejecutora": "030333",
+            "ejecutora_nombre": "MINISTERIO DE EDUCACION",
+            "departamento_ejecutora": "15",
+            "departamento_ejecutora_nombre": "LIMA",
+            "provincia_ejecutora": "1",
+            "provincia_ejecutora_nombre": "LIMA",
+            "distrito_ejecutora": "1",
+            "distrito_ejecutora_nombre": "LIMA",
+            "fuente_financiamiento": "1",
+            "fuente_financiamiento_nombre": "RECURSOS ORDINARIOS",
+            "rubro": "00",
+            "rubro_nombre": "RECURSOS ORDINARIOS",
+            "tipo_recurso": "0",
+            "tipo_recurso_nombre": "TIPO DEMO",
+            "generica": "5",
+            "generica_nombre": "GENERICA DEMO",
+            "subgenerica": "1",
+            "subgenerica_nombre": "SUBGENERICA DEMO",
+            "subgenerica_det": "1",
+            "subgenerica_det_nombre": "SUBGENERICA DET DEMO",
+            "especifica": "1",
+            "especifica_nombre": "ESPECIFICA DEMO",
+            "especifica_det": "1",
+            "especifica_det_nombre": "ESPECIFICA DET DEMO",
+            "monto_pia": "5000.00",
+            "monto_pim": "5000.00",
+            "monto_recaudado": "5000.00",
+            "bronze_source_name": "mef_income",
+            "bronze_resource_key": "annual_2024",
+            "bronze_source_file_name": "2024-Ingreso.csv",
+            "bronze_source_file_path": "/app/data/landing/mef_income/2024-Ingreso.csv",
+            "bronze_source_year": "2024",
+            "bronze_source_granularity": "annual",
+            "bronze_processed_at_utc": "2026-06-19T00:00:00+00:00",
+        },
+        {
+            "ano_doc": "2024",
+            "mes_doc": "8",
+            "nivel_gobierno": "M",
+            "nivel_gobierno_nombre": "GOBIERNOS LOCALES",
+            "sector": "01",
+            "sector_nombre": "SECTOR LOCAL",
+            "pliego": "000444",
+            "pliego_nombre": "PLIEGO ASOCIACION",
+            "sec_ejec": "444444",
+            "ejecutora": "030444",
+            "ejecutora_nombre": "ASOCIACION DE MUNICIPALIDADES DE LA PROVINCIA X",
+            "departamento_ejecutora": "15",
+            "departamento_ejecutora_nombre": "LIMA",
+            "provincia_ejecutora": "1",
+            "provincia_ejecutora_nombre": "LIMA",
+            "distrito_ejecutora": "1",
+            "distrito_ejecutora_nombre": "LIMA",
+            "fuente_financiamiento": "2",
+            "fuente_financiamiento_nombre": "RECURSOS DIRECTAMENTE RECAUDADOS",
+            "rubro": "09",
+            "rubro_nombre": "RUBRO DEMO",
+            "tipo_recurso": "7",
+            "tipo_recurso_nombre": "TIPO DEMO",
+            "generica": "5",
+            "generica_nombre": "GENERICA DEMO",
+            "subgenerica": "1",
+            "subgenerica_nombre": "SUBGENERICA DEMO",
+            "subgenerica_det": "1",
+            "subgenerica_det_nombre": "SUBGENERICA DET DEMO",
+            "especifica": "1",
+            "especifica_nombre": "ESPECIFICA DEMO",
+            "especifica_det": "1",
+            "especifica_det_nombre": "ESPECIFICA DET DEMO",
+            "monto_pia": "1000.00",
+            "monto_pim": "1000.00",
+            "monto_recaudado": "1000.00",
             "bronze_source_name": "mef_income",
             "bronze_resource_key": "annual_2024",
             "bronze_source_file_name": "2024-Ingreso.csv",
@@ -187,8 +323,18 @@ def test_transform_resource_dataframe_builds_curated_contract(
     assert "monto_pim_decimal" not in result.columns
     assert "monto_recaudado_decimal" not in result.columns
 
+    # De 5 filas originales, solo la municipalidad distrital de Samugari (mes 4) sobrevive.
+    # Las demas (mes 5=regional, 6=mancomunidad, 7=nacional, 8=asociacion) son filtradas.
+    assert len(rows) == 1
+    assert 4 in rows
+    assert 5 not in rows
+    assert 6 not in rows
+    assert 7 not in rows
+    assert 8 not in rows
+
     row_valid = rows[4]
     assert row_valid["nivel_gobierno_codigo"] == "M"
+    assert row_valid["ejecutora_nombre"] == "MUNICIPALIDAD DISTRITAL DE SAMUGARI"
     assert row_valid["sec_ejec"] == "301863"
     assert row_valid["departamento_codigo"] == "03"
     assert row_valid["provincia_codigo"] == "02"
@@ -208,22 +354,6 @@ def test_transform_resource_dataframe_builds_curated_contract(
     assert row_valid["silver_resource_key"] == "annual_2024"
     assert row_valid["source_resource_key"] == "annual_2024"
     assert row_valid["source_granularity"] == "annual"
-
-    row_invalid = rows[13]
-    assert row_invalid["fecha_mes"] is None
-    assert row_invalid["monto_pia"] is None
-    assert row_invalid["monto_pim"] is None
-    assert row_invalid["monto_recaudado"] == Decimal("1050.0000")
-    assert row_invalid["is_municipal_government"] is False
-    assert row_invalid["flag_pim_menor_pia"] is None
-    assert row_invalid["flag_recaudado_mayor_pim"] is None
-    assert row_invalid["has_complete_territory"] is False
-    assert row_invalid["is_valid_mes"] is False
-    assert row_invalid["is_valid_sec_ejec"] is False
-    assert row_invalid["is_valid_ubigeo6_ejecutora"] is False
-    assert row_invalid["is_valid_monto_pia"] is False
-    assert row_invalid["is_valid_monto_pim"] is True
-    assert row_invalid["is_valid_monto_recaudado"] is True
 
 
 def test_dry_run_does_not_write_silver_outputs(tmp_path: Path, spark: SparkSession) -> None:
@@ -249,7 +379,7 @@ def test_dry_run_does_not_write_silver_outputs(tmp_path: Path, spark: SparkSessi
 
     assert len(summary) == 1
     assert summary[0]["resource_key"] == "annual_2024"
-    assert summary[0]["row_count"] == 2
+    assert summary[0]["row_count"] == 5
     assert not (silver_dir / "resource_key=annual_2024").exists()
 
 

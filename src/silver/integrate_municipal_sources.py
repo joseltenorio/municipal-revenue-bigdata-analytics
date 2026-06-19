@@ -282,8 +282,32 @@ def select_sec_ejec_from_siaf(spark: Any, siaf_root: Path, limit: int | None) ->
         dataframe = read_parquet(spark, path, limit)
         if "sec_ejec" not in dataframe.columns:
             continue
+
+        from pyspark.sql import functions as F
+
+        filtered = dataframe
+        if "nivel_gobierno_codigo" in filtered.columns and "nivel_gobierno_nombre" in filtered.columns:
+            is_municipal_level = (
+                (F.col("nivel_gobierno_codigo") == F.lit("M")) |
+                (F.upper(F.col("nivel_gobierno_nombre")) == F.lit("GOBIERNOS LOCALES"))
+            )
+            is_regional_or_national = (
+                (F.col("nivel_gobierno_codigo") == F.lit("R")) |
+                (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNOS REGIONALES%")) |
+                (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNO NACIONAL%"))
+            )
+            filtered = filtered.filter(is_municipal_level & (~is_regional_or_national))
+
+        if "ejecutora_nombre" in filtered.columns:
+            is_excluded_name = (
+                F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDAD%") |
+                F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDADES%") |
+                F.upper(F.col("ejecutora_nombre")).like("%ASOCIACION DE MUNICIPALIDADES%")
+            )
+            filtered = filtered.filter(~is_excluded_name)
+
         frames.append(
-            dataframe.select(
+            filtered.select(
                 normalize_sec_ejec("sec_ejec").alias("sec_ejec"),
             )
         )

@@ -259,6 +259,11 @@ def test_fact_siaf_income_tiene_contrato_y_resuelve_municipality_key(
     assert forbidden_columns.isdisjoint(fact.columns)
 
     rows = {row["sec_ejec"]: row.asDict() for row in fact.collect()}
+    assert "301260" in rows
+    assert "301261" in rows
+    assert "301270" not in rows
+    assert "999999" not in rows
+
     assert rows["301260"]["municipality_key"] == "150111"
     assert rows["301260"]["has_municipality_match"] is True
     assert rows["301260"]["match_status"] == "matched"
@@ -274,14 +279,11 @@ def test_fact_siaf_income_tiene_contrato_y_resuelve_municipality_key(
     assert rows["301261"]["match_status"] == "missing_renamu"
     assert rows["301261"]["date_key"] == 20240101
 
-    assert rows["301270"]["municipality_key"] is None
-    assert rows["301270"]["has_municipality_match"] is False
-    assert rows["301270"]["match_status"] == "ambiguous_sec_ejec"
-
-    assert rows["999999"]["municipality_key"] is None
-    assert rows["999999"]["has_municipality_match"] is False
-    assert rows["999999"]["match_status"] == "missing_map"
-    assert rows["999999"]["date_key"] is None
+    # Validar explícitamente las condiciones contractuadas
+    for row in fact.collect():
+        assert row["municipality_key"] is not None
+        assert row["has_municipality_match"] is True
+        assert row["match_status"] not in ["missing_map", "ambiguous_sec_ejec", "unmatched", "invalid_ubigeo"]
 
 
 def test_fact_predial_statistics_tiene_contrato_y_calcula_ratio(sismepre_esat):

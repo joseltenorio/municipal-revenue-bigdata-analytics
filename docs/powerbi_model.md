@@ -112,6 +112,7 @@ Hecho principal para ingresos municipales.
 
 Debe llegar con `municipality_key` resuelto para evitar cruces manuales en Power BI.
 Debe exponer `date_key` y `match_status` ya resueltos desde Gold, sin obligar al reporte a usar `map_sec_ejec_ubigeo`.
+**Blindaje Municipal**: Solo contiene registros de municipalidades con emparejamiento exitoso (`has_municipality_match = true` y `municipality_key IS NOT NULL`). All other non-municipal entities (regional, national, mancomunidades) are filtered out at the source.
 
 ### `fact_predial_statistics`
 
@@ -126,6 +127,7 @@ Debe llegar con `sismepre_period_key` resuelto para relacionarse directamente co
 Tabla ejecutiva para KPI, tendencia y comparativos.
 
 Debe salir desde Gold facts/dims ya enriquecidos, no desde Silver ni desde tablas tecnicas.
+**Origen Blindado**: Se alimenta únicamente de la fact `fact_siaf_income` ya pre-filtrada en el backend Spark. El reporte final no debe aplicar filtros manuales de limpieza ad-hoc para remover gobiernos regionales o nacionales, ya que el origen viene 100% curado.
 
 ### `mart_predial_statistics_overview`
 

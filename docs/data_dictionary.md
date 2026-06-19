@@ -531,6 +531,7 @@ Salidas fisicas implementadas para el bloque inicial de hechos:
 Reglas clave:
 
 - `fact_siaf_income` resuelve `municipality_key` desde el mapa tecnico Silver.
+- **Blindaje Municipal**: `fact_siaf_income` conserva únicamente registros del universo municipal con match exitoso (`has_municipality_match = true` y `municipality_key IS NOT NULL`), filtrando mancomunidades, asociaciones, y gobiernos regionales/nacionales.
 - `fact_siaf_income` conserva `source_resource_key` y `source_granularity`.
 - `fact_predial_statistics` usa solo el recurso principal SISMEPRE del Gold inicial.
 - Ninguna de estas facts expone nombres observados por fuente ni depende de `municipal_entity_bridge`.
@@ -554,6 +555,7 @@ Salidas fisicas implementadas para el bloque inicial de marts:
 Reglas clave:
 
 - Los marts se construyen desde Gold facts/dims, no desde Silver directo.
+- `mart_municipal_revenue_overview` consume el hecho `fact_siaf_income` ya pre-filtrado, garantizando que no requiera filtros de limpieza manuales en Power BI.
 - `mart_municipal_revenue_overview` y `mart_predial_statistics_overview` quedan listos para consumo analitico plano.
 - `mart_municipal_context` concentra geografia, clasificacion y variables RENAMU seleccionadas.
 - `mart_territorial_summary` evita duplicar municipalidades y no expone tablas tecnicas Silver.

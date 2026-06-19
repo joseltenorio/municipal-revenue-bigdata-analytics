@@ -660,3 +660,77 @@ def test_dry_run_does_not_create_silver_quality_outputs() -> None:
 
         assert results == []
         assert not output_path.exists()
+
+
+def test_check_siaf_municipal_only_pass_and_fail(spark: SparkSession) -> None:
+    """La regla siaf_municipal_only aprueba datos puramente municipales y reprueba no municipales."""
+    from src.quality.run_silver_quality_checks import check_siaf_municipal_only
+
+    dataset = SilverDataset(
+        source_name="siaf_income",
+        resource_key="annual_2024",
+        dataset_path=Path("unused"),
+        source_config={},
+        resource_config={},
+    )
+
+    schema = StructType(
+        [
+            StructField("nivel_gobierno_codigo", StringType(), True),
+            StructField("nivel_gobierno_nombre", StringType(), True),
+            StructField("ejecutora_nombre", StringType(), True),
+        ]
+    )
+
+    # 1. Caso PASS: solo registros municipales válidos
+    df_pass = spark.createDataFrame(
+        [
+            ("M", "GOBIERNOS LOCALES", "MUNICIPALIDAD DISTRITAL DE SAMUGARI"),
+            ("M", "GOBIERNOS LOCALES", "MUNICIPALIDAD PROVINCIAL DE HUANCAYO"),
+        ],
+        schema=schema,
+    )
+
+    result_pass = check_siaf_municipal_only(
+        run_id="run_test",
+        dataset=dataset,
+        dataframe=df_pass,
+        checked_at_utc="2026-06-19T00:00:00+00:00",
+    )
+    assert result_pass.status == "PASS"
+    assert result_pass.rule_name == "siaf_municipal_only"
+    assert result_pass.details["non_municipal_records"] == 0
+
+    # 2. Caso FAIL: contiene un gobierno regional
+    df_fail_regional = spark.createDataFrame(
+        [
+            ("M", "GOBIERNOS LOCALES", "MUNICIPALIDAD DISTRITAL DE SAMUGARI"),
+            ("R", "GOBIERNOS REGIONALES", "REGION AMAZONAS-SEDE CENTRAL"),
+        ],
+        schema=schema,
+    )
+    result_fail_reg = check_siaf_municipal_only(
+        run_id="run_test",
+        dataset=dataset,
+        dataframe=df_fail_regional,
+        checked_at_utc="2026-06-19T00:00:00+00:00",
+    )
+    assert result_fail_reg.status == "FAIL"
+    assert result_fail_reg.details["non_municipal_records"] == 1
+
+    # 3. Caso FAIL: contiene una mancomunidad
+    df_fail_manco = spark.createDataFrame(
+        [
+            ("M", "GOBIERNOS LOCALES", "MANCOMUNIDAD MUNICIPAL DE LA AMAZONIA"),
+        ],
+        schema=schema,
+    )
+    result_fail_manco = check_siaf_municipal_only(
+        run_id="run_test",
+        dataset=dataset,
+        dataframe=df_fail_manco,
+        checked_at_utc="2026-06-19T00:00:00+00:00",
+    )
+    assert result_fail_manco.status == "FAIL"
+    assert result_fail_manco.details["non_municipal_records"] == 1
+

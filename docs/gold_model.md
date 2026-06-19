@@ -222,8 +222,7 @@ Reglas:
 - Debe salir con `municipality_key` ya resuelto usando `map_sec_ejec_ubigeo`.
 - Ruta fisica: `data/gold/fact_siaf_income/`.
 - `municipality_key` debe ser el `ubigeo6` resuelto desde el mapa tecnico.
-- Si no existe resolucion unica, el registro se conserva con `has_municipality_match = false`.
-- Si no existe fila en el mapa tecnico, `match_status` debe quedar como `missing_map`.
+- **Blindaje Municipal**: Solo conserva registros exitosamente emparejados (`has_municipality_match = true` y `municipality_key IS NOT NULL`), descartando cualquier fila con `match_status` en: `'missing_map'`, `'ambiguous_sec_ejec'`, `'unmatched'`, `'invalid_ubigeo'`.
 - Debe conservar `source_resource_key` y `source_granularity` para trazabilidad.
 - No debe incluir nombres observados por fuente ni atributos geograficos, de clasificacion o RENAMU.
 - `date_key` debe derivarse con grano mensual; recursos anuales pueden usar enero como convencion estable.
@@ -273,7 +272,8 @@ Uso:
 Reglas:
 
 - Ruta fisica: `data/gold/mart_municipal_revenue_overview/`.
-- Se construye desde `fact_siaf_income`, `dim_municipality`, `dim_geography` y `dim_time`.
+- **Origen Blindado**: Se construye exclusivamente desde `fact_siaf_income` (la cual ya está filtrada y blindada para el universo municipal), `dim_municipality`, `dim_geography` y `dim_time`.
+- No realiza lecturas directas a capas Silver ni depende de filtros manuales ad-hoc en Power BI.
 - No expone nombres observados por fuente ni variables extensas de RENAMU.
 
 ### `mart_predial_statistics_overview`

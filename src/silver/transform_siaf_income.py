@@ -519,7 +519,8 @@ def add_derived_columns(dataframe: Any, resource: SilverResource) -> Any:
         )
         .withColumn(
             "is_municipal_government",
-            F.col("nivel_gobierno_codigo") == F.lit("M"),
+            (F.col("nivel_gobierno_codigo") == F.lit("M")) |
+            (F.upper(F.col("nivel_gobierno_nombre")) == F.lit("GOBIERNOS LOCALES")),
         )
         .withColumn(
             "is_valid_anio",
@@ -618,6 +619,28 @@ def transform_resource_dataframe(
         resource=resource,
         processed_at=processed_at,
     )
+
+    from pyspark.sql import functions as F
+
+    is_municipal_level = (
+        (F.col("nivel_gobierno_codigo") == F.lit("M")) |
+        (F.upper(F.col("nivel_gobierno_nombre")) == F.lit("GOBIERNOS LOCALES"))
+    )
+
+    is_regional_or_national = (
+        (F.col("nivel_gobierno_codigo") == F.lit("R")) |
+        (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNOS REGIONALES%")) |
+        (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNO NACIONAL%"))
+    )
+
+    is_excluded_name = (
+        F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDAD%") |
+        F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDADES%") |
+        F.upper(F.col("ejecutora_nombre")).like("%ASOCIACION DE MUNICIPALIDADES%")
+    )
+
+    is_municipal_candidate = is_municipal_level & (~is_regional_or_national) & (~is_excluded_name)
+    transformed = transformed.filter(is_municipal_candidate)
 
     return transformed.select(*FINAL_COLUMNS)
 

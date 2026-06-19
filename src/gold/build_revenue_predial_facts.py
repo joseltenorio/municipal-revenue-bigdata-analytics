@@ -391,6 +391,16 @@ def build_fact_siaf_income(
             "match_status",
             F.coalesce(F.col("match_status"), F.lit("missing_map")),
         )
+        .filter(
+            (F.col("has_municipality_match") == F.lit(True))
+            & F.col("municipality_key").isNotNull()
+            & (~F.col("match_status").isin(
+                "missing_map",
+                "ambiguous_sec_ejec",
+                "unmatched",
+                "invalid_ubigeo",
+            ))
+        )
         .withColumn("gold_processed_at_utc", F.lit(processed_at))
         .select(
             "municipality_key",

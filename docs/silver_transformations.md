@@ -124,6 +124,11 @@ Reglas:
 - tipar año, mes y montos
 - generar flags de validez
 - conservar montos negativos como hallazgo de calidad, no como error automático
+- **Restricción Municipal**: Filtrar el universo de ingresos para representar únicamente el ámbito municipal peruano.
+  - **Inclusión Principal**: `nivel_gobierno_codigo = 'M'` o `nivel_gobierno_nombre` normalizado igual a `GOBIERNOS LOCALES`.
+  - **Exclusión Explícita**: Descartar mancomunidades (`MANCOMUNIDAD`, `MANCOMUNIDADES`) y la `ASOCIACION DE MUNICIPALIDADES`.
+  - **Exclusión de Gobiernos Regionales/Nacionales**: Descartar entidades donde `nivel_gobierno_codigo = 'R'` o `nivel_gobierno_nombre` contenga `GOBIERNOS REGIONALES` o `GOBIERNO NACIONAL`.
+  - **Columnas de Auditoría**: Conservar en Silver SIAF las columnas técnicas `nivel_gobierno_codigo`, `nivel_gobierno_nombre`, `ejecutora_nombre` y `sec_ejec` para trazabilidad de auditoría.
 
 ### SISMEPRE
 

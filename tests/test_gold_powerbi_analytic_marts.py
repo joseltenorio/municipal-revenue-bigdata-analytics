@@ -325,6 +325,32 @@ def fact_siaf_income(spark: SparkSession):
             "missing_renamu",
             "2026-06-19T00:00:00+00:00",
         ),
+        (
+            None,
+            "301270",
+            20250601,
+            "monthly_2025",
+            "monthly",
+            Decimal("300.0000"),
+            Decimal("330.0000"),
+            Decimal("310.0000"),
+            False,
+            "ambiguous_sec_ejec",
+            "2026-06-19T00:00:00+00:00",
+        ),
+        (
+            None,
+            "999999",
+            20251301,
+            "daily_2025",
+            "daily",
+            Decimal("400.0000"),
+            Decimal("440.0000"),
+            Decimal("410.0000"),
+            False,
+            "missing_map",
+            "2026-06-19T00:00:00+00:00",
+        ),
     ]
     return spark.createDataFrame(rows, schema)
 
@@ -460,6 +486,12 @@ def test_mart_municipal_revenue_overview_tiene_columnas_y_contenido_gold(
     assert row["tipo_clasificacion_municipal"] == "G"
     assert row["anio_mes"] == "2024-04"
     assert row["monto_recaudado"] == Decimal("95.0000")
+
+    # Validaciones de filtrado estricto
+    from pyspark.sql import functions as F
+    assert mart.where(mart.municipality_key.isNull()).count() == 0
+    assert mart.where(F.col("has_municipality_match") == F.lit(False)).count() == 0
+    assert mart.where(F.col("match_status").isin("missing_map", "ambiguous_sec_ejec", "unmatched", "invalid_ubigeo")).count() == 0
 
 
 def test_mart_predial_statistics_overview_tiene_columnas_y_metricas_gold(

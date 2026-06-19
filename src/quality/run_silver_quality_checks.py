@@ -1387,6 +1387,56 @@ def check_false_flags(
     )
 
 
+def check_siaf_municipal_only(
+    *,
+    run_id: str,
+    dataset: SilverDataset,
+    dataframe: Any,
+    checked_at_utc: str,
+) -> SilverQualityResult:
+    """Verifica que no existan gobiernos regionales, nacionales ni mancomunidades en Silver SIAF."""
+
+    from pyspark.sql import functions as F
+
+    is_municipal_level = (
+        (F.col("nivel_gobierno_codigo") == F.lit("M")) |
+        (F.upper(F.col("nivel_gobierno_nombre")) == F.lit("GOBIERNOS LOCALES"))
+    )
+
+    is_regional_or_national = (
+        (F.col("nivel_gobierno_codigo") == F.lit("R")) |
+        (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNOS REGIONALES%")) |
+        (F.upper(F.col("nivel_gobierno_nombre")).like("%GOBIERNO NACIONAL%"))
+    )
+
+    is_excluded_name = (
+        F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDAD%") |
+        F.upper(F.col("ejecutora_nombre")).like("%MANCOMUNIDADES%") |
+        F.upper(F.col("ejecutora_nombre")).like("%ASOCIACION DE MUNICIPALIDADES%")
+    )
+
+    is_non_muni_condition = (~is_municipal_level) | is_regional_or_national | is_excluded_name
+
+    non_muni_count = count_condition(dataframe, is_non_muni_condition)
+    status = "PASS" if non_muni_count == 0 else "FAIL"
+
+    return build_silver_quality_result(
+        run_id=run_id,
+        dataset=dataset,
+        rule_name="siaf_municipal_only",
+        status=status,
+        severity="FAIL",
+        evaluated=True,
+        message=(
+            "Todos los registros en Silver corresponden a gobiernos locales municipales."
+            if non_muni_count == 0
+            else f"Se encontraron {non_muni_count} registros de entidades no municipales (regionales, nacionales, mancomunidades)."
+        ),
+        details={"non_municipal_records": non_muni_count},
+        checked_at_utc=checked_at_utc,
+    )
+
+
 def check_predial_required_relationship_keys(
     *,
     run_id: str,
@@ -1676,6 +1726,12 @@ def run_source_specific_checks(
                     dataframe=dataframe,
                     row_count=row_count,
                     rule_name="mef_candidate_key_duplicates",
+                    checked_at_utc=checked_at_utc,
+                ),
+                check_siaf_municipal_only(
+                    run_id=run_id,
+                    dataset=dataset,
+                    dataframe=dataframe,
                     checked_at_utc=checked_at_utc,
                 ),
             ]
