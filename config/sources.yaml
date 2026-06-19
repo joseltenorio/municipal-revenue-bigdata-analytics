@@ -224,34 +224,128 @@ sources:
       - "La definicion de granularidad analitica se realizara despues del profiling y antes de Silver."
 
 
-  municipal_categories:
-    name: municipal_categories
-    display_name: Categorias municipales
-    institution: Docente / fuente local controlada
-    source_system: manual_csv
-    description: Fuente manual de categorias municipales A-G entregada como CSV local para segmentacion analitica.
-    access_method: manual_csv
+  municipal_classification:
+    name: municipal_classification
+    display_name: Clasificacion Municipal MEF 2019
+    institution: Ministerio de Economia y Finanzas
+    source_system: MEF_gobpe
+    description: Clasificacion oficial de municipalidades 2019 en tipos A-G publicada por el MEF.
+    access_method: pdf
     expected_formats:
+      - pdf
       - csv
-    landing_subdir: category
-    bronze_subdir: municipal_categories
-    silver_subdir: municipal_categories
-    gold_subject_area: municipal_categories
+      - parquet
+    landing_subdir: municipal_classification
+    bronze_subdir: municipal_classification
+    silver_subdir: municipal_classification
+    gold_subject_area: municipal_context
     enabled: true
+    page_url: "https://www.gob.pe/institucion/mef/informes-publicaciones/4299668-clasificacion-municipal-2019"
+    bronze_dataset_layout: direct
+    silver_dataset_layout: direct
     candidate_resources:
-      categorias_municipalidades:
-        file_name: "CategoriasMunicipalidades.csv"
-        path: "data/landing/category/CategoriasMunicipalidades.csv"
-        format: csv
-        delimiter: ";"
+      tipo_a:
+        file_name: "tipo_a.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665315/Tipo%20A.pdf?v=1686265083"
+        format: pdf
         role: source_table
-        resource_key: categorias_municipalidades
+        resource_key: tipo_a
+        tipo_clasificacion: "A"
+        ambito_municipal: "provincial"
+        descripcion_tipo: "Municipalidades provinciales pertenecientes a ciudades principales"
+        expected_rows: 74
         priority: high
         use_for_ingestion: true
-        use_for_documentation: false
+        use_for_documentation: true
+
+      tipo_b:
+        file_name: "tipo_b.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665316/Tipo%20B.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_b
+        tipo_clasificacion: "B"
+        ambito_municipal: "provincial"
+        descripcion_tipo: "Municipalidades provinciales no pertenecientes a ciudades principales"
+        expected_rows: 122
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
+
+      tipo_c:
+        file_name: "tipo_c.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665317/Tipo%20C.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_c
+        tipo_clasificacion: "C"
+        ambito_municipal: "distrital"
+        descripcion_tipo: "Municipalidades distritales de Lima Metropolitana"
+        expected_rows: 42
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
+
+      tipo_d:
+        file_name: "tipo_d.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665318/Tipo%20D.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_d
+        tipo_clasificacion: "D"
+        ambito_municipal: "distrital"
+        descripcion_tipo: "Municipalidades distritales pertenecientes a otras ciudades principales"
+        expected_rows: 129
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
+
+      tipo_e:
+        file_name: "tipo_e.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665319/Tipo%20E.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_e
+        tipo_clasificacion: "E"
+        ambito_municipal: "distrital"
+        descripcion_tipo: "Municipalidades distritales no pertenecientes a ciudades principales, con más de 70% de población urbana"
+        expected_rows: 378
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
+
+      tipo_f:
+        file_name: "tipo_f.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665320/Tipo%20F.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_f
+        tipo_clasificacion: "F"
+        ambito_municipal: "distrital"
+        descripcion_tipo: "Municipalidades distritales no pertenecientes a ciudades principales, con población urbana entre 35% y 70%"
+        expected_rows: 509
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
+
+      tipo_g:
+        file_name: "tipo_g.pdf"
+        url: "https://cdn.www.gob.pe/uploads/document/file/4665321/Tipo%20G.pdf?v=1686265083"
+        format: pdf
+        role: source_table
+        resource_key: tipo_g
+        tipo_clasificacion: "G"
+        ambito_municipal: "distrital"
+        descripcion_tipo: "Municipalidades distritales no pertenecientes a ciudades principales, con menos de 35% de población urbana"
+        expected_rows: 620
+        priority: high
+        use_for_ingestion: true
+        use_for_documentation: true
     notes:
-      - "Es la unica fuente real versionada bajo data/landing porque no se descarga desde web."
-      - "Bronze conserva el CSV como Parquet con metadata tecnica; Silver definira normalizacion y llaves de cruce."
+      - "Fuente oficial descargable desde gob.pe/MEF."
+      - "Landing conserva los PDFs originales y CSV extraidos como artefactos locales regenerables."
+      - "Bronze consolida los siete tipos A-G en un unico dataset Parquet con metadata tecnica."
+      - "La llave principal para integracion posterior debe ser ubigeo."
 
   sismepre:
     name: sismepre

@@ -20,18 +20,12 @@ secrets/
 
 # Local data lake files
 data/landing/**
-
-!data/landing/category/
-!data/landing/category/.gitkeep
-!data/landing/category/CategoriasMunicipalidades.csv
 data/bronze/**
 data/silver/**
 data/gold/**
 data/quality/**
 
 !data/landing/.gitkeep
-!data/landing/category/
-!data/landing/category/CategoriasMunicipalidades.csv
 !data/bronze/.gitkeep
 !data/silver/.gitkeep
 !data/gold/.gitkeep
