@@ -1,10 +1,13 @@
-"""Limpieza y estandarización Silver para ingresos MEF.
+"""Transformacion Silver curada para ingresos SIAF.
 
-Este módulo lee datasets Bronze Parquet de SIAF ingresos y escribe un dataset
-Silver por recurso bajo ``data/silver/siaf_income``. La transformación aplica
-limpieza técnica ligera, tipado semántico inicial y flags de calidad por fila.
+Este modulo lee datasets Bronze Parquet de `siaf_income` y escribe un dataset
+Silver por recurso bajo ``data/silver/siaf_income``.
 
-No integra recursos, no elimina filas y no construye métricas analíticas finales.
+La salida Silver:
+- conserva la granularidad original por `resource_key`
+- tipa montos y periodos
+- estandariza codigos administrativos como texto
+- genera flags tecnicos sin corregir los datos contables observados
 """
 
 from __future__ import annotations
@@ -23,24 +26,103 @@ from src.common.paths import get_source_bronze_path, get_source_silver_path
 SOURCE_NAME = "siaf_income"
 DICTIONARY_FILE_NAME = "Ingresos_Diccionario.csv"
 
-TYPED_COLUMNS = [
+FINAL_COLUMNS = [
     "anio",
     "mes",
-    "monto_pia_decimal",
-    "monto_pim_decimal",
-    "monto_recaudado_decimal",
-    "bronze_processed_at_timestamp",
+    "fecha_mes",
+    "source_resource_key",
+    "source_granularity",
+    "nivel_gobierno_codigo",
+    "nivel_gobierno_nombre",
+    "sector_codigo",
+    "sector_nombre",
+    "pliego_codigo",
+    "pliego_nombre",
+    "sec_ejec",
+    "ejecutora_codigo",
+    "ejecutora_nombre",
+    "departamento_codigo",
+    "departamento_nombre",
+    "provincia_codigo",
+    "provincia_nombre",
+    "distrito_codigo",
+    "distrito_nombre",
+    "ubigeo6_ejecutora",
+    "fuente_financiamiento_codigo",
+    "fuente_financiamiento_nombre",
+    "rubro_codigo",
+    "rubro_nombre",
+    "tipo_recurso_codigo",
+    "tipo_recurso_nombre",
+    "generica_codigo",
+    "generica_nombre",
+    "subgenerica_codigo",
+    "subgenerica_nombre",
+    "subgenerica_det_codigo",
+    "subgenerica_det_nombre",
+    "especifica_codigo",
+    "especifica_nombre",
+    "especifica_det_codigo",
+    "especifica_det_nombre",
+    "monto_pia",
+    "monto_pim",
+    "monto_recaudado",
+    "is_municipal_government",
+    "is_valid_anio",
+    "is_valid_mes",
+    "is_valid_sec_ejec",
+    "is_valid_ubigeo6_ejecutora",
+    "is_valid_monto_pia",
+    "is_valid_monto_pim",
+    "is_valid_monto_recaudado",
+    "flag_pim_menor_pia",
+    "flag_recaudado_mayor_pim",
+    "has_complete_territory",
+    "silver_source_name",
+    "silver_resource_key",
+    "silver_processed_at_utc",
 ]
 
 REQUIRED_BRONZE_COLUMNS = [
     "ano_doc",
     "mes_doc",
+    "nivel_gobierno",
+    "nivel_gobierno_nombre",
+    "sector",
+    "sector_nombre",
+    "pliego",
+    "pliego_nombre",
+    "sec_ejec",
+    "ejecutora",
+    "ejecutora_nombre",
+    "departamento_ejecutora",
+    "departamento_ejecutora_nombre",
+    "provincia_ejecutora",
+    "provincia_ejecutora_nombre",
+    "distrito_ejecutora",
+    "distrito_ejecutora_nombre",
+    "fuente_financiamiento",
+    "fuente_financiamiento_nombre",
+    "rubro",
+    "rubro_nombre",
+    "tipo_recurso",
+    "tipo_recurso_nombre",
+    "generica",
+    "generica_nombre",
+    "subgenerica",
+    "subgenerica_nombre",
+    "subgenerica_det",
+    "subgenerica_det_nombre",
+    "especifica",
+    "especifica_nombre",
+    "especifica_det",
+    "especifica_det_nombre",
     "monto_pia",
     "monto_pim",
     "monto_recaudado",
-    "departamento_ejecutora",
-    "provincia_ejecutora",
-    "distrito_ejecutora",
+]
+
+BRONZE_METADATA_COLUMNS = [
     "bronze_source_name",
     "bronze_resource_key",
     "bronze_source_file_name",
@@ -50,21 +132,60 @@ REQUIRED_BRONZE_COLUMNS = [
     "bronze_processed_at_utc",
 ]
 
+BRONZE_COLUMN_MAPPING = {
+    "nivel_gobierno": "nivel_gobierno_codigo",
+    "nivel_gobierno_nombre": "nivel_gobierno_nombre",
+    "sector": "sector_codigo",
+    "sector_nombre": "sector_nombre",
+    "pliego": "pliego_codigo",
+    "pliego_nombre": "pliego_nombre",
+    "sec_ejec": "sec_ejec",
+    "ejecutora": "ejecutora_codigo",
+    "ejecutora_nombre": "ejecutora_nombre",
+    "departamento_ejecutora": "departamento_codigo",
+    "departamento_ejecutora_nombre": "departamento_nombre",
+    "provincia_ejecutora": "provincia_codigo",
+    "provincia_ejecutora_nombre": "provincia_nombre",
+    "distrito_ejecutora": "distrito_codigo",
+    "distrito_ejecutora_nombre": "distrito_nombre",
+    "fuente_financiamiento": "fuente_financiamiento_codigo",
+    "fuente_financiamiento_nombre": "fuente_financiamiento_nombre",
+    "rubro": "rubro_codigo",
+    "rubro_nombre": "rubro_nombre",
+    "tipo_recurso": "tipo_recurso_codigo",
+    "tipo_recurso_nombre": "tipo_recurso_nombre",
+    "generica": "generica_codigo",
+    "generica_nombre": "generica_nombre",
+    "subgenerica": "subgenerica_codigo",
+    "subgenerica_nombre": "subgenerica_nombre",
+    "subgenerica_det": "subgenerica_det_codigo",
+    "subgenerica_det_nombre": "subgenerica_det_nombre",
+    "especifica": "especifica_codigo",
+    "especifica_nombre": "especifica_nombre",
+    "especifica_det": "especifica_det_codigo",
+    "especifica_det_nombre": "especifica_det_nombre",
+}
+
+FIXED_WIDTH_CODES = {
+    "departamento_codigo": 2,
+    "provincia_codigo": 2,
+    "distrito_codigo": 2,
+}
+
 
 class SilverTransformError(Exception):
-    """Error controlado durante la transformación Silver de SIAF ingresos."""
+    """Error controlado durante la transformacion Silver de SIAF."""
 
 
 @dataclass(frozen=True)
 class SilverResource:
-    """Recurso MEF seleccionado para transformación Silver."""
+    """Recurso SIAF seleccionado para transformacion Silver."""
 
     resource_key: str
     bronze_path: Path
     silver_path: Path
     year: int | None
     granularity: str
-    role: str | None
 
 
 def utc_now_iso() -> str:
@@ -74,7 +195,7 @@ def utc_now_iso() -> str:
 
 
 def load_siaf_income_config() -> dict[str, Any]:
-    """Carga la configuración de la fuente SIAF ingresos."""
+    """Carga la configuracion de la fuente SIAF."""
 
     config = load_sources_config()
     source_config = get_config_value(config, f"sources.{SOURCE_NAME}")
@@ -85,13 +206,13 @@ def load_siaf_income_config() -> dict[str, Any]:
         )
 
     if not source_config.get("enabled", False):
-        raise SilverTransformError(f"La fuente '{SOURCE_NAME}' no está habilitada.")
+        raise SilverTransformError(f"La fuente '{SOURCE_NAME}' no esta habilitada.")
 
     return source_config
 
 
 def is_transformable_resource(resource: dict[str, Any]) -> bool:
-    """Indica si un recurso configurado corresponde a una tabla MEF transformable."""
+    """Indica si un recurso configurado corresponde a una tabla SIAF transformable."""
 
     return (
         resource.get("format") == "csv"
@@ -107,12 +228,12 @@ def select_silver_resources(
     bronze_dir: Path | None = None,
     silver_dir: Path | None = None,
 ) -> list[SilverResource]:
-    """Selecciona recursos MEF Bronze que se transformarán hacia Silver."""
+    """Selecciona recursos Bronze que se transformaran hacia Silver."""
 
     configured_resources = source_config.get("candidate_resources", {})
 
     if not isinstance(configured_resources, dict) or not configured_resources:
-        raise SilverTransformError("No existen recursos MEF configurados.")
+        raise SilverTransformError("No existen recursos SIAF configurados.")
 
     bronze_subdir = source_config.get("bronze_subdir", SOURCE_NAME)
     silver_subdir = source_config.get("silver_subdir", SOURCE_NAME)
@@ -129,16 +250,13 @@ def select_silver_resources(
             continue
 
         resource_year = resource.get("year")
-        resource_granularity = str(resource.get("granularity") or "unknown")
-
         selected_resources.append(
             SilverResource(
                 resource_key=resource_key,
                 bronze_path=resolved_bronze_dir / f"resource_key={resource_key}",
                 silver_path=resolved_silver_dir / f"resource_key={resource_key}",
                 year=resource_year if isinstance(resource_year, int) else None,
-                granularity=resource_granularity,
-                role=resource.get("role"),
+                granularity=str(resource.get("granularity") or "unknown"),
             )
         )
 
@@ -153,12 +271,12 @@ def select_silver_resources(
                 if isinstance(resource, dict) and is_transformable_resource(resource)
             )
             raise SilverTransformError(
-                f"Recursos MEF no válidos para Silver: {missing_keys}. "
+                f"Recursos SIAF no validos para Silver: {missing_keys}. "
                 f"Recursos disponibles: {available_keys}."
             )
 
     if not selected_resources:
-        raise SilverTransformError("No se seleccionó ningún recurso MEF para Silver.")
+        raise SilverTransformError("No se selecciono ningun recurso SIAF para Silver.")
 
     return selected_resources
 
@@ -174,7 +292,7 @@ def validate_bronze_inputs(resources: list[SilverResource]) -> list[SilverResour
 
     if missing_paths:
         raise SilverTransformError(
-            "Faltan recursos MEF en Bronze para construir Silver: "
+            "Faltan recursos SIAF en Bronze para construir Silver: "
             + ", ".join(missing_paths)
         )
 
@@ -184,7 +302,9 @@ def validate_bronze_inputs(resources: list[SilverResource]) -> list[SilverResour
 def require_bronze_columns(columns: list[str], resource: SilverResource) -> None:
     """Valida que el recurso Bronze tenga las columnas requeridas para Silver."""
 
-    missing_columns = sorted(set(REQUIRED_BRONZE_COLUMNS) - set(columns))
+    missing_columns = sorted(
+        set(REQUIRED_BRONZE_COLUMNS + BRONZE_METADATA_COLUMNS) - set(columns)
+    )
 
     if missing_columns:
         raise SilverTransformError(
@@ -212,7 +332,7 @@ def build_dry_run_summary(
             "silver_path": str(resource.silver_path),
             "bronze_exists": resource.bronze_path.exists(),
             "silver_exists": resource.silver_path.exists(),
-            "typed_columns": TYPED_COLUMNS,
+            "final_columns": FINAL_COLUMNS,
         }
 
         if resource.bronze_path.exists():
@@ -240,46 +360,241 @@ def build_dry_run_summary(
 def trim_string_columns(dataframe: Any) -> Any:
     """Aplica trim a todas las columnas string sin cambiar los nombres."""
 
-    from pyspark.sql import functions as spark_functions
+    from pyspark.sql import functions as F
     from pyspark.sql.types import StringType
 
     selected_columns = []
 
     for field in dataframe.schema.fields:
-        column = spark_functions.col(field.name)
+        column = F.col(field.name)
         if isinstance(field.dataType, StringType):
-            selected_columns.append(spark_functions.trim(column).alias(field.name))
+            selected_columns.append(F.trim(column).alias(field.name))
         else:
             selected_columns.append(column)
 
     return dataframe.select(*selected_columns)
 
 
+def try_cast_integer(column_name: str) -> Any:
+    """Castea una columna a entero tolerando texto vacio o mal formado."""
+
+    from pyspark.sql import functions as F
+
+    return F.expr(f"try_cast(nullif(trim(`{column_name}`), '') as int)")
+
+
 def cast_decimal_column(column_name: str) -> Any:
-    """Castea una columna de monto a decimal preservando precisión."""
+    """Castea una columna monetaria a decimal preservando precision."""
 
-    from pyspark.sql import functions as spark_functions
-    from pyspark.sql.types import DecimalType
+    from pyspark.sql import functions as F
 
-    normalized = spark_functions.regexp_replace(
-        spark_functions.trim(spark_functions.col(column_name)),
-        ",",
-        "",
+    return F.expr(
+        f"try_cast(regexp_replace(nullif(trim(`{column_name}`), ''), ',', '') as decimal(20,4))"
     )
-    return normalized.cast(DecimalType(20, 4))
+
+
+def normalize_string_code(column_name: str, *, width: int | None = None) -> Any:
+    """Normaliza codigos como string preservando ceros a la izquierda cuando aplica."""
+
+    from pyspark.sql import functions as F
+
+    cleaned = F.when(
+        F.trim(F.col(column_name).cast("string")) == "",
+        F.lit(None),
+    ).otherwise(F.trim(F.col(column_name).cast("string")))
+    if width is None:
+        return cleaned
+    return (
+        F.when(cleaned.isNull(), F.lit(None))
+        .when(cleaned.rlike(r"^[0-9]+$"), F.lpad(cleaned, width, "0"))
+        .otherwise(cleaned)
+    )
+
+
+def normalize_string_label(column_name: str) -> Any:
+    """Normaliza un campo descriptivo como texto sin forzar cambios semanticos."""
+
+    from pyspark.sql import functions as F
+
+    return F.when(
+        F.trim(F.col(column_name).cast("string")) == "",
+        F.lit(None),
+    ).otherwise(F.trim(F.col(column_name).cast("string")))
 
 
 def is_parseable_or_blank(original_column: str, parsed_column: str) -> Any:
     """Construye flag de validez para campos opcionales casteados."""
 
-    from pyspark.sql import functions as spark_functions
+    from pyspark.sql import functions as F
 
-    original_value = spark_functions.trim(spark_functions.col(original_column))
+    original_value = F.trim(F.col(original_column).cast("string"))
+    return F.col(original_column).isNull() | (original_value == "") | F.col(
+        parsed_column
+    ).isNotNull()
+
+
+def nonblank_condition(column_name: str) -> Any:
+    """Retorna expresion booleana para texto no nulo ni vacio."""
+
+    from pyspark.sql import functions as F
+
+    return F.col(column_name).isNotNull() & (F.trim(F.col(column_name)) != "")
+
+
+def select_curated_columns(dataframe: Any) -> Any:
+    """Proyecta y renombra las columnas de negocio finales de SIAF."""
+
+    transformed = dataframe
+
+    for bronze_column, silver_column in BRONZE_COLUMN_MAPPING.items():
+        width = FIXED_WIDTH_CODES.get(silver_column)
+        if silver_column.endswith("_nombre"):
+            transformed = transformed.withColumn(
+                silver_column, normalize_string_label(bronze_column)
+            )
+        else:
+            transformed = transformed.withColumn(
+                silver_column,
+                normalize_string_code(bronze_column, width=width),
+            )
+
+    return transformed
+
+
+def add_period_columns(dataframe: Any, resource: SilverResource) -> Any:
+    """Agrega columnas de periodo y metadatos de origen por recurso."""
+
+    from pyspark.sql import functions as F
+
+    transformed = (
+        dataframe.withColumn("anio", try_cast_integer("ano_doc"))
+        .withColumn("mes", try_cast_integer("mes_doc"))
+        .withColumn("source_resource_key", F.lit(resource.resource_key))
+        .withColumn("source_granularity", F.lit(resource.granularity))
+    )
+
+    return transformed.withColumn(
+        "fecha_mes",
+        F.when(
+            F.col("anio").isNotNull() & F.col("mes").between(1, 12),
+            F.to_date(F.format_string("%04d-%02d-01", F.col("anio"), F.col("mes"))),
+        ),
+    )
+
+
+def add_amount_columns(dataframe: Any) -> Any:
+    """Parsea montos numericos bajo los nombres finales del contrato Silver."""
 
     return (
-        spark_functions.col(original_column).isNull()
-        | (original_value == "")
-        | spark_functions.col(parsed_column).isNotNull()
+        dataframe.withColumn("_monto_pia_raw", normalize_string_label("monto_pia"))
+        .withColumn("_monto_pim_raw", normalize_string_label("monto_pim"))
+        .withColumn(
+            "_monto_recaudado_raw",
+            normalize_string_label("monto_recaudado"),
+        )
+        .withColumn("monto_pia", cast_decimal_column("monto_pia"))
+        .withColumn("monto_pim", cast_decimal_column("monto_pim"))
+        .withColumn("monto_recaudado", cast_decimal_column("monto_recaudado"))
+    )
+
+
+def add_derived_columns(dataframe: Any, resource: SilverResource) -> Any:
+    """Agrega ubigeo, flags de negocio tecnico y metadata Silver."""
+
+    from pyspark.sql import functions as F
+
+    transformed = (
+        dataframe.withColumn(
+            "ubigeo6_ejecutora",
+            F.when(
+                nonblank_condition("departamento_codigo")
+                & nonblank_condition("provincia_codigo")
+                & nonblank_condition("distrito_codigo"),
+                F.concat(
+                    F.col("departamento_codigo"),
+                    F.col("provincia_codigo"),
+                    F.col("distrito_codigo"),
+                ),
+            ),
+        )
+        .withColumn(
+            "is_municipal_government",
+            F.col("nivel_gobierno_codigo") == F.lit("M"),
+        )
+        .withColumn(
+            "is_valid_anio",
+            F.col("anio").between(2010, 2030)
+            & (
+                F.lit(resource.year).isNull()
+                | (F.col("anio") == F.lit(resource.year))
+            ),
+        )
+        .withColumn(
+            "is_valid_mes",
+            F.col("mes").between(1, 12),
+        )
+        .withColumn("is_valid_sec_ejec", nonblank_condition("sec_ejec"))
+        .withColumn(
+            "is_valid_ubigeo6_ejecutora",
+            F.coalesce(
+                F.col("ubigeo6_ejecutora").rlike(r"^[0-9]{6}$"),
+                F.lit(False),
+            ),
+        )
+        .withColumn(
+            "is_valid_monto_pia",
+            is_parseable_or_blank("_monto_pia_raw", "monto_pia"),
+        )
+        .withColumn(
+            "is_valid_monto_pim",
+            is_parseable_or_blank("_monto_pim_raw", "monto_pim"),
+        )
+        .withColumn(
+            "is_valid_monto_recaudado",
+            is_parseable_or_blank("_monto_recaudado_raw", "monto_recaudado"),
+        )
+        .withColumn(
+            "flag_pim_menor_pia",
+            F.when(
+                F.col("monto_pim").isNotNull() & F.col("monto_pia").isNotNull(),
+                F.col("monto_pim") < F.col("monto_pia"),
+            ),
+        )
+        .withColumn(
+            "flag_recaudado_mayor_pim",
+            F.when(
+                F.col("monto_recaudado").isNotNull() & F.col("monto_pim").isNotNull(),
+                F.col("monto_recaudado") > F.col("monto_pim"),
+            ),
+        )
+        .withColumn(
+            "has_complete_territory",
+            nonblank_condition("departamento_codigo")
+            & nonblank_condition("departamento_nombre")
+            & nonblank_condition("provincia_codigo")
+            & nonblank_condition("provincia_nombre")
+            & nonblank_condition("distrito_codigo")
+            & nonblank_condition("distrito_nombre"),
+        )
+    )
+
+    return transformed
+
+
+def add_silver_metadata(
+    *,
+    dataframe: Any,
+    resource: SilverResource,
+    processed_at: str,
+) -> Any:
+    """Agrega metadata tecnica Silver normalizada al nuevo contrato."""
+
+    from pyspark.sql import functions as F
+
+    return (
+        dataframe.withColumn("silver_source_name", F.lit(SOURCE_NAME))
+        .withColumn("silver_resource_key", F.lit(resource.resource_key))
+        .withColumn("silver_processed_at_utc", F.lit(processed_at))
     )
 
 
@@ -289,73 +604,22 @@ def transform_resource_dataframe(
     resource: SilverResource,
     processed_at: str,
 ) -> Any:
-    """Aplica limpieza, tipado inicial, flags y metadata Silver a un recurso MEF."""
-
-    from pyspark.sql import functions as spark_functions
+    """Aplica la transformacion Silver curada para un recurso SIAF."""
 
     require_bronze_columns(dataframe.columns, resource)
 
-    dataframe = trim_string_columns(dataframe)
-
-    transformed = (
-        dataframe.withColumn("anio", spark_functions.col("ano_doc").cast("int"))
-        .withColumn("mes", spark_functions.col("mes_doc").cast("int"))
-        .withColumn("monto_pia_decimal", cast_decimal_column("monto_pia"))
-        .withColumn("monto_pim_decimal", cast_decimal_column("monto_pim"))
-        .withColumn(
-            "monto_recaudado_decimal",
-            cast_decimal_column("monto_recaudado"),
-        )
-        .withColumn(
-            "bronze_processed_at_timestamp",
-            spark_functions.to_timestamp("bronze_processed_at_utc"),
-        )
+    transformed = trim_string_columns(dataframe)
+    transformed = select_curated_columns(transformed)
+    transformed = add_period_columns(transformed, resource)
+    transformed = add_amount_columns(transformed)
+    transformed = add_derived_columns(transformed, resource)
+    transformed = add_silver_metadata(
+        dataframe=transformed,
+        resource=resource,
+        processed_at=processed_at,
     )
 
-    bronze_year = spark_functions.col("bronze_source_year").cast("int")
-
-    transformed = (
-        transformed.withColumn(
-            "is_valid_anio",
-            spark_functions.col("anio").isNotNull()
-            & (bronze_year.isNull() | (spark_functions.col("anio") == bronze_year)),
-        )
-        .withColumn(
-            "is_valid_mes",
-            spark_functions.col("mes").between(1, 12),
-        )
-        .withColumn(
-            "is_valid_monto_pia",
-            is_parseable_or_blank("monto_pia", "monto_pia_decimal"),
-        )
-        .withColumn(
-            "is_valid_monto_pim",
-            is_parseable_or_blank("monto_pim", "monto_pim_decimal"),
-        )
-        .withColumn(
-            "is_valid_monto_recaudado",
-            is_parseable_or_blank("monto_recaudado", "monto_recaudado_decimal"),
-        )
-        .withColumn(
-            "has_complete_executora_location",
-            (spark_functions.col("departamento_ejecutora").isNotNull())
-            & (spark_functions.trim("departamento_ejecutora") != "")
-            & (spark_functions.col("provincia_ejecutora").isNotNull())
-            & (spark_functions.trim("provincia_ejecutora") != "")
-            & (spark_functions.col("distrito_ejecutora").isNotNull())
-            & (spark_functions.trim("distrito_ejecutora") != ""),
-        )
-        .withColumn("silver_source_name", spark_functions.lit(SOURCE_NAME))
-        .withColumn("silver_resource_key", spark_functions.lit(resource.resource_key))
-        .withColumn("silver_source_year", spark_functions.lit(resource.year))
-        .withColumn(
-            "silver_source_granularity",
-            spark_functions.lit(resource.granularity),
-        )
-        .withColumn("silver_processed_at_utc", spark_functions.lit(processed_at))
-    )
-
-    return transformed
+    return transformed.select(*FINAL_COLUMNS)
 
 
 def write_resource_silver(
@@ -366,7 +630,7 @@ def write_resource_silver(
     overwrite: bool,
     limit: int | None,
 ) -> None:
-    """Transforma y escribe un recurso MEF en Parquet Silver."""
+    """Transforma y escribe un recurso SIAF en Parquet Silver."""
 
     dataframe = spark.read.parquet(str(resource.bronze_path))
 
@@ -394,14 +658,14 @@ def transform_siaf_income(
     overwrite: bool,
     limit: int | None,
 ) -> list[dict[str, Any]]:
-    """Transforma SIAF ingresos hacia Silver o retorna un resumen de dry-run."""
+    """Transforma SIAF hacia Silver o retorna un resumen de dry-run."""
 
     validate_bronze_inputs(resources)
 
     from src.common.spark_session import build_spark_session
 
     logger = get_logger(__name__)
-    spark = build_spark_session(app_name="SilverMEFIncome")
+    spark = build_spark_session(app_name="SilverSIAFIncome")
 
     try:
         if dry_run:
@@ -412,7 +676,7 @@ def transform_siaf_income(
 
         for resource in resources:
             logger.info(
-                "Transformando recurso Silver MEF %s desde %s",
+                "Transformando recurso Silver SIAF %s desde %s",
                 resource.resource_key,
                 resource.bronze_path,
             )
@@ -438,16 +702,16 @@ def transform_siaf_income(
 
 
 def parse_args() -> argparse.Namespace:
-    """Procesa los argumentos de línea de comandos."""
+    """Procesa los argumentos de linea de comandos."""
 
     parser = argparse.ArgumentParser(
-        description="Limpia y estandariza SIAF ingresos desde Bronze hacia Silver."
+        description="Transforma SIAF ingresos desde Bronze hacia Silver curado."
     )
     parser.add_argument(
         "--resource",
         action="append",
         dest="resources",
-        help="Clave de recurso MEF a transformar. Puede repetirse.",
+        help="Clave de recurso SIAF a transformar. Puede repetirse.",
     )
     parser.add_argument(
         "--dry-run",
@@ -463,7 +727,7 @@ def parse_args() -> argparse.Namespace:
         "--limit",
         type=int,
         default=None,
-        help="Limita filas por recurso para pruebas locales. Por defecto procesa todo.",
+        help="Limita filas por recurso para pruebas locales.",
     )
     return parser.parse_args()
 
@@ -493,7 +757,7 @@ def main() -> None:
     print("Silver SIAF ingresos")
     print(f"Modo dry-run: {args.dry_run}")
     print(f"Recursos seleccionados: {len(summary)}")
-    print(f"Columnas tipadas previstas: {', '.join(TYPED_COLUMNS)}")
+    print(f"Columnas finales previstas: {', '.join(FINAL_COLUMNS)}")
 
     for item in summary:
         row_count = item.get("row_count", "n/a")
@@ -511,9 +775,9 @@ def main() -> None:
             print(f"  lectura Spark: no evaluada ({item.get('read_error')})")
 
     if args.dry_run:
-        print("Dry-run finalizado. No se escribió Parquet ni se tocó data/silver.")
+        print("Dry-run finalizado. No se escribio Parquet ni se toco data/silver.")
     else:
-        print("Transformación Silver MEF finalizada.")
+        print("Transformacion Silver SIAF finalizada.")
 
 
 if __name__ == "__main__":
