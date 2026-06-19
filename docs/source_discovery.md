@@ -10,11 +10,12 @@ Esta documentación no reemplaza el profiling. El discovery se enfoca en acceso,
 
 ## Estado actual del documento
 
-El discovery permitió identificar recursos directos para las tres fuentes principales del proyecto:
+El discovery permitió identificar recursos directos para cuatro fuentes principales del proyecto:
 
 - MEF de presupuesto y ejecución de ingresos.
 - MEF / SISMERE de seguimiento de meta del impuesto predial.
 - INEI RENAMU 2022.
+- MEF Clasificación Municipal 2019.
 
 En el estado actual, las tres fuentes cuentan con procesos de ingesta controlada hacia Landing usando recursos centralizados en `config/sources.yaml`.
 
@@ -472,6 +473,17 @@ Las pruebas realizadas confirman que:
 
 La siguiente etapa operativa será ejecutar una descarga local completa y controlada de las fuentes necesarias, revisar la auditoría generada y luego perfilar los archivos descargados antes de construir Bronze Parquet.
 
-## Fuente manual fuera de discovery web: categorías municipales
+## Fuente MEF: Clasificación Municipal 2019
 
-`CategoriasMunicipalidades.csv` no se evalúa mediante discovery HTTP porque no proviene de un portal público ni de una URL descargable. Se registra como fuente manual controlada en `config/sources.yaml`, se conserva en `data/landing/category/` y se valida operativamente durante la construcción Bronze.
+La clasificación municipal del MEF sí participa en discovery HTTP porque proviene de una página pública con siete PDF descargables. La fuente se registra en `config/sources.yaml` como `municipal_classification`, se descarga a `data/landing/municipal_classification/raw/`, genera CSV extraídos en `data/landing/municipal_classification/extracted_csv/` y se valida operativamente durante la construcción Bronze.
+
+Conteos oficiales validados por PDF:
+
+- Tipo A: 74
+- Tipo B: 122
+- Tipo C: 42
+- Tipo D: 129
+- Tipo E: 378
+- Tipo F: 509
+- Tipo G: 620
+- Total validado: 1874

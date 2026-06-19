@@ -4,7 +4,7 @@
 
 Este documento describe la estrategia de calidad de datos aplicada al proyecto **Municipal Revenue Big Data Analytics**.
 
-La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar SIAF, SISMEPRE, RENAMU y la fuente manual de categorías municipales.
+La calidad de datos verifica que las capas procesadas del lakehouse sean legibles, trazables y suficientemente consistentes para avanzar entre etapas. En Bronze se valida el contrato técnico mínimo de preservación y trazabilidad. En Silver se valida el resultado posterior a limpieza, tipado y estandarización por fuente, antes de integrar SIAF, SISMEPRE, RENAMU y la clasificación municipal oficial del MEF.
 
 El objetivo no es corregir datos dentro del motor de calidad ni construir el modelo analítico final. El objetivo es medir riesgos, dejar evidencia reproducible y separar problemas técnicos bloqueantes de hallazgos de datos que requieren interpretación.
 
@@ -24,7 +24,7 @@ Fuentes evaluadas:
 | `siaf_income` | Presupuesto y ejecución de ingresos SIAF. | 17 |
 | `sismepre` | Seguimiento de la meta del impuesto sismepre. | 7 |
 | `renamu` | Registro Nacional de Municipalidades 2022. | 1 |
-| `municipal_categories` | Categorías municipales manuales. | 1 |
+| `municipal_classification` | Clasificación Municipal MEF 2019. | 1 |
 
 ## Configuración
 
@@ -82,6 +82,11 @@ Estos archivos son derivados locales y no deben versionarse.
 | `exact_duplicate_rows` | `WARNING` | Detecta duplicados exactos. |
 | `invalid_year` | `WARNING` | Evalúa año si existe columna candidata. |
 | `invalid_ubigeo` | `WARNING` | Evalúa formato de ubigeo si existe columna candidata. |
+| `expected_columns_present` | `FAIL` | Evalúa el contrato Bronze esperado para fuentes con esquema definido. |
+| `valid_tipo_clasificacion` | `FAIL` | Evalúa que `tipo_clasificacion` solo contenga valores `A` a `G`. |
+| `expected_total_rows` | `FAIL` | Evalúa el total oficial esperado cuando existe referencia externa. |
+| `expected_rows_by_tipo` | `FAIL` | Evalúa los conteos oficiales por tipo municipal. |
+| `duplicate_key_check_anio_ubigeo` | `FAIL` | Evalúa ausencia de duplicados por `anio + ubigeo`. |
 | `invalid_percentage` | `WARNING` | Evalúa porcentajes si existen columnas candidatas. |
 
 ### Resultado observado Bronze

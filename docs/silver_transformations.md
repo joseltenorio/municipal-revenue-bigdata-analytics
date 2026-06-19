@@ -309,7 +309,7 @@ La nueva estrategia de modelado se organizará por fuentes reales:
 | SIAF ingresos | `siaf_income` | Hecho financiero de ingresos y recaudación presupuestal. |
 | SISMEPRE | `sismepre` | Hechos y cuestionarios de meta del impuesto predial. |
 | RENAMU | `renamu` | Contexto institucional y territorial municipal. |
-| Categorías municipales | `municipal_categories` | Segmentación manual A-G; no debe asumirse como match perfecto. |
+| Clasificación municipal MEF | `municipal_classification` | Segmentación oficial A-G por `ubigeo`; no debe degradarse a matching por nombre. |
 
 Salidas Silver objetivo:
 
@@ -321,7 +321,7 @@ silver/sismepre/preguntas
 silver/sismepre/respuestas
 silver/renamu/full_clean
 silver/renamu/municipal_context
-silver/municipal_categories
+silver/municipal_classification
 silver/integrated/municipal_entity_bridge
 ```
 

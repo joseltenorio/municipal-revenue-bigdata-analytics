@@ -194,4 +194,4 @@ dim_sismepre_question
 dim_municipal_category
 ```
 
-La categoría municipal manual debe entrar mediante `dim_municipality` con estado de matching explícito. No debe aplicarse como join directo por nombre sin control de ambigüedad.
+La clasificación municipal oficial del MEF debe entrar mediante `dim_municipality` o el puente municipal usando `ubigeo6`. No debe degradarse a un join directo por nombre cuando exista llave territorial disponible.

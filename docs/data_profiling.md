@@ -24,6 +24,7 @@ El profiling inicial estuvo orientado a Landing y Bronze. Después de generar Si
 El alcance actual cubre:
 
 - Archivos locales de Landing para SIAF, SISMEPRE y RENAMU.
+- Archivos locales de Landing para Clasificación Municipal MEF 2019.
 - Recursos Bronze Parquet generados para las tres fuentes.
 - Recursos Silver Parquet ya limpiados y tipados por fuente.
 - Resultados locales de calidad Bronze y Silver.
@@ -69,6 +70,8 @@ data/quality/silver_quality_results.jsonl
 El notebook no debe guardar CSV, HTML ni outputs pesados. Su objetivo es facilitar lectura agregada de resultados para revisar riesgos de integración.
 
 ## Resultados de calidad usados como profiling operativo
+
+La incorporación de `municipal_classification` agrega una fuente Bronze consolidada adicional. Sus validaciones clave son: conteo total oficial 1874, conteos A-G exactos, `ubigeo` de seis dígitos y ausencia de duplicados por `anio + ubigeo`.
 
 ### Bronze
 
@@ -152,7 +155,7 @@ Implicancia: la integración sismepre debe revisar relaciones entre formularios,
 
 ### RENAMU
 
-RENAMU cuenta con 1 recurso Silver ancho. Los hallazgos principales son:
+RENAMU cuenta con 1 recurso Silver curado (`municipal_context`). Los hallazgos principales son:
 
 - El recurso pasa validaciones técnicas.
 - Las columnas territoriales normalizadas y flags esperados están presentes.

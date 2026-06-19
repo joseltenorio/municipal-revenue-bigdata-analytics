@@ -25,13 +25,14 @@ Gold ahora está completamente poblado con tablas externas mapeando los marts de
 
 ## Tablas Bronze
 
-La base `bronze` registra 25 tablas externas. Cada tabla representa un recurso Bronze específico bajo su `resource_key`.
+La base `bronze` registra tablas externas sobre recursos Bronze existentes. Normalmente cada tabla representa un `resource_key`, pero también puede registrar datasets directos consolidados como `municipal_classification`.
 
-El diseño usa una tabla por recurso en lugar de una tabla particionada única porque:
+El diseño usa una tabla por recurso o por dataset consolidado porque:
 
 - Las fuentes tienen esquemas heterogéneos.
 - Predial contiene recursos con estructuras distintas.
 - RENAMU es un dataset ancho.
+- Clasificación municipal se consolida en un único dataset Bronze y no requiere siete tablas separadas.
 - La validación con `SELECT COUNT(*)` es directa.
 - Se evita depender de reparación de particiones con `MSCK REPAIR TABLE`.
 

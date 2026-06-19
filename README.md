@@ -27,6 +27,7 @@ Las fuentes principales del proyecto son:
 - Presupuesto y ejecución de ingresos del MEF / SIAF.
 - Seguimiento de la meta del impuesto sismepre desde SISMERE / MEF.
 - Registro Nacional de Municipalidades RENAMU 2022 del INEI.
+- Clasificación Municipal MEF 2019, publicada como siete PDF oficiales A-G.
 
 ## Arquitectura General
 

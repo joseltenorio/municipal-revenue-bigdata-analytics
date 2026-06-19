@@ -12,7 +12,7 @@
 
 Municipal Revenue Big Data Analytics es un proyecto local de ingeniería y analítica de datos orientado al análisis del presupuesto, ejecución de ingresos e impuesto predial de municipalidades peruanas.
 
-El proyecto integra tres fuentes públicas del MEF, SISMERE / Meta del Impuesto Predial e INEI, junto con una fuente manual controlada de categorías municipales entregada como CSV local, para construir un flujo completo de datos basado en arquitectura Medallion, procesamiento con Apache Spark/Python, almacenamiento en Parquet, catálogo SQL con Apache Hive y visualización final en Power BI.
+El proyecto integra cuatro fuentes públicas del MEF, SISMERE / Meta del Impuesto Predial e INEI, incluyendo la Clasificación Municipal MEF 2019 publicada como PDFs oficiales, para construir un flujo completo de datos basado en arquitectura Medallion, procesamiento con Apache Spark/Python, almacenamiento en Parquet, catálogo SQL con Apache Hive y visualización final en Power BI.
 
 El objetivo no es construir únicamente un dashboard, sino implementar una solución analítica trazable, documentada y defendible desde las perspectivas de Data Engineering, Data Analysis y Data Science inicial.
 
@@ -62,7 +62,7 @@ Las fuentes principales del proyecto son:
 
    Fuente contextual para enriquecer el análisis territorial y municipal.
 
-4. **Categorías de municipalidades - CSV manual controlado**
+4. **Clasificación Municipal MEF 2019**
 
    Fuente local entregada como insumo académico para clasificar municipalidades por categoría y habilitar segmentación analítica. A diferencia de las otras tres fuentes, este archivo no se descarga desde web y se versiona de forma controlada en `data/landing/category/`.
 
@@ -133,7 +133,7 @@ Este proyecto no incluye:
 
 El proyecto se guiará por los siguientes criterios:
 
-- No subir datos reales descargados, credenciales, `.env`, `.venv`, Parquet, ZIP, XLSX ni logs pesados al repositorio. La excepción controlada es `data/landing/category/CategoriasMunicipalidades.csv`, porque es una fuente manual pequeña no descargable desde web.
+- No subir datos reales descargados, credenciales, `.env`, `.venv`, Parquet, ZIP, XLSX, PDF ni logs pesados al repositorio.
 - Mantener las rutas internas del proyecto centralizadas en `src/common/paths.py`.
 - No usar `.env` para rutas internas como `data/landing`, `data/bronze`, `data/silver` o `data/gold`.
 - Definir el modelo Gold después del profiling y la integración Silver, no antes.

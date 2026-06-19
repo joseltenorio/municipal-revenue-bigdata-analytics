@@ -15,7 +15,7 @@ La capa Bronze cubre cuatro familias de fuentes:
 | `siaf_income` | Consulta de ingresos SIAF / MEF | Web / CSV descargado | Ingresos municipales y clasificadores presupuestales |
 | `sismepre` | SISMEPRE / Rentas municipales | Web / CSV descargado | Estadística predial, formularios, preguntas y respuestas |
 | `renamu` | Registro Nacional de Municipalidades 2022 | Web / ZIP/CSV descargado | Contexto institucional, territorial y operativo municipal |
-| `municipal_categories` | Categorías municipales entregadas manualmente | CSV manual | Segmentación por categoría municipal |
+| `municipal_classification` | Clasificación Municipal MEF 2019 | PDF oficial + CSV extraído | Segmentación oficial por tipo municipal A-G |
 
 ## Criterios Bronze
 
@@ -350,32 +350,46 @@ La nomenclatura exacta puede variar según el script Bronze, pero la intención 
 
 ---
 
-# 4. Fuente Bronze: `municipal_categories`
+# 4. Fuente Bronze: `municipal_classification`
 
 ## Descripción
 
-`municipal_categories` es una fuente manual entregada como CSV. Contiene categorías municipales asociadas a nombres de municipalidades.
+`municipal_classification` consolida los siete PDF oficiales de Clasificación Municipal 2019 publicados por el MEF. Bronze preserva una fila por municipalidad clasificada y conserva metadata técnica del PDF origen.
 
 ## Recurso Bronze esperado
 
 | Recurso | Descripción |
 | ------- | ----------- |
-| `categorias_municipalidades` | Categorías municipales manuales. |
+| `municipal_classification` | Dataset consolidado con tipos A-G y metadata de trazabilidad. |
 
-## Columnas originales
+## Columnas Bronze consolidadas
 
 | Columna original | Descripción |
 | ---------------- | ----------- |
-| `Municipalidad` | Nombre textual de la municipalidad. |
-| `Categoria` | Categoría municipal asignada. |
+| `anio` | Año lógico del dataset. Valor esperado: `2019`. |
+| `tipo_clasificacion` | Tipo oficial `A` a `G`. |
+| `ambito_municipal` | Ambito oficial: `provincial` o `distrital`. |
+| `descripcion_tipo` | Descripción oficial del tipo municipal. |
+| `nro` | Orden mostrado en el PDF. |
+| `ubigeo` | Ubigeo textual de 6 dígitos. |
+| `departamento_nombre` | Nombre de departamento. |
+| `provincia_nombre` | Nombre de provincia. |
+| `distrito_nombre` | Nombre de distrito. |
+| `bronze_source_name` | Valor esperado: `municipal_classification`. |
+| `bronze_resource_key` | PDF origen: `tipo_a` a `tipo_g`. |
+| `bronze_source_file_name` | Nombre local del PDF descargado. |
+| `bronze_source_file_path` | Ruta local del PDF en Landing. |
+| `bronze_source_url` | URL oficial del PDF. |
+| `bronze_source_page_url` | Página oficial del MEF. |
+| `bronze_processed_at_utc` | Timestamp UTC de construcción Bronze. |
 
 ## Observaciones Bronze
 
-- Esta fuente no proviene de descarga web.
-- Debe versionarse en landing porque no puede regenerarse automáticamente desde una URL.
-- Bronze solo la convierte a Parquet.
-- Silver normalizará nombres y validará categorías `A` a `G`.
-- La fuente no debe usarse para match automático perfecto sin control de duplicados y ambigüedad.
+- Landing conserva PDFs originales y CSV extraídos locales, pero esos artefactos no deben versionarse.
+- Bronze consolida los siete tipos en un único dataset, no en siete tablas separadas.
+- `ubigeo` debe mantenerse como texto para no perder ceros a la izquierda.
+- La integración posterior debe hacerse por `ubigeo` o `ubigeo6`, no por nombre municipal.
+- Los conteos oficiales validados son A=74, B=122, C=42, D=129, E=378, F=509, G=620, total 1874.
 
 ---
 

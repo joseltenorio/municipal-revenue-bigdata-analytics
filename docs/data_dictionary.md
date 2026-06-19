@@ -362,6 +362,45 @@ Quedan para profiling, calidad y Silver:
 - Tipar campos categóricos y numéricos relevantes.
 - Reducir o estructurar la tabla para uso analítico posterior.
 
+## 4. Clasificación Municipal MEF 2019
+
+### Descripción
+
+`municipal_classification` consolida los siete PDF oficiales de Clasificación Municipal 2019 publicados por el MEF. Bronze mantiene una fila por municipalidad clasificada y conserva metadata técnica del PDF origen.
+
+### Ruta Bronze
+
+```text
+data/bronze/municipal_classification/
+```
+
+### Recurso Bronze convertido
+
+| Resource key | Archivo Landing | Año | Observación |
+| ------------ | --------------- | --- | ----------- |
+| `municipal_classification` | `tipo_a.pdf` ... `tipo_g.pdf` | 2019 | Dataset consolidado desde siete PDF oficiales A-G con CSV intermedios regenerables en Landing. |
+
+### Metadata Bronze
+
+| Campo | Descripción |
+| ----- | ----------- |
+| `bronze_source_name` | Valor esperado: `municipal_classification`. |
+| `bronze_resource_key` | PDF origen: `tipo_a` a `tipo_g`. |
+| `bronze_source_file_name` | Nombre local del PDF descargado. |
+| `bronze_source_file_path` | Ruta local del PDF en Landing. |
+| `bronze_source_url` | URL oficial del PDF. |
+| `bronze_source_page_url` | Página oficial del MEF. |
+| `bronze_processed_at_utc` | Fecha y hora UTC del procesamiento Bronze. |
+
+### Contrato funcional mínimo
+
+- `anio = 2019` para todas las filas.
+- `ubigeo` como string de 6 dígitos.
+- `tipo_clasificacion` limitado a `A`..`G`.
+- `ambito_municipal` limitado a `provincial` o `distrital`.
+- Conteos oficiales validados: A=74, B=122, C=42, D=129, E=378, F=509, G=620, total 1874.
+- La integración posterior debe realizarse por `ubigeo` o `ubigeo6`.
+
 ## Exclusiones generales del contrato Bronze
 
 No forman parte de los datasets Bronze:

@@ -2,7 +2,7 @@
 
 ## Propósito del documento
 
-Este documento describe las fuentes consideradas para el proyecto **Municipal Revenue Big Data Analytics**: tres fuentes públicas descargadas desde web y una fuente manual controlada de categorías municipales.
+Este documento describe las fuentes consideradas para el proyecto **Municipal Revenue Big Data Analytics**: cuatro fuentes públicas descargables o regenerables desde web.
 
 El objetivo es identificar el origen, uso analítico, método de acceso observado, formato esperado, recursos disponibles, riesgos y criterios de uso para los procesos de ingesta hacia Landing.
 
@@ -14,7 +14,7 @@ Actualmente, el proyecto cuenta con:
 
 - Inventario de fuentes principales.
 - Recursos directos identificados para MEF, SISMEPRE y RENAMU.
-- Fuente manual de categorías municipales registrada como insumo local controlado.
+- Fuente oficial de clasificación municipal del MEF registrada como insumo descargable y regenerable.
 - Descarga controlada implementada para la fuente MEF de presupuesto y ejecución de ingresos.
 - Descarga controlada implementada para la fuente de seguimiento de meta del impuesto predial.
 - Descarga y extracción controlada implementada para RENAMU 2022.
@@ -31,7 +31,7 @@ Este documento no representa todavía el modelo final de datos. Su función es d
 | Presupuesto y ejecución de ingresos      | MEF / SIAF    | Análisis presupuestal y ejecución de ingresos municipales | CSV directo                    | Ingesta controlada hacia Landing disponible               |
 | Seguimiento de meta del impuesto predial | MEF / SISMERE | Análisis de avance y cumplimiento de SISMEPRE         | CSV directo                    | Ingesta controlada hacia Landing disponible               |
 | RENAMU 2022                              | INEI          | Contexto territorial y municipal                          | ZIP completo y diccionario PDF | Descarga y extracción controlada hacia Landing disponible |
-| Categorías de municipalidades            | Docente/local | Segmentación por categoría municipal                       | CSV manual                     | Fuente local versionada en Landing y convertible a Bronze |
+| Clasificación Municipal MEF 2019        | MEF           | Segmentación oficial por tipo municipal A-G               | PDF oficial + CSV extraído     | Descarga y extracción controlada hacia Landing disponible |
 
 ## Fuente 1: Presupuesto y ejecución de ingresos - MEF / SIAF
 
@@ -542,37 +542,59 @@ Las siguientes etapas técnicas serán:
 - Perfilar archivos descargados en Landing.
 - Convertir fuentes Landing hacia Bronze Parquet.
 
-## Fuente 4: Categorías de municipalidades - CSV manual controlado
+## Fuente 4: Clasificación Municipal MEF 2019
 
 ### Descripción
 
-Fuente local entregada como insumo académico para clasificar municipalidades por categoría. No proviene de descarga web; por eso se conserva de forma controlada en `data/landing/category/CategoriasMunicipalidades.csv` y es la única excepción al criterio general de no versionar CSV de Landing.
+Fuente oficial del Ministerio de Economía y Finanzas publicada en gob.pe como siete PDF de Clasificación Municipal 2019. Cada PDF representa un tipo de clasificación A-G y debe conservarse en Landing junto con un CSV extraído localmente para trazabilidad y regeneración.
 
 ### Método de acceso observado
 
-Método observado: CSV manual local con delimitador `;`.
+Método observado: PDF descargable.
 
-### Ubicación Landing
+### Landing esperado
 
 ```text
-data/landing/category/CategoriasMunicipalidades.csv
+data/landing/municipal_classification/raw/tipo_a.pdf
+data/landing/municipal_classification/raw/tipo_b.pdf
+data/landing/municipal_classification/raw/tipo_c.pdf
+data/landing/municipal_classification/raw/tipo_d.pdf
+data/landing/municipal_classification/raw/tipo_e.pdf
+data/landing/municipal_classification/raw/tipo_f.pdf
+data/landing/municipal_classification/raw/tipo_g.pdf
+data/landing/municipal_classification/extracted_csv/tipo_a.csv
+...
+data/landing/municipal_classification/manifest.json
 ```
 
 ### Uso en Bronze
 
-La fuente se convierte a Parquet mediante:
+La fuente se descarga, extrae y consolida a Bronze mediante:
 
 ```powershell
-python -m src.bronze.build_bronze_municipal_categories --dry-run
-python -m src.bronze.build_bronze_municipal_categories --overwrite
+python -m src.bronze.build_bronze_municipal_classification --dry-run
+python -m src.bronze.build_bronze_municipal_classification --overwrite
 ```
 
 La salida Bronze esperada es:
 
 ```text
-data/bronze/municipal_categories/resource_key=categorias_municipalidades/
+data/bronze/municipal_classification/
 ```
 
 ### Criterio de uso
 
-Bronze solo preserva la fuente en Parquet con metadata técnica. La normalización de nombres municipales, resolución de duplicados, ambigüedades y reglas de cruce deben definirse en Silver/Gold, no en Bronze.
+Bronze consolida los siete tipos A-G en un único dataset Parquet con `anio = 2019`, `ubigeo` como texto de seis dígitos y metadata técnica por PDF origen. La integración posterior debe realizarse por `ubigeo`, no por nombre municipal.
+
+### Conteos oficiales esperados
+
+| Tipo | Filas esperadas |
+| --- | ---: |
+| `A` | 74 |
+| `B` | 122 |
+| `C` | 42 |
+| `D` | 129 |
+| `E` | 378 |
+| `F` | 509 |
+| `G` | 620 |
+| Total validado | 1874 |
